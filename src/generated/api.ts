@@ -25288,6 +25288,8 @@ export interface components {
             name?: components["schemas"]["StrippedNonemptyString"] | null;
             /** Region */
             region?: ("us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1") | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Topic Modeling Enabled */
             topic_modeling_enabled?: boolean | null;
         };
@@ -26495,6 +26497,8 @@ export interface components {
             region: string;
             /** Slug */
             slug: string;
+            /** Timezone */
+            timezone: string | null;
             /** Topic Modeling Enabled */
             topic_modeling_enabled: boolean;
             /**

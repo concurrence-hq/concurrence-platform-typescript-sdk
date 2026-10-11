@@ -43457,6 +43457,19 @@
             ],
             "title": "Region"
           },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
           "topic_modeling_enabled": {
             "anyOf": [
               {
@@ -46349,6 +46362,17 @@
             "title": "Slug",
             "type": "string"
           },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
           "topic_modeling_enabled": {
             "title": "Topic Modeling Enabled",
             "type": "boolean"
@@ -46366,6 +46390,7 @@
           "backend_org_id",
           "region",
           "connector_type",
+          "timezone",
           "topic_modeling_enabled",
           "delta_sharing_enabled",
           "delta_sharing_mode",
