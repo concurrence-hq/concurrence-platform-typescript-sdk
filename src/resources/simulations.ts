@@ -250,7 +250,7 @@ export class SimulationsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Saved simulation cases — durable scenarios (persona, instructions, evals)
+   * Saved simulation cases: durable scenarios (persona, instructions, evals)
    * that suites select and that run as graded case runs.
    */
   readonly cases = {
@@ -313,7 +313,7 @@ export class SimulationsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Simulation suites — named selections of saved cases (explicit `case_ids`
+   * Simulation suites: named selections of saved cases (explicit `case_ids`
    * plus every case carrying all `required_tags`) that run as one suite run.
    */
   readonly suites = {
@@ -391,7 +391,7 @@ export class SimulationsResource extends WorkspaceScopedResource {
       ),
   }
 
-  /** Suite runs — the durable record of one suite launch */
+  /** Suite runs: the durable record of one suite launch */
   readonly suiteRuns = {
     /**
      * Get a suite run's server-side summary (expected vs started cases, status
@@ -405,7 +405,7 @@ export class SimulationsResource extends WorkspaceScopedResource {
       ),
   }
 
-  /** Benchmarks — batches of saved cases selected by `suite_id` or `required_tags` */
+  /** Benchmarks: batches of saved cases selected by `suite_id` or `required_tags` */
   readonly benchmarks = {
     /**
      * Start one graded case run per selected case. With `suite_id` it is a
