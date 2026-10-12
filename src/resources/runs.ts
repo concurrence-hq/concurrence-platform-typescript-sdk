@@ -1,11 +1,17 @@
-import type { components } from '../generated/api.js'
+import type { components, paths } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
+
+// Filter values come from the generated spec, so they track the API's enums.
+type RunsListQuery = NonNullable<paths['/v1/{workspace_id}/runs']['get']['parameters']['query']>
+type RunsSummaryQuery = NonNullable<
+  paths['/v1/{workspace_id}/runs/summary']['get']['parameters']['query']
+>
 
 /**
  * Unified runs — the channel-neutral run backbone.
  *
- * Every agent trajectory is a Run: a conversation run (voice / text / sms /
- * email / web, from Lakebase `world.conversations`) OR a framework run
+ * Every agent trajectory is a Run: a conversation run (any channel, from
+ * Lakebase `world.conversations`) OR a framework run
  * (claude-agent-sdk / openai-agents, from the Delta `world.runs` MV), federated
  * behind one `Run` contract. This resource is the SDK surface for that backbone:
  * list + summary + single-run detail + framework trajectory (reads), plus the
@@ -31,9 +37,9 @@ export class RunsResource extends WorkspaceScopedResource {
   async list(params?: {
     limit?: number
     continuationToken?: unknown
-    kind?: ('conversation' | 'framework')[]
-    channel?: ('voice' | 'text' | 'sms' | 'email' | 'web')[]
-    status?: ('live' | 'running' | 'paused' | 'completed' | 'failed' | 'timed_out')[]
+    kind?: RunsListQuery['kind']
+    channel?: RunsListQuery['channel']
+    status?: RunsListQuery['status']
     serviceId?: string[]
     sortBy?: string[]
   }) {
@@ -57,8 +63,8 @@ export class RunsResource extends WorkspaceScopedResource {
 
   /** Aggregate run counts (total / live / by-status / by-kind). */
   async summary(params?: {
-    kind?: ('conversation' | 'framework')[]
-    channel?: ('voice' | 'text' | 'sms' | 'email' | 'web')[]
+    kind?: RunsSummaryQuery['kind']
+    channel?: RunsSummaryQuery['channel']
   }) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/runs/summary', {
