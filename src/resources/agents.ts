@@ -68,7 +68,7 @@ export class AgentsResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/agents/{agent_id}/versions/{version}', {
         params: {
-          path: { workspace_id: this.workspaceId, agent_id: agentId, version: String(version) },
+          path: { workspace_id: this.workspaceId, agent_id: agentId, version },
         },
       }),
     )
