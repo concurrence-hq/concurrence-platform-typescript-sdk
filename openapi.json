@@ -2541,6 +2541,24 @@
         "title": "BookingResponse",
         "type": "object"
       },
+      "BooleanCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "BooleanCount",
+        "type": "object"
+      },
       "BooleanMetricValueResponse": {
         "properties": {
           "avg_confidence": {
@@ -2565,6 +2583,15 @@
               }
             ],
             "title": "Computed At"
+          },
+          "distribution": {
+            "default": [],
+            "description": "Events per value in this row's period, most frequent first. A list-metrics latest row\nlists both values its period saw; any other row lists its own value.",
+            "items": {
+              "$ref": "#/components/schemas/BooleanCount"
+            },
+            "title": "Distribution",
+            "type": "array"
           },
           "entity_id": {
             "anyOf": [
@@ -2670,6 +2697,7 @@
                 "type": "null"
               }
             ],
+            "description": "The value this row counts. A list-metrics latest row gives its period's more frequent value.",
             "title": "Value"
           }
         },
@@ -5066,6 +5094,15 @@
             ],
             "title": "Computed At"
           },
+          "distribution": {
+            "default": [],
+            "description": "Events per category in this row's period, most frequent first. A list-metrics latest row\nlists every category its period saw; any other row lists its own category.",
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            },
+            "title": "Distribution",
+            "type": "array"
+          },
           "entity_id": {
             "anyOf": [
               {
@@ -5170,6 +5207,7 @@
                 "type": "null"
               }
             ],
+            "description": "The category this row counts. A list-metrics latest row gives its period's most frequent category.",
             "title": "Value"
           }
         },
@@ -5182,6 +5220,24 @@
           "value"
         ],
         "title": "CategoricalMetricValueResponse",
+        "type": "object"
+      },
+      "CategoryCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "CategoryCount",
         "type": "object"
       },
       "ChangeColumnTypeAction": {
@@ -7412,6 +7468,12 @@
             "title": "Status",
             "type": "string"
           },
+          "truncated": {
+            "default": false,
+            "description": "True when the conversation recorded more entries than one read takes (10,000), so the turns stop before the end of the conversation.",
+            "title": "Truncated",
+            "type": "boolean"
+          },
           "turn_count": {
             "default": 0,
             "title": "Turn Count",
@@ -7891,6 +7953,36 @@
           "description"
         ],
         "title": "ConversationTurnAvailableAction",
+        "type": "object"
+      },
+      "ConversationTurnListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationTurn"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "truncated": {
+            "description": "True when the conversation recorded more entries than one read takes (10,000), so the turns stop before the end of the conversation.",
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "has_more",
+          "truncated"
+        ],
+        "title": "ConversationTurnListResponse",
         "type": "object"
       },
       "ConversationTurnStateTransition": {
@@ -8714,10 +8806,8 @@
             "type": "array"
           },
           "role": {
-            "default": "member",
-            "maxLength": 64,
-            "title": "Role",
-            "type": "string"
+            "$ref": "#/components/schemas/PlatformRole",
+            "default": "member"
           }
         },
         "required": [
@@ -9496,6 +9586,7 @@
           },
           "tags": {
             "items": {
+              "maxLength": 128,
               "type": "string"
             },
             "maxItems": 20,
@@ -9717,6 +9808,7 @@
           },
           "tags": {
             "items": {
+              "maxLength": 128,
               "type": "string"
             },
             "maxItems": 20,
@@ -23232,6 +23324,48 @@
         "title": "MetricStoreRunStatusResponse",
         "type": "object"
       },
+      "MetricValueListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "metrics": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "boolean": "#/components/schemas/BooleanMetricValueResponse",
+                  "categorical": "#/components/schemas/CategoricalMetricValueResponse",
+                  "numerical": "#/components/schemas/NumericalMetricValueResponse"
+                },
+                "propertyName": "metric_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/NumericalMetricValueResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoricalMetricValueResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/BooleanMetricValueResponse"
+                }
+              ]
+            },
+            "title": "Metrics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "metrics",
+          "has_more"
+        ],
+        "title": "MetricValueListResponse",
+        "type": "object"
+      },
       "MigrationConversationItem": {
         "properties": {
           "channel_kind": {
@@ -27293,6 +27427,17 @@
         ],
         "title": "PipelineSyncCompletedEvent",
         "type": "object"
+      },
+      "PlatformRole": {
+        "enum": [
+          "owner",
+          "admin",
+          "member",
+          "operator",
+          "viewer"
+        ],
+        "title": "PlatformRole",
+        "type": "string"
       },
       "PlaybackTimeline": {
         "properties": {
@@ -31708,8 +31853,19 @@
         "type": "object"
       },
       "ServiceForwardingConfig": {
-        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nPresence of this block is the whole gate for the ``forward_call`` tool:\nNone means the agent cannot transfer at all. When present, ``forward_to``\npicks the destination mode, and the tool schema follows it \u2014 a static\nservice gets an argument-less tool, a dynamic one gets a required\n``phone_number``. Nothing cascades: a service is one mode or the other.",
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it \u2014 a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other.",
         "properties": {
+          "approved_destinations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 50,
+            "propertyNames": {
+              "$ref": "#/components/schemas/PhoneE164"
+            },
+            "title": "Approved Destinations",
+            "type": "object"
+          },
           "forward_to": {
             "anyOf": [
               {
@@ -42227,6 +42383,12 @@
             ],
             "title": "Id"
           },
+          "incomplete": {
+            "default": false,
+            "description": "The call ended while the caller was still saying ``user_transcript``, so nothing answered it.",
+            "title": "Incomplete",
+            "type": "boolean"
+          },
           "inner_thoughts": {
             "default": [],
             "items": {
@@ -46293,6 +46455,11 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VersionNumber": {
+        "maximum": 2147483647.0,
+        "minimum": 1.0,
+        "type": "integer"
+      },
       "VersionSet-Input": {
         "description": "Pins agent, state machine, and LLM model versions for a service.",
         "properties": {
@@ -48555,6 +48722,10 @@
         ],
         "type": "string"
       },
+      "src__routes__conversations___SortField": {
+        "const": "turn_index",
+        "type": "string"
+      },
       "src__routes__external_auth_claim_mappings__CreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -49414,6 +49585,13 @@
         ],
         "title": "Request",
         "type": "object"
+      },
+      "src__routes__metrics___SortField": {
+        "enum": [
+          "metric_key",
+          "period_start"
+        ],
+        "type": "string"
       },
       "src__routes__operators_models__AuditEventResponse": {
         "properties": {
@@ -52862,9 +53040,10 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "$ref": "#/components/schemas/VersionNumber"
                 },
                 {
+                  "const": "latest",
                   "type": "string"
                 }
               ],
@@ -54680,7 +54859,7 @@
     },
     "/v1/{workspace_id}/api-keys": {
       "get": {
-        "description": "List all API keys for a workspace with pagination. Requires `ApiKey.view` permission.",
+        "description": "List all API keys for a workspace with pagination. Filter by `role`, or `search` a key's name or key ID. Requires `ApiKey.view` permission.",
         "operationId": "list-api-keys",
         "parameters": [
           {
@@ -54734,6 +54913,42 @@
               "default": false,
               "title": "Mine Only",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "Case-insensitive match on the key's name or key ID.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SearchString"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive match on the key's name or key ID.",
+              "title": "Search"
+            }
+          },
+          {
+            "description": "Only keys with this role.",
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PlatformRole"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only keys with this role.",
+              "title": "Role"
             }
           }
         ],
@@ -56582,6 +56797,7 @@
     },
     "/v1/{workspace_id}/calls/{conversation_id}/eval-results": {
       "get": {
+        "description": "A call's verdicts. Empty when the call exists but hasn't been evaluated; 404 when it doesn't exist.",
         "operationId": "get-call-eval-results",
         "parameters": [
           {
@@ -56615,6 +56831,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Conversation not found"
           },
           "422": {
             "content": {
@@ -57418,9 +57637,10 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "$ref": "#/components/schemas/VersionNumber"
                 },
                 {
+                  "const": "latest",
                   "type": "string"
                 }
               ],
@@ -57758,6 +57978,103 @@
       }
     },
     "/v1/{workspace_id}/conversations/{conversation_id}/turns": {
+      "get": {
+        "description": "Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order.",
+        "operationId": "list_conversation_turns_v1__workspace_id__conversations__conversation_id__turns_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          },
+          {
+            "description": "Include per-turn tool_calls[] in the returned turns. Off by default, matching GET /conversations/{conversation_id}?include_tool_calls=true.",
+            "in": "query",
+            "name": "include_tool_calls",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include per-turn tool_calls[] in the returned turns. Off by default, matching GET /conversations/{conversation_id}?include_tool_calls=true.",
+              "title": "Include Tool Calls",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationTurnListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List conversation turns (voice or text)",
+        "tags": [
+          "conversations"
+        ]
+      },
       "post": {
         "description": "Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, message, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.",
         "operationId": "create_turn_v1__workspace_id__conversations__conversation_id__turns_post",
@@ -67057,7 +67374,7 @@
     },
     "/v1/{workspace_id}/metrics": {
       "get": {
-        "description": "List the latest value for each metric in the workspace.\n\nPermissions: authenticated (any role).",
+        "description": "List metric values. By default, the newest period of each metric series.\n\nA categorical or boolean series folds its newest period into one row:\n``distribution`` counts each value and ``value`` is the most frequent.\nPages cover the first 10,000 values; narrow the filters or dates to read past them.\n\nPermissions: authenticated (any role).",
         "operationId": "list-metrics",
         "parameters": [
           {
@@ -67068,6 +67385,21 @@
               "format": "uuid",
               "title": "Workspace Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Order of the page, e.g. `-period_start` (the default, newest first) or `+metric_key`.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Order of the page, e.g. `-period_start` (the default, newest first) or `+metric_key`.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
             }
           },
           {
@@ -67141,7 +67473,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -67158,7 +67490,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -67220,11 +67552,13 @@
             }
           },
           {
+            "description": "Return each series' newest period only, a categorical or boolean period folded into one row.",
             "in": "query",
             "name": "latest_only",
             "required": false,
             "schema": {
               "default": true,
+              "description": "Return each series' newest period only, a categorical or boolean period folded into one row.",
               "title": "Latest Only",
               "type": "boolean"
             }
@@ -67235,21 +67569,18 @@
             "required": false,
             "schema": {
               "default": 100,
+              "exclusiveMinimum": 0,
               "maximum": 500,
-              "minimum": 1,
               "title": "Limit",
               "type": "integer"
             }
           },
           {
             "in": "query",
-            "name": "offset",
+            "name": "continuation_token",
             "required": false,
             "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
+              "title": "Continuation Token"
             }
           }
         ],
@@ -67258,7 +67589,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MetricListResponse"
+                  "$ref": "#/components/schemas/MetricValueListResponse"
                 }
               }
             },
@@ -67286,7 +67617,7 @@
     },
     "/v1/{workspace_id}/metrics/catalog": {
       "get": {
-        "description": "List all available metrics (builtin + custom defined on workspace).\n\nPermissions: authenticated (any role).",
+        "description": "List the workspace's active metrics: builtins plus custom definitions.\n\nResolved from the workspace's metric settings, so a builtin turned off\nthere is not listed.\n\nPermissions: authenticated (any role).",
         "operationId": "get-metric-catalog",
         "parameters": [
           {
@@ -67323,7 +67654,7 @@
     },
     "/v1/{workspace_id}/metrics/{metric_key}": {
       "get": {
-        "description": "Get values for a specific metric with optional time range.\n\nPermissions: authenticated (any role).",
+        "description": "Get values for a specific metric with optional time range, newest period first.\n\nPermissions: authenticated (any role).",
         "operationId": "get-metric-values",
         "parameters": [
           {
@@ -67421,7 +67752,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -67438,7 +67769,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -67523,6 +67854,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Metric key is not defined in this workspace"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -67545,7 +67879,7 @@
     },
     "/v1/{workspace_id}/metrics/{metric_key}/trend": {
       "get": {
-        "description": "Get time-series trend for a specific metric.\n\nPermissions: authenticated (any role).",
+        "description": "Get every value a metric recorded in the last ``days`` days, newest period first.\n\nPermissions: authenticated (any role).",
         "operationId": "get-metric-trend",
         "parameters": [
           {
@@ -67643,7 +67977,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -67660,7 +67994,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -67710,6 +68044,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Metric key is not defined in this workspace"
           },
           "422": {
             "content": {
@@ -69881,6 +70218,7 @@
         ]
       },
       "post": {
+        "description": "Create a production eval definition.\n\n``metric_key`` must name an active ai_query metric on call_intelligence in\nthis workspace's metric settings; any other key returns 422.",
         "operationId": "create-production-eval-definition",
         "parameters": [
           {
@@ -69978,6 +70316,7 @@
         ]
       },
       "patch": {
+        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone.",
         "operationId": "update-production-eval-definition",
         "parameters": [
           {
@@ -71854,7 +72193,7 @@
     },
     "/v1/{workspace_id}/services": {
       "get": {
-        "description": "List services in a workspace with pagination. Requires `Service.view` permission.",
+        "description": "List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph. Requires `Service.view` permission.",
         "operationId": "list-services",
         "parameters": [
           {
@@ -71931,6 +72270,44 @@
               ],
               "title": "Is Active"
             }
+          },
+          {
+            "description": "Only services on this agent. Each version set pins a version of its service's agent.",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only services on this agent. Each version set pins a version of its service's agent.",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "description": "Only services on this context graph. Each version set pins a version of its service's context graph.",
+            "in": "query",
+            "name": "context_graph_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only services on this context graph. Each version set pins a version of its service's context graph.",
+              "title": "Context Graph Id"
+            }
           }
         ],
         "responses": {
@@ -71970,7 +72347,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and HSM. Validates that agent_id and context_graph_id exist in the workspace. Requires `Service.create` permission.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -72254,6 +72631,9 @@
           "403": {
             "description": "Insufficient permissions."
           },
+          "404": {
+            "description": "Service not found."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -72276,7 +72656,7 @@
     },
     "/v1/{workspace_id}/services/{service_id}/version-sets/{name}": {
       "put": {
-        "description": "Replace or create a named version set on a service. Pinned agent/HSM versions are validated.",
+        "description": "Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated.",
         "operationId": "upsert-service-version-set",
         "parameters": [
           {

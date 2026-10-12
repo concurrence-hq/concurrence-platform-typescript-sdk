@@ -1002,7 +1002,7 @@ export interface paths {
         };
         /**
          * List API keys
-         * @description List all API keys for a workspace with pagination. Requires `ApiKey.view` permission.
+         * @description List all API keys for a workspace with pagination. Filter by `role`, or `search` a key's name or key ID. Requires `ApiKey.view` permission.
          */
         get: operations["list-api-keys"];
         put?: never;
@@ -1457,7 +1457,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Call Eval Results */
+        /**
+         * Get Call Eval Results
+         * @description A call's verdicts. Empty when the call exists but hasn't been evaluated; 404 when it doesn't exist.
+         */
         get: operations["get-call-eval-results"];
         put?: never;
         post?: never;
@@ -1782,7 +1785,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List conversation turns (voice or text)
+         * @description Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order.
+         */
+        get: operations["list_conversation_turns_v1__workspace_id__conversations__conversation_id__turns_get"];
         put?: never;
         /**
          * Send a message and get the agent's response
@@ -3846,7 +3853,11 @@ export interface paths {
         };
         /**
          * List latest metric values
-         * @description List the latest value for each metric in the workspace.
+         * @description List metric values. By default, the newest period of each metric series.
+         *
+         *     A categorical or boolean series folds its newest period into one row:
+         *     ``distribution`` counts each value and ``value`` is the most frequent.
+         *     Pages cover the first 10,000 values; narrow the filters or dates to read past them.
          *
          *     Permissions: authenticated (any role).
          */
@@ -3868,7 +3879,10 @@ export interface paths {
         };
         /**
          * List available metrics (builtin + custom)
-         * @description List all available metrics (builtin + custom defined on workspace).
+         * @description List the workspace's active metrics: builtins plus custom definitions.
+         *
+         *     Resolved from the workspace's metric settings, so a builtin turned off
+         *     there is not listed.
          *
          *     Permissions: authenticated (any role).
          */
@@ -3890,7 +3904,7 @@ export interface paths {
         };
         /**
          * Get values for a specific metric
-         * @description Get values for a specific metric with optional time range.
+         * @description Get values for a specific metric with optional time range, newest period first.
          *
          *     Permissions: authenticated (any role).
          */
@@ -3912,7 +3926,7 @@ export interface paths {
         };
         /**
          * Get time-series trend for a metric
-         * @description Get time-series trend for a specific metric.
+         * @description Get every value a metric recorded in the last ``days`` days, newest period first.
          *
          *     Permissions: authenticated (any role).
          */
@@ -4489,7 +4503,13 @@ export interface paths {
         /** List Production Eval Definitions */
         get: operations["list-production-eval-definitions"];
         put?: never;
-        /** Create Production Eval Definition */
+        /**
+         * Create Production Eval Definition
+         * @description Create a production eval definition.
+         *
+         *     ``metric_key`` must name an active ai_query metric on call_intelligence in
+         *     this workspace's metric settings; any other key returns 422.
+         */
         post: operations["create-production-eval-definition"];
         delete?: never;
         options?: never;
@@ -4511,7 +4531,16 @@ export interface paths {
         delete: operations["delete-production-eval-definition"];
         options?: never;
         head?: never;
-        /** Update Production Eval Definition */
+        /**
+         * Update Production Eval Definition
+         * @description Update a production eval definition.
+         *
+         *     A patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to
+         *     true, re-checks the metric: a metric eval must name an active ai_query
+         *     metric on call_intelligence, else 422. Clearing ``metric_key`` on a metric
+         *     eval also returns 422. Any other patch, including ``active: false``,
+         *     leaves the stored key alone.
+         */
         patch: operations["update-production-eval-definition"];
         trace?: never;
     };
@@ -4918,13 +4947,13 @@ export interface paths {
         };
         /**
          * List services
-         * @description List services in a workspace with pagination. Requires `Service.view` permission.
+         * @description List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph. Requires `Service.view` permission.
          */
         get: operations["list-services"];
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and HSM. Validates that agent_id and context_graph_id exist in the workspace. Requires `Service.create` permission.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission.
          */
         post: operations["create-service"];
         delete?: never;
@@ -4991,7 +5020,7 @@ export interface paths {
         get?: never;
         /**
          * Upsert a service version set
-         * @description Replace or create a named version set on a service. Pinned agent/HSM versions are validated.
+         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated.
          */
         put: operations["upsert-service-version-set"];
         post?: never;
@@ -8365,12 +8394,26 @@ export interface components {
              */
             status: "pending";
         };
+        /** BooleanCount */
+        BooleanCount: {
+            /** Count */
+            count: number;
+            /** Value */
+            value: boolean;
+        };
         /** BooleanMetricValueResponse */
         BooleanMetricValueResponse: {
             /** Avg Confidence */
             avg_confidence?: number | null;
             /** Computed At */
             computed_at?: string | null;
+            /**
+             * Distribution
+             * @description Events per value in this row's period, most frequent first. A list-metrics latest row
+             *     lists both values its period saw; any other row lists its own value.
+             * @default []
+             */
+            distribution?: components["schemas"]["BooleanCount"][];
             /** Entity Id */
             entity_id?: string | null;
             /** Entity Type */
@@ -8407,7 +8450,10 @@ export interface components {
             source?: string;
             /** Unit */
             unit?: string | null;
-            /** Value */
+            /**
+             * Value
+             * @description The value this row counts. A list-metrics latest row gives its period's more frequent value.
+             */
             value: boolean | null;
         };
         /**
@@ -9348,6 +9394,13 @@ export interface components {
             avg_confidence?: number | null;
             /** Computed At */
             computed_at?: string | null;
+            /**
+             * Distribution
+             * @description Events per category in this row's period, most frequent first. A list-metrics latest row
+             *     lists every category its period saw; any other row lists its own category.
+             * @default []
+             */
+            distribution?: components["schemas"]["CategoryCount"][];
             /** Entity Id */
             entity_id?: string | null;
             /** Entity Type */
@@ -9384,8 +9437,18 @@ export interface components {
             source?: string;
             /** Unit */
             unit?: string | null;
-            /** Value */
+            /**
+             * Value
+             * @description The category this row counts. A list-metrics latest row gives its period's most frequent category.
+             */
             value: string | null;
+        };
+        /** CategoryCount */
+        CategoryCount: {
+            /** Count */
+            count: number;
+            /** Value */
+            value: string;
         };
         /** ChangeColumnTypeAction */
         ChangeColumnTypeAction: {
@@ -10253,6 +10316,12 @@ export interface components {
              */
             status: "active" | "closed" | "completed" | "in-progress" | "failed" | "paused";
             /**
+             * Truncated
+             * @description True when the conversation recorded more entries than one read takes (10,000), so the turns stop before the end of the conversation.
+             * @default false
+             */
+            truncated?: boolean;
+            /**
              * Turn Count
              * @default 0
              */
@@ -10486,6 +10555,20 @@ export interface components {
              * @description Human-readable description of an action available in the turn's state.
              */
             description: string;
+        };
+        /** ConversationTurnListResponse */
+        ConversationTurnListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["ConversationTurn"][];
+            /**
+             * Truncated
+             * @description True when the conversation recorded more entries than one read takes (10,000), so the turns stop before the end of the conversation.
+             */
+            truncated: boolean;
         };
         /** ConversationTurnStateTransition */
         ConversationTurnStateTransition: {
@@ -10810,11 +10893,8 @@ export interface components {
              * @description Permission names. Max 128 entries; each entry up to 128 chars.
              */
             permissions?: string[];
-            /**
-             * Role
-             * @default member
-             */
-            role?: string;
+            /** @default member */
+            role?: components["schemas"]["PlatformRole"];
         };
         /** CreateApiKeyResponse */
         CreateApiKeyResponse: {
@@ -16864,6 +16944,15 @@ export interface components {
             /** State Message */
             state_message?: string | null;
         };
+        /** MetricValueListResponse */
+        MetricValueListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Metrics */
+            metrics: (components["schemas"]["NumericalMetricValueResponse"] | components["schemas"]["CategoricalMetricValueResponse"] | components["schemas"]["BooleanMetricValueResponse"])[];
+        };
         /** MigrationConversationItem */
         MigrationConversationItem: {
             /** @default web */
@@ -18583,6 +18672,11 @@ export interface components {
              */
             event_type: "pipeline.sync_completed";
         };
+        /**
+         * PlatformRole
+         * @enum {string}
+         */
+        PlatformRole: "owner" | "admin" | "member" | "operator" | "viewer";
         /** PlaybackTimeline */
         PlaybackTimeline: {
             /** Avg Perceived Latency Ms */
@@ -20549,13 +20643,18 @@ export interface components {
          * ServiceForwardingConfig
          * @description Per-service call-forwarding destination + transfer mechanism.
          *
-         *     Presence of this block is the whole gate for the ``forward_call`` tool:
-         *     None means the agent cannot transfer at all. When present, ``forward_to``
-         *     picks the destination mode, and the tool schema follows it — a static
-         *     service gets an argument-less tool, a dynamic one gets a required
-         *     ``phone_number``. Nothing cascades: a service is one mode or the other.
+         *     This block gates the ``forward_call`` tool: None means the agent cannot
+         *     transfer at all. When present, ``forward_to`` picks the destination mode,
+         *     and the tool schema follows it — a static service gets an argument-less
+         *     tool, a dynamic one gets a required ``phone_number`` that must be one of
+         *     ``approved_destinations`` (none approved means no tool). Nothing cascades:
+         *     a service is one mode or the other.
          */
         ServiceForwardingConfig: {
+            /** Approved Destinations */
+            approved_destinations?: {
+                [key: string]: components["schemas"]["NameString"];
+            };
             forward_to: components["schemas"]["PhoneE164"] | null;
             /** Warm Transfer */
             warm_transfer: boolean;
@@ -25151,6 +25250,12 @@ export interface components {
             /** Id */
             id?: string | null;
             /**
+             * Incomplete
+             * @description The call ended while the caller was still saying ``user_transcript``, so nothing answered it.
+             * @default false
+             */
+            incomplete?: boolean;
+            /**
              * Inner Thoughts
              * @default []
              */
@@ -26584,6 +26689,7 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        VersionNumber: number;
         /**
          * VersionSet
          * @description Pins agent, state machine, and LLM model versions for a service.
@@ -27410,6 +27516,8 @@ export interface components {
         };
         /** @enum {string} */
         src__routes__context_graphs__context_graph_crud___SortField: "name" | "created_at" | "updated_at";
+        /** @constant */
+        src__routes__conversations___SortField: "turn_index";
         /** CreateRequest */
         src__routes__external_auth_claim_mappings__CreateRequest: {
             /** Claim Key */
@@ -27872,6 +27980,8 @@ export interface components {
              */
             service_id: string;
         };
+        /** @enum {string} */
+        src__routes__metrics___SortField: "metric_key" | "period_start";
         /** AuditEventResponse */
         src__routes__operators_models__AuditEventResponse: {
             /**
@@ -29991,7 +30101,7 @@ export interface operations {
             path: {
                 workspace_id: string;
                 agent_id: string;
-                version: number | string;
+                version: components["schemas"]["VersionNumber"] | "latest";
             };
             cookie?: never;
         };
@@ -30805,6 +30915,10 @@ export interface operations {
                 limit?: number;
                 continuation_token?: unknown;
                 mine_only?: boolean;
+                /** @description Case-insensitive match on the key's name or key ID. */
+                search?: components["schemas"]["SearchString"] | null;
+                /** @description Only keys with this role. */
+                role?: components["schemas"]["PlatformRole"] | null;
             };
             header?: never;
             path: {
@@ -31858,6 +31972,13 @@ export interface operations {
                     "application/json": components["schemas"]["CallEvalResultsResponse"];
                 };
             };
+            /** @description Conversation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -32460,7 +32581,7 @@ export interface operations {
             path: {
                 workspace_id: string;
                 context_graph_id: string;
-                version: number | string;
+                version: components["schemas"]["VersionNumber"] | "latest";
             };
             cookie?: never;
         };
@@ -32685,6 +32806,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_conversation_turns_v1__workspace_id__conversations__conversation_id__turns_get: {
+        parameters: {
+            query?: {
+                sort_by?: string[];
+                limit?: number;
+                continuation_token?: unknown;
+                /** @description Include per-turn tool_calls[] in the returned turns. Off by default, matching GET /conversations/{conversation_id}?include_tool_calls=true. */
+                include_tool_calls?: boolean;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationTurnListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -38057,6 +38216,8 @@ export interface operations {
     "list-metrics": {
         parameters: {
             query?: {
+                /** @description Order of the page, e.g. `-period_start` (the default, newest first) or `+metric_key`. */
+                sort_by?: string[];
                 source?: "production" | "simulation" | "all";
                 scope?: "aggregate" | "entity" | "all";
                 entity_type?: string | null;
@@ -38066,9 +38227,10 @@ export interface operations {
                 session_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
+                /** @description Return each series' newest period only, a categorical or boolean period folded into one row. */
                 latest_only?: boolean;
                 limit?: number;
-                offset?: number;
+                continuation_token?: unknown;
             };
             header?: never;
             path: {
@@ -38084,7 +38246,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MetricListResponse"];
+                    "application/json": components["schemas"]["MetricValueListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -38167,6 +38329,13 @@ export interface operations {
                     "application/json": components["schemas"]["MetricListResponse"];
                 };
             };
+            /** @description Metric key is not defined in this workspace */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -38215,6 +38384,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MetricListResponse"];
                 };
+            };
+            /** @description Metric key is not defined in this workspace */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -40529,6 +40705,10 @@ export interface operations {
                 continuation_token?: unknown;
                 search?: components["schemas"]["SearchString"] | null;
                 is_active?: boolean | null;
+                /** @description Only services on this agent. Each version set pins a version of its service's agent. */
+                agent_id?: string | null;
+                /** @description Only services on this context graph. Each version set pins a version of its service's context graph. */
+                context_graph_id?: string | null;
             };
             header?: never;
             path: {
@@ -40836,6 +41016,13 @@ export interface operations {
             };
             /** @description Insufficient permissions. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
