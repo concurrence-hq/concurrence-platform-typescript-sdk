@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.111.0] - 2026-10-12
+
+### Improvements
+
+- fix!: sync SDK types to platform main (b126798e) (#466)
+
 ## [0.110.0] - 2026-10-03
 
 ### Features
