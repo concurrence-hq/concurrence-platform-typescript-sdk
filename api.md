@@ -196,6 +196,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listAutoPaging`
 - `get`
 - `update`
+- `upsertVersionSet`
 - `delete`
 
 ### `contextGraphs`
@@ -239,6 +240,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `search`
 - `getTimeline`
 - `getTimelineAutoPaging`
+- `listEnrichment`
+- `getEnrichmentHistory`
 - `getStats`
 - `getSourceBreakdown`
 
@@ -442,9 +445,49 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getConnectorHealth`
 - `getLoopLatency`
 
+### `clientConfig`
+
+- `get`
+
+### `dashboards`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `getBySlug`
+- `update`
+- `delete`
+- `execute`
+
+### `intake`
+
+- `files.list`
+- `files.listAutoPaging`
+- `files.upload`
+- `files.download`
+- `datasets.list`
+- `datasets.listAutoPaging`
+- `datasets.registerSchema`
+- `datasets.startUpdate`
+- `datasets.getUpdateRun`
+- `sources.list`
+- `sources.listAutoPaging`
+- `sources.register`
+- `sources.delete`
+- `sources.sync`
+- `batches.list`
+- `batches.listAutoPaging`
+- `batches.get`
+- `batches.process`
+- `materializations.list`
+- `materializations.listAutoPaging`
+- `materialize`
+
 ### `dataQuery`
 
 - `run`
+- `execute`
 
 ### `briefs`
 
@@ -487,6 +530,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 - `execute`
 - `resolveForService`
+- `listCatalog`
 
 ### `surfaces`
 

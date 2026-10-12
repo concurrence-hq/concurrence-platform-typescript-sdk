@@ -135,6 +135,42 @@ describe('ServicesResource', () => {
     })
   })
 
+  it('upserts one version set by name and surfaces a missing pinned version', async () => {
+    const requests: Request[] = []
+    const versionSetClient = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input: string | URL | Request, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init)
+        requests.push(request.clone())
+        const { version_set } = (await request.json()) as {
+          version_set: { agent_version_number?: number }
+        }
+        return version_set.agent_version_number === 99
+          ? Response.json({ detail: 'Agent version 99 not found' }, { status: 404 })
+          : new Response(null, { status: 204 })
+      },
+    })
+
+    const result = await versionSetClient.services.upsertVersionSet(SERVICE_ID, 'canary', {
+      version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+    })
+
+    expect(result).toBeUndefined()
+    expect(requests[0]?.method).toBe('PUT')
+    expect(new URL(requests[0]!.url).pathname).toBe(
+      `${BASE}/services/${SERVICE_ID}/version-sets/canary`,
+    )
+    expect(await requests[0]?.json()).toEqual({
+      version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+    })
+    await expect(
+      versionSetClient.services.upsertVersionSet(SERVICE_ID, 'canary', {
+        version_set: { agent_version_number: 99 },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError)
+  })
+
   it('deletes a service', async () => {
     await expect(client.services.delete(SERVICE_ID)).resolves.toBeUndefined()
   })

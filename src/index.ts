@@ -70,6 +70,9 @@ import { FhirResource } from './resources/fhir.js'
 import { InsightsResource } from './resources/insights.js'
 import { CommandCenterResource } from './resources/command-center.js'
 import { SensoriumResource } from './resources/sensorium.js'
+import { ClientConfigResource } from './resources/client-config.js'
+import { DashboardsResource } from './resources/dashboards.js'
+import { IntakeResource } from './resources/intake.js'
 import { DataQueryResource } from './resources/data-query.js'
 import { BriefsResource } from './resources/briefs.js'
 import { DesktopSessionsResource } from './resources/desktop-sessions.js'
@@ -232,7 +235,13 @@ export class AmigoClient {
   readonly commandCenter!: CommandCenterResource
   /** Sensorium — operator-facing live agent loop observability */
   readonly sensorium!: SensoriumResource
-  /** Generic data query against whitelisted workspace datasets */
+  /** Browser-safe platform config, such as the Google Maps key */
+  readonly clientConfig!: ClientConfigResource
+  /** Plotly dashboard definitions and their panel queries */
+  readonly dashboards!: DashboardsResource
+  /** Customer data intake: files, datasets, Drive sources, sync batches, materialization */
+  readonly intake!: IntakeResource
+  /** Data queries over workspace Lakebase tables: filtered table reads and one-statement SQL */
   readonly dataQuery!: DataQueryResource
   /** AI-generated entity briefs (workspace-level + per-entity) */
   readonly briefs!: BriefsResource
@@ -490,6 +499,9 @@ export class AmigoClient {
     mutable.insights = new InsightsResource(client, workspaceId)
     mutable.commandCenter = new CommandCenterResource(client, workspaceId)
     mutable.sensorium = new SensoriumResource(client, workspaceId)
+    mutable.clientConfig = new ClientConfigResource(client, workspaceId)
+    mutable.dashboards = new DashboardsResource(client, workspaceId)
+    mutable.intake = new IntakeResource(client, workspaceId)
     mutable.dataQuery = new DataQueryResource(client, workspaceId)
     mutable.briefs = new BriefsResource(client, workspaceId)
     mutable.desktopSessions = new DesktopSessionsResource(client, workspaceId)
@@ -745,6 +757,52 @@ export type {
   WorkspaceDataQueryListItem,
   WorkspaceDataQueryListResponse,
 } from './resources/workspace-data-queries.js'
+
+export type { ClientConfig } from './resources/client-config.js'
+
+export type {
+  CreateDashboardRequest,
+  Dashboard,
+  DashboardExecuteResponse,
+  DashboardListResponse,
+  DashboardPanelResult,
+  ExecuteDashboardRequest,
+  ListDashboardsParams,
+  UpdateDashboardRequest,
+} from './resources/dashboards.js'
+
+export type {
+  DataQueryParams,
+  WorkspaceQueryRequest,
+  WorkspaceQueryResponse,
+} from './resources/data-query.js'
+
+export type {
+  IntakeBatch,
+  IntakeBatchDetail,
+  IntakeBatchListResponse,
+  IntakeDataset,
+  IntakeDatasetListResponse,
+  IntakeDatasetUpdateRun,
+  IntakeFile,
+  IntakeFileListResponse,
+  IntakeFileStatus,
+  IntakeMaterialization,
+  IntakeMaterializationListResponse,
+  IntakeMaterializeRequest,
+  IntakeMaterializeResponse,
+  IntakeSource,
+  IntakeSourceListResponse,
+  IntakeSourceSyncResponse,
+  ListIntakeBatchesParams,
+  ListIntakeDatasetsParams,
+  ListIntakeFilesParams,
+  ListIntakeMaterializationsParams,
+  ListIntakeSourcesParams,
+  RegisterIntakeSchemaRequest,
+  RegisterIntakeSourceRequest,
+  UploadIntakeFileParams,
+} from './resources/intake.js'
 
 export type CallSummary = components['schemas']['CallSummary']
 export type CallDetail = components['schemas']['CallDetailResponse']

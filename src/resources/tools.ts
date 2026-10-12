@@ -28,4 +28,17 @@ export class ToolsResource extends WorkspaceScopedResource {
       }),
     )
   }
+
+  /**
+   * List the platform's built-in world and surface tools, read live from the agent engine's
+   * registry. The catalog is the same for every workspace. Needs service update permission;
+   * throws `ServiceUnavailableError` when the agent engine can't be reached.
+   */
+  async listCatalog() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/tools/catalog', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
 }
