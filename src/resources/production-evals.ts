@@ -71,7 +71,8 @@ export class ProductionEvalsResource extends WorkspaceScopedResource {
 
   /**
    * Run the workspace's active eval definitions against one completed call and store the
-   * verdicts. Synchronous: the request waits on the judge.
+   * verdicts. Synchronous: the request waits on the judge. `results` is empty when no active
+   * definition applies to the call; a call that doesn't exist throws `NotFoundError`.
    */
   async evaluate(conversationId: string) {
     return extractData(

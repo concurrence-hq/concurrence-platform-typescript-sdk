@@ -22,7 +22,9 @@ export class MetricsResource extends WorkspaceScopedResource {
   /**
    * List metric values. By default each series' newest period, with a categorical or boolean
    * period folded into one row. Filter by source, scope, entity, service, run, session or date
-   * range; page with `limit` and the returned `continuation_token`.
+   * range; page with `limit` and the returned `continuation_token`. Pages reach the first 10,000
+   * values: a page past that throws `ValidationError` even when `has_more` was true, so narrow
+   * the filters or dates to read further.
    */
   async listLatest(params?: MetricListParams) {
     return extractData(
@@ -41,7 +43,10 @@ export class MetricsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Get stored values for one metric key, optionally bounded by time range */
+  /**
+   * Get stored values for one metric key, optionally bounded by time range. A key the workspace
+   * doesn't define throws `NotFoundError`.
+   */
   async getValues(metricKey: string, params?: MetricValuesParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/metrics/{metric_key}', {
@@ -53,7 +58,10 @@ export class MetricsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Get a recent time-series trend for one metric key */
+  /**
+   * Get a recent time-series trend for one metric key. A key the workspace doesn't define throws
+   * `NotFoundError`.
+   */
   async getTrend(metricKey: string, params?: MetricTrendParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/metrics/{metric_key}/trend', {
