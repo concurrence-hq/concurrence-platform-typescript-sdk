@@ -764,6 +764,47 @@ const comparison = await client.analytics.compareCallPeriods({
 })
 ```
 
+### Metrics and production evals
+
+`metrics.listLatest` returns the newest period of each metric series by default. A
+categorical or boolean series comes back as one row, with `distribution` counting each value.
+
+```typescript
+const page = await client.metrics.listLatest({ scope: 'aggregate', sort_by: ['+metric_key'] })
+
+// Keep the same filters when requesting the next page.
+if (page.has_more) {
+  const next = await client.metrics.listLatest({
+    scope: 'aggregate',
+    sort_by: ['+metric_key'],
+    continuation_token: page.continuation_token,
+  })
+  console.log(next.metrics)
+}
+```
+
+Production evals score live calls on any channel. A metric eval names an active `ai_query`
+call_intelligence metric from the workspace's metric settings.
+
+```typescript
+await client.productionEvals.createDefinition({
+  eval_key: 'appointment_booked',
+  eval_type: 'metric',
+  metric_key: 'appointment_booked',
+  expected: { equals: true },
+})
+
+// Run the active definitions against one completed call (waits on the judge)
+const { results } = await client.productionEvals.evaluate(conversationId)
+
+// Read stored verdicts later
+const stored = await client.productionEvals.getResults(conversationId)
+
+// Pass rate and score across calls, and recent voice-judge scores for one service
+const quality = await client.analytics.getEvalQuality({ days: 30, interval: '1d' })
+const voiceJudge = await client.services.listVoiceJudgeResults(serviceId, { limit: 20 })
+```
+
 ### Integrations
 
 ```typescript

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { AmigoClient } from '../../src/index.js'
+import { AmigoClient, type EvalQualityResponse } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
@@ -118,6 +118,20 @@ const ADVANCED_CALL_STATS_FIXTURE = {
   avg_silence_seconds: 3.2,
 }
 
+const EVAL_QUALITY_FIXTURE = {
+  summary: { eval_key: null, total_evals: 40, judged: 36, pass_rate: 0.75, avg_score: null },
+  by_eval_key: [
+    {
+      eval_key: 'resolved_on_first_call',
+      total_evals: 40,
+      judged: 36,
+      pass_rate: 0.75,
+      avg_score: null,
+    },
+  ],
+  trend: [{ date: '2026-10-10', total_evals: 12, judged: 11, pass_rate: 0.8, avg_score: null }],
+} satisfies EvalQualityResponse
+
 const COMPARISON_FIXTURE = {
   workspace_id: TEST_WORKSPACE_ID,
   current: { total_calls: 150, avg_duration_seconds: 240 },
@@ -169,6 +183,7 @@ const client = new AmigoClient({
       Response.json(OPERATOR_PERFORMANCE_FIXTURE),
     [`GET ${BASE}/analytics/calls/advanced`]: () => Response.json(ADVANCED_CALL_STATS_FIXTURE),
     [`GET ${BASE}/analytics/calls/comparison`]: () => Response.json(COMPARISON_FIXTURE),
+    [`GET ${BASE}/analytics/eval-quality`]: () => Response.json(EVAL_QUALITY_FIXTURE),
   }),
 })
 
@@ -264,6 +279,13 @@ describe('AnalyticsResource', () => {
     expect(result.transfer_rate).toBe(0.12)
   })
 
+  it('gets production eval quality', async () => {
+    const result = await client.analytics.getEvalQuality()
+    expect(result.summary.pass_rate).toBe(0.75)
+    expect(result.by_eval_key[0]?.eval_key).toBe('resolved_on_first_call')
+    expect(result.trend[0]?.judged).toBe(11)
+  })
+
   it('compares call periods', async () => {
     const result = await client.analytics.compareCallPeriods({
       current_from: '2026-01-08',
@@ -289,6 +311,22 @@ function capturingClient() {
   })
   return { client, captured }
 }
+
+describe('AnalyticsResource eval quality param forwarding', () => {
+  it('forwards the window, interval and service', async () => {
+    const { client, captured } = capturingClient()
+    await client.analytics.getEvalQuality({
+      days: 14,
+      interval: '1w',
+      service_id: '00000000-0000-0000-0000-0000000000a1',
+    })
+    const url = new URL(captured.url!)
+    expect(url.pathname).toBe(`/v1/${TEST_WORKSPACE_ID}/analytics/eval-quality`)
+    expect(url.searchParams.get('days')).toBe('14')
+    expect(url.searchParams.get('interval')).toBe('1w')
+    expect(url.searchParams.get('service_id')).toBe('00000000-0000-0000-0000-0000000000a1')
+  })
+})
 
 describe('AnalyticsResource surfaces analytics param forwarding', () => {
   it('forwards completion-rates filters (date range, interval, entity)', async () => {
