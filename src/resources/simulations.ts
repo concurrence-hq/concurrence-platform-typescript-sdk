@@ -155,7 +155,7 @@ export class SimulationsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Get the stored turns of a coverage session, in turn order */
+  /** Get the stored turns of a coverage session in turn order, up to the first 200 */
   async getSessionTurns(sessionId: SimulationSessionId | string) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/simulations/sessions/{session_id}/turns', {
@@ -301,7 +301,8 @@ export class SimulationsResource extends WorkspaceScopedResource {
 
     /**
      * Start a graded run of one case. The case runs against its saved service
-     * unless `service_id` overrides it.
+     * unless `service_id` overrides it. Returns 429 while the workspace is at
+     * its limit of simulations in progress.
      */
     run: async (caseId: string, body: BodyOf<'run-simulation-case'>) =>
       extractData(
@@ -360,7 +361,9 @@ export class SimulationsResource extends WorkspaceScopedResource {
 
     /**
      * Start a suite run: one graded case run per selected case. The response's
-     * `batch_id` is the suite run id to read back with `suiteRuns.get`.
+     * `batch_id` is the suite run id to read back with `suiteRuns.get`. Returns
+     * 429 while the workspace is at its limit of simulations in progress; the
+     * whole suite run counts once toward it.
      */
     run: async (suiteId: string, body: BodyOf<'run-simulation-suite'>) =>
       extractData(
@@ -409,7 +412,9 @@ export class SimulationsResource extends WorkspaceScopedResource {
   readonly benchmarks = {
     /**
      * Start one graded case run per selected case. With `suite_id` it is a
-     * suite run, and the response's `batch_id` is its suite run id.
+     * suite run, and the response's `batch_id` is its suite run id. Returns 429
+     * while the workspace is at its limit of simulations in progress; the
+     * whole batch counts once toward it.
      */
     run: async (body: BodyOf<'run-simulation-benchmark'>) =>
       extractData(
@@ -434,7 +439,10 @@ export class SimulationsResource extends WorkspaceScopedResource {
    * they can be replayed against a candidate version.
    */
   readonly bridge = {
-    /** Execute a bridge run and return the resulting run handle */
+    /**
+     * Execute a bridge run and return the resulting run handle. Returns 429
+     * while the workspace is at its limit of simulations in progress.
+     */
     run: async (body: components['schemas']['BridgeRequest']) =>
       extractData(
         await this.client.POST('/v1/{workspace_id}/simulations/bridge', {
