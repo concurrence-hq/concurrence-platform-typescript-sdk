@@ -221,7 +221,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `delete`
 - `getStatus`
 - `getSyncHistory`
-- `triggerSync`
 
 ### `world`
 
@@ -361,8 +360,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `retention.update`
 - `gapScanner.get`
 - `gapScanner.update`
-- `gapScanner.preview`
-- `gapScanner.scan`
 - `metrics.get`
 - `metrics.update`
 

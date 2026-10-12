@@ -80,10 +80,6 @@ const client = new AmigoClient({
 
     [`GET ${BASE}/settings/gap-scanner`]: () => Response.json({ enabled: true, rules: [] }),
     [`PUT ${BASE}/settings/gap-scanner`]: () => Response.json({ enabled: false, rules: [] }),
-    [`POST ${BASE}/settings/gap-scanner/preview`]: () =>
-      Response.json({ matches: [{ call_id: 'c-1', rule: 'missing_consent' }] }),
-    [`POST ${BASE}/settings/gap-scanner/scan`]: () =>
-      Response.json({ scan_id: 'scan-1', queued_at: '2026-05-03T00:00:00Z' }),
   }),
 })
 
@@ -164,13 +160,6 @@ describe('SettingsResource', () => {
           typeof client.settings.gapScanner.update
         >[0]),
       ).toMatchObject({ enabled: false })
-    })
-
-    it('previews and queues an on-demand scan', async () => {
-      expect(await client.settings.gapScanner.preview()).toMatchObject({
-        matches: [{ call_id: 'c-1' }],
-      })
-      expect(await client.settings.gapScanner.scan()).toMatchObject({ scan_id: 'scan-1' })
     })
   })
 })

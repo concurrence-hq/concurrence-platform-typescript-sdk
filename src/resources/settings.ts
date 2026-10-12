@@ -86,29 +86,6 @@ export class SettingsResource extends WorkspaceScopedResource {
           body,
         }),
       ),
-    /**
-     * Preview which calls would be flagged by the current gap-scanner config.
-     *
-     * The spec types the body as `GapScannerPreviewRequest | null`, but the
-     * `null` branch only matters when the caller wants to *explicitly* clear
-     * the body. Modeling as `body?: GapScannerPreviewRequest` keeps the SDK
-     * surface consistent with every other POST wrapper; consumers who need
-     * to send the literal `null` can do so via `client.POST(...)` directly.
-     */
-    preview: async (body?: components['schemas']['GapScannerPreviewRequest']) =>
-      extractData(
-        await this.client.POST('/v1/{workspace_id}/settings/gap-scanner/preview', {
-          params: { path: { workspace_id: this.workspaceId } },
-          body,
-        }),
-      ),
-    /** Trigger an on-demand scan with the current gap-scanner config */
-    scan: async () =>
-      extractData(
-        await this.client.POST('/v1/{workspace_id}/settings/gap-scanner/scan', {
-          params: { path: { workspace_id: this.workspaceId } },
-        }),
-      ),
   }
 
   readonly metrics = {

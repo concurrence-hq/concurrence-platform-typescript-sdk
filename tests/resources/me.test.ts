@@ -12,6 +12,7 @@ const WORKSPACE_FIXTURE: components['schemas']['WorkspaceResponse'] = {
   backend_org_id: null,
   region: 'us-east-1',
   connector_type: null,
+  timezone: 'America/New_York',
   topic_modeling_enabled: false,
   delta_sharing_enabled: false,
   delta_sharing_mode: 'open',

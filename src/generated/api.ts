@@ -2007,26 +2007,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/{workspace_id}/data-sources/{data_source_id}/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Trigger a manual sync for a data source
-         * @description Queues a one-off poll of the data source on connector-runner. Bypasses the business-hours gate and per-resource cadence counter. Returns 202 once the request is queued; the poll itself runs asynchronously. Returns 409 if the source is already mid-sync, 503 if connector-runner is unreachable. The 409 is best-effort: the status check and trigger are separate calls, so a scheduled poll can grab the lease between them — clients should treat 409 as a UX hint, not a hard guarantee.
-         */
-        post: operations["trigger-data-source-sync"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/{workspace_id}/data-sources/{data_source_id}/sync-history": {
         parameters: {
             query?: never;
@@ -2477,26 +2457,6 @@ export interface paths {
         put?: never;
         /** Reject External Write Proposal */
         post: operations["reject-external-write-proposal"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/{workspace_id}/fhir/build-bundle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Build a FHIR Patient Bundle from user records
-         * @description Expand a flat list of user records (external_id / email / name) into a FHIR collection Bundle, ready to POST to /fhir/import under its `bundle` field. Pure transformation — does NOT import; no entities or events are created. Every Patient gets an MR identifier (external_id when present, else a deterministic derived id — never the raw email) so a later import resolves a stable canonical_id and re-imports stay idempotent at the entity level; external_id also becomes the resource id when spec-valid.
-         */
-        post: operations["fhir-build-user-bundle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3777,6 +3737,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/memory/dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Memory Dimension */
+        post: operations["create-memory-dimension"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/metering/emit": {
         parameters: {
             query?: never;
@@ -4391,7 +4368,7 @@ export interface paths {
         };
         /**
          * List pipeline sources
-         * @description Data sources with live health from Valkey cr:last_poll keys.
+         * @description Data sources with persisted health status.
          */
         get: operations["list-pipeline-sources"];
         put?: never;
@@ -4471,7 +4448,7 @@ export interface paths {
         };
         /**
          * Pipeline status
-         * @description Composite pipeline dashboard: connector-runner state + Lakebase counts.
+         * @description Pipeline dashboard: Lakebase entity count + Delta read-model event counts.
          */
         get: operations["get-pipeline-status"];
         put?: never;
@@ -4671,7 +4648,7 @@ export interface paths {
         };
         /**
          * List runs (framework + conversation)
-         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/text/sms/email/web — conversation runs only), ``status`` (``live`` expands to running + paused), and ``service_id`` (service UUIDs). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
+         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/text/sms/email/web — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
          */
         get: operations["list_runs_v1__workspace_id__runs_get"];
         put?: never;
@@ -5033,7 +5010,7 @@ export interface paths {
         };
         /**
          * Recent voice-judge results for a service
-         * @description Returns the most recent per-call voice-judge scores for one service, ordered newest first. Produced by the Databricks `voice_judge` job (stereo audio → Gemini 2.5 Flash → 10-dimension rubric). Used by the Agent Readiness page to populate Voice Quality criterion cards.
+         * @description Returns the most recent per-call voice-judge scores for one service, ordered newest first. Produced by the Databricks `voice_judge` job (stereo audio → Gemini 3.5 Flash → 10-dimension rubric). Used by the Agent Readiness page to populate Voice Quality criterion cards.
          *
          *     **Latency**: 500ms-2s (reads from analytics warehouse, not OLTP).
          *
@@ -5261,56 +5238,6 @@ export interface paths {
          */
         put: operations["update-gap-scanner-settings"];
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/{workspace_id}/settings/gap-scanner/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Preview gap detection (dry run)
-         * @description Dry-run gap detection — returns entities with missing fields without creating surfaces.
-         *
-         *     Proxies to connector-runner /internal/gap-scanner/preview.
-         *
-         *     Permissions: admin, owner (enforced via ``Workspace.update``).
-         */
-        post: operations["gap-scanner-preview"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/{workspace_id}/settings/gap-scanner/scan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Trigger one scan tick
-         * @description Trigger one scan tick immediately — creates surfaces for detected gaps.
-         *
-         *     Proxies to connector-runner /internal/gap-scanner/scan.
-         *
-         *     Permissions: admin, owner (enforced via ``Workspace.update`` — this
-         *     creates patient-facing surfaces, so it must not be reachable below
-         *     admin tier).
-         */
-        post: operations["gap-scanner-scan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8352,6 +8279,8 @@ export interface components {
         Body_upload_intake_file_v1__workspace_id__intake_files_post: {
             /** Dataset */
             dataset: string;
+            /** Doc Metadata */
+            doc_metadata?: string | null;
             /** Document Id */
             document_id?: string | null;
             /** File */
@@ -9799,19 +9728,6 @@ export interface components {
             identity?: components["schemas"]["IdentityMetrics"];
             /**
              * @default {
-             *       "connector_status": "unavailable",
-             *       "events_last_hour": 0,
-             *       "outbound_failed": 0,
-             *       "outbound_pending": 0,
-             *       "sources_degraded": 0,
-             *       "sources_failing": 0,
-             *       "sources_healthy": 0,
-             *       "sources_total": 0
-             *     }
-             */
-            pipeline?: components["schemas"]["PipelineMetrics"];
-            /**
-             * @default {
              *       "active_calls": 0,
              *       "active_escalated": 0,
              *       "calls_today": 0,
@@ -9960,20 +9876,6 @@ export interface components {
             read_model_synced_at?: string | null;
             /** Sources */
             sources?: components["schemas"]["ConnectorHealthItem"][];
-        };
-        /** ConnectorHeartbeat */
-        ConnectorHeartbeat: {
-            /** Alive */
-            alive: boolean;
-            /**
-             * Data Source Id
-             * Format: uuid
-             */
-            data_source_id: string;
-            /** Last Seen */
-            last_seen?: string | null;
-            /** Name */
-            name: string;
         };
         /**
          * ConnectorResourcesResponse
@@ -11868,25 +11770,12 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
-             * Health Status
-             * @enum {string}
-             */
-            health_status: "unknown" | "healthy" | "degraded";
-            /**
              * Id
              * Format: uuid
              */
             id: string;
             /** Is Active */
             is_active: boolean;
-            /** Is Stale */
-            is_stale: boolean;
-            /** Last Sync At */
-            last_sync_at: string | null;
-            /** Last Sync Event Count */
-            last_sync_event_count: number;
-            /** Last Sync Status */
-            last_sync_status: ("success" | "error") | null;
             /** Name */
             name: string;
             /**
@@ -11923,19 +11812,8 @@ export interface components {
             event_count: number;
             /** Failed Count */
             failed_count: number;
-            /**
-             * Health Status
-             * @enum {string}
-             */
-            health_status: "unknown" | "healthy" | "degraded";
             /** Is Active */
             is_active: boolean;
-            /** Last Sync At */
-            last_sync_at: string | null;
-            /** Last Sync Event Count */
-            last_sync_event_count: number;
-            /** Last Sync Status */
-            last_sync_status: ("success" | "error") | null;
             /** Name */
             name: string;
             /** Synced Count */
@@ -12624,7 +12502,7 @@ export interface components {
             description: string;
             /**
              * Headers
-             * @description Static request headers.
+             * @description Static headers or exact ``$param.<name>`` input-parameter bindings.
              */
             headers?: {
                 [key: string]: string;
@@ -13061,10 +12939,6 @@ export interface components {
         };
         /** EntityResolutionMetrics */
         EntityResolutionMetrics: {
-            /** Last Tick At */
-            last_tick_at?: string | null;
-            /** Loop Status */
-            loop_status: string;
             /** Recent Merges 24H */
             recent_merges_24h: number;
             /** Total Same As Edges */
@@ -14283,33 +14157,6 @@ export interface components {
             /** Status */
             status?: string | null;
         };
-        /**
-         * FhirBuildBundleRequest
-         * @description Request body for ``POST /fhir/build-bundle``.
-         *
-         *     Bundle building is a pure transformation, so this carries only the user
-         *     rows — provenance/dedup options (``source``, ``dedup``, …) belong to the
-         *     downstream ``POST /fhir/import`` call, not to bundle construction.
-         */
-        FhirBuildBundleRequest: {
-            /** Users */
-            users: components["schemas"]["FhirPatientUser"][];
-        };
-        /**
-         * FhirBundleResponse
-         * @description Response for ``POST /fhir/build-bundle`` — the built FHIR Bundle.
-         *
-         *     ``bundle`` is the exact value ``POST /fhir/import`` expects nested under its
-         *     ``bundle`` field; ``patient_count`` echoes how many Patients were built.
-         */
-        FhirBundleResponse: {
-            /** Bundle */
-            bundle: {
-                [key: string]: unknown;
-            };
-            /** Patient Count */
-            patient_count: number;
-        };
         /** FhirImportRequest */
         FhirImportRequest: {
             /** Bundle */
@@ -14515,38 +14362,6 @@ export interface components {
             patients: components["schemas"]["FhirPatientView"][];
             /** Total */
             total: number;
-        };
-        /**
-         * FhirPatientUser
-         * @description One caller-friendly user row for ``POST /fhir/build-bundle``.
-         *
-         *     A flat identity shape (email / name / external id) that the server expands
-         *     into a FHIR Patient resource, so integrators onboarding users don't have to
-         *     hand-author FHIR. ``external_id`` becomes the Patient MR identifier (and,
-         *     when spec-valid, the FHIR resource id) — the anchor a later import uses for
-         *     the entity's canonical id / source-system binding (e.g. the FAM user UUID).
-         *     Supply either ``name`` (full) or ``first_name`` / ``last_name``.
-         */
-        FhirPatientUser: {
-            /**
-             * Email
-             * @description Validated email; becomes an email telecom on the Patient.
-             */
-            email?: string | null;
-            /**
-             * External Id
-             * @description Stable source-system id (e.g. FAM user UUID). Becomes the Patient MR identifier and, when it satisfies the FHIR id grammar, the resource id. Capped at 64 to match the FHIR Resource.id length.
-             */
-            external_id?: string | null;
-            /** First Name */
-            first_name?: string | null;
-            /** Last Name */
-            last_name?: string | null;
-            /**
-             * Name
-             * @description Full name; used when first_name/last_name are not supplied.
-             */
-            name?: string | null;
         };
         /** FhirPatientView */
         FhirPatientView: {
@@ -14812,16 +14627,10 @@ export interface components {
             };
             /** Event Count */
             event_count: number;
-            /** Last Change At */
-            last_change_at?: string | null;
-            /** Last Poll At */
-            last_poll_at?: string | null;
             /** Resource Type Counts */
             resource_type_counts?: {
                 [key: string]: number;
             };
-            /** Sync Healthy */
-            sync_healthy?: boolean | null;
         };
         /** FhirUnsupportedResourceItem */
         FhirUnsupportedResourceItem: {
@@ -15343,14 +15152,6 @@ export interface components {
              */
             trigger?: "upcoming_appointment" | "recent_interaction";
         };
-        /** GapScannerPreviewRequest */
-        GapScannerPreviewRequest: {
-            /**
-             * Limit
-             * @default 50
-             */
-            limit?: number;
-        };
         /** GapScannerSettingsRequest */
         GapScannerSettingsRequest: {
             /** Appointment Lookahead Hours */
@@ -15504,11 +15305,6 @@ export interface components {
             /** Explanation */
             explanation?: string | null;
         };
-        /** HealthSyncResponse */
-        HealthSyncResponse: {
-            /** Connector Heartbeats */
-            connector_heartbeats?: components["schemas"]["ConnectorHeartbeat"][];
-        };
         /** HipaaReportResponse */
         HipaaReportResponse: {
             /** Access Controls */
@@ -15649,6 +15445,15 @@ export interface components {
              * @description Schema slug (UI label "Schema").
              */
             dataset: string;
+            /**
+             * Doc Metadata
+             * @description Caller-supplied tags linking the document to a real-world subject (V385) —
+             *     e.g. ``{"patient_id": "…"}``. Set at upload for the whole document version
+             *     chain. ``{}`` for a document with no tags; null only for snapshot/CSV rows.
+             */
+            doc_metadata?: {
+                [key: string]: string;
+            } | null;
             /**
              * Document Id
              * @description The document this version belongs to (§5.9). Null for snapshot/CSV rows;
@@ -15797,6 +15602,13 @@ export interface components {
             endpoint: string;
             /** Integration */
             integration: string;
+            /**
+             * Skill Input Bindings
+             * @description Endpoint parameter -> parent skill input mappings injected at dispatch.
+             */
+            skill_input_bindings?: {
+                [key: string]: string;
+            };
         };
         /**
          * InteractionDynamics
@@ -16110,23 +15922,6 @@ export interface components {
              * @enum {string}
              */
             provider: "cartesia" | "elevenlabs";
-        };
-        /** LastPollInfo */
-        LastPollInfo: {
-            /** At */
-            at?: string | null;
-            /**
-             * Duration Ms
-             * @default 0
-             */
-            duration_ms?: number;
-            /** Error */
-            error?: string | null;
-            /**
-             * Event Count
-             * @default 0
-             */
-            event_count?: number;
         };
         /** LatencyEvent */
         LatencyEvent: {
@@ -18426,63 +18221,8 @@ export interface components {
              */
             event_type: "pipeline.error";
         };
-        /** PipelineMetrics */
-        PipelineMetrics: {
-            /**
-             * Connector Status
-             * @default unavailable
-             * @enum {string}
-             */
-            connector_status?: "healthy" | "degraded" | "unavailable";
-            /**
-             * Events Last Hour
-             * @default 0
-             */
-            events_last_hour?: number;
-            /**
-             * Outbound Failed
-             * @default 0
-             */
-            outbound_failed?: number;
-            /**
-             * Outbound Pending
-             * @default 0
-             */
-            outbound_pending?: number;
-            /**
-             * Sources Degraded
-             * @default 0
-             */
-            sources_degraded?: number;
-            /**
-             * Sources Failing
-             * @default 0
-             */
-            sources_failing?: number;
-            /**
-             * Sources Healthy
-             * @default 0
-             */
-            sources_healthy?: number;
-            /**
-             * Sources Total
-             * @default 0
-             */
-            sources_total?: number;
-        };
         /** PipelineStatusResponse */
         PipelineStatusResponse: {
-            /**
-             * Active Polls
-             * @default 0
-             */
-            active_polls?: number;
-            /** Connector Runner Status */
-            connector_runner_status: string;
-            /** Entity Resolution */
-            entity_resolution?: {
-                [key: string]: unknown;
-            } | null;
             /**
              * Event Read Model Status
              * @default empty
@@ -18491,33 +18231,6 @@ export interface components {
             event_read_model_status?: "ready" | "empty" | "unavailable";
             /** Event Read Model Synced At */
             event_read_model_synced_at?: string | null;
-            /** Gap Scanner */
-            gap_scanner?: {
-                [key: string]: unknown;
-            } | null;
-            /** Outbound Dispatch */
-            outbound_dispatch?: {
-                [key: string]: unknown;
-            } | null;
-            /** Outbound Subscriber */
-            outbound_subscriber?: {
-                [key: string]: unknown;
-            } | null;
-            /** Reconciliation */
-            reconciliation?: {
-                [key: string]: unknown;
-            } | null;
-            /** Review Loop */
-            review_loop?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Sources
-             * @default []
-             */
-            sources?: components["schemas"]["SourceStatus"][];
-            /** Status */
-            status: string;
             /**
              * Total Entities
              * @default 0
@@ -18528,8 +18241,6 @@ export interface components {
              * @description Read-model event count for the last 7 days. Null means the read model is empty or unavailable; zero means the read model is ready and has no events.
              */
             total_events?: number | null;
-            /** Uptime Seconds */
-            uptime_seconds?: number | null;
         };
         /** PipelineSyncCompletedEvent */
         PipelineSyncCompletedEvent: {
@@ -19126,7 +18837,7 @@ export interface components {
             /** Max Output Tokens */
             max_output_tokens?: number | "inf" | null;
             /** Model */
-            model?: ("gpt-realtime-1.5" | "gpt-realtime-2" | "gpt-realtime-2.1" | "gpt-realtime-2.1-mini") | null;
+            model?: ("gpt-realtime-2.1" | "gpt-realtime-2.1-mini") | null;
             /**
              * Noise Reduction
              * @description Input noise reduction. Omit or set null to use the Platform default; set 'off' to disable it.
@@ -19157,10 +18868,10 @@ export interface components {
             language?: string | null;
             /**
              * Model
-             * @default gpt-4o-transcribe
-             * @enum {string}
+             * @default gpt-transcribe
+             * @constant
              */
-            model?: "whisper-1" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
+            model?: "gpt-transcribe";
             /** Prompt */
             prompt?: string | null;
         };
@@ -20699,8 +20410,6 @@ export interface components {
             tts_config?: {
                 [key: string]: unknown;
             } | null;
-            /** Tts Model */
-            tts_model?: ("sonic-turbo" | "sonic-3") | null;
             /** Tts Provider */
             tts_provider?: ("cartesia" | "elevenlabs") | null;
         };
@@ -20771,8 +20480,6 @@ export interface components {
             tts_config?: {
                 [key: string]: unknown;
             } | null;
-            /** Tts Model */
-            tts_model?: ("sonic-turbo" | "sonic-3") | null;
             /** Tts Provider */
             tts_provider?: ("cartesia" | "elevenlabs") | null;
         };
@@ -22278,9 +21985,6 @@ export interface components {
             id: string;
             /** Is Active */
             is_active: boolean;
-            last_poll?: components["schemas"]["LastPollInfo"] | null;
-            /** Last Sync At */
-            last_sync_at?: string | null;
             /** Name */
             name: string;
             /**
@@ -22317,16 +22021,6 @@ export interface components {
             id: string;
             /** Is Active */
             is_active: boolean;
-            last_poll?: components["schemas"]["LastPollInfo"] | null;
-            /** Last Sync At */
-            last_sync_at?: string | null;
-            /**
-             * Last Sync Event Count
-             * @default 0
-             */
-            last_sync_event_count?: number;
-            /** Last Sync Status */
-            last_sync_status?: ("success" | "error") | null;
             /** Name */
             name: string;
             /**
@@ -22348,52 +22042,6 @@ export interface components {
              * @enum {string}
              */
             source_type: "ehr" | "fhir_store" | "snowflake";
-        };
-        /** SourceStatus */
-        SourceStatus: {
-            /**
-             * Connection Healthy
-             * @default true
-             */
-            connection_healthy?: boolean;
-            /** Connector Type */
-            connector_type?: string | null;
-            /**
-             * Consecutive Errors
-             * @default 0
-             */
-            consecutive_errors?: number;
-            /**
-             * Data Source Id
-             * Format: uuid
-             */
-            data_source_id: string;
-            /** Last Error */
-            last_error?: string | null;
-            /** Last Poll At */
-            last_poll_at?: string | null;
-            /**
-             * Last Poll Duration Ms
-             * @default 0
-             */
-            last_poll_duration_ms?: number;
-            /**
-             * Last Poll Event Count
-             * @default 0
-             */
-            last_poll_event_count?: number;
-            /**
-             * Source Type
-             * @enum {string}
-             */
-            source_type: "ehr" | "fhir_store" | "snowflake";
-            /** Status */
-            status: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
         };
         /** SourceSyncResponse */
         SourceSyncResponse: {
@@ -23502,7 +23150,7 @@ export interface components {
          *     ``error`` so the DC can render the executor's failure detail inline
          *     rather than a generic "Invocation failed." The underlying invoke
          *     uses the same path; ``status`` / ``error`` are filled in by
-         *     ``service.test`` after catching any ``HTTPException`` (503) from the
+         *     ``service.test`` after catching an ``HTTPException`` (503 or 422) from the
          *     executor, so the route never bubbles a 5xx for a logical SQL
          *     failure — it's still a 200 with ``status=fail`` so the caller can
          *     show the message.
@@ -24037,6 +23685,10 @@ export interface components {
             audio_filler_triggered_after?: number | null;
             /** Audio Fillers */
             audio_fillers?: string[] | null;
+            /** Context Binding Aliases */
+            context_binding_aliases?: {
+                [key: string]: components["schemas"]["SlugString"];
+            };
             /** Context Bindings */
             context_bindings?: string[];
             /**
@@ -24869,46 +24521,6 @@ export interface components {
             workspace_id: string;
         };
         /**
-         * TriggerSyncConflictDetails
-         * @description Operational fields included in a 409 to power UI affordances like
-         *     "syncing for 30s" — strict allowlist, never the whole status entry.
-         */
-        TriggerSyncConflictDetails: {
-            /** Last Poll At */
-            last_poll_at?: string | null;
-            /** Last Poll Duration Ms */
-            last_poll_duration_ms?: number | null;
-        };
-        /**
-         * TriggerSyncConflictResponse
-         * @description Body shape for the 409 returned by POST /sync when the source is
-         *     already mid-poll. Documented in OpenAPI so SDK consumers get a typed
-         *     AlreadySyncing error instead of an opaque blob.
-         */
-        TriggerSyncConflictResponse: {
-            details: components["schemas"]["TriggerSyncConflictDetails"];
-            /** Message */
-            message: string;
-        };
-        /** TriggerSyncResponse */
-        TriggerSyncResponse: {
-            /**
-             * Data Source Id
-             * Format: uuid
-             */
-            data_source_id: string;
-            /**
-             * Status
-             * @constant
-             */
-            status: "started";
-            /**
-             * Triggered At
-             * Format: date-time
-             */
-            triggered_at: string;
-        };
-        /**
          * TriggerableEvent
          * @description Closed set of world events that trigger definitions may subscribe to.
          *
@@ -25676,6 +25288,8 @@ export interface components {
             name?: components["schemas"]["StrippedNonemptyString"] | null;
             /** Region */
             region?: ("us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1") | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Topic Modeling Enabled */
             topic_modeling_enabled?: boolean | null;
         };
@@ -26736,33 +26350,6 @@ export interface components {
             total_calls?: number;
         };
         /**
-         * WorkspaceConnectorConfigResponse
-         * @description Connector configuration for a workspace.
-         */
-        WorkspaceConnectorConfigResponse: {
-            /**
-             * Connection Config
-             * @default {}
-             */
-            connection_config?: {
-                [key: string]: unknown;
-            };
-            /** Connector Type */
-            connector_type: string;
-            /** Data Source Id */
-            data_source_id?: string | null;
-            /**
-             * Outbound Entity Types
-             * @default []
-             */
-            outbound_entity_types?: string[];
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-        };
-        /**
          * WorkspaceDataQueryItem
          * @description Wire shape for the response of every read + create/update handler.
          *
@@ -26910,6 +26497,8 @@ export interface components {
             region: string;
             /** Slug */
             slug: string;
+            /** Timezone */
+            timezone: string | null;
             /** Topic Modeling Enabled */
             topic_modeling_enabled: boolean;
             /**
@@ -27112,6 +26701,13 @@ export interface components {
             endpoint: string;
             /** Integration */
             integration: string;
+            /**
+             * Skill Input Bindings
+             * @description Endpoint parameter -> parent skill input mappings injected at dispatch.
+             */
+            skill_input_bindings?: {
+                [key: string]: string;
+            };
         };
         /**
          * StaticToolDef
@@ -27291,7 +26887,7 @@ export interface components {
             description: string;
             /**
              * Headers
-             * @description Static headers merged into every request.
+             * @description Request headers. An exact ``$param.<name>`` value binds and consumes an input parameter.
              */
             headers?: {
                 [key: string]: string;
@@ -27639,6 +27235,13 @@ export interface components {
             endpoint: string;
             /** Integration */
             integration: string;
+            /**
+             * Skill Input Bindings
+             * @default {}
+             */
+            skill_input_bindings?: {
+                [key: string]: string;
+            };
         };
         /** StaticToolDef */
         src__routes__internal_skills__StaticToolDef: {
@@ -27650,6 +27253,18 @@ export interface components {
             };
             /** Name */
             name: string;
+        };
+        /** Request */
+        src__routes__memory_dimensions__create_memory_dimension__Request: {
+            /** Description */
+            description: string;
+            /** Key */
+            key: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
         };
         /** AuditEventResponse */
         src__routes__operators_models__AuditEventResponse: {
@@ -31207,6 +30822,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description A call with this idempotency_key is still being placed (retry shortly), or the key was used for a different call */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -31230,7 +30852,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Voice agent, outbound calls, or channel manager not configured */
+            /** @description The call could not be placed; retry with the same idempotency_key */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -33132,82 +32754,6 @@ export interface operations {
             };
         };
     };
-    "trigger-data-source-sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-                data_source_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TriggerSyncResponse"];
-                };
-            };
-            /** @description Invalid data source ID format. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Missing or invalid API key. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Data source not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Data source is already syncing. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TriggerSyncConflictResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Rate limit exceeded. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Connector-runner is unreachable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     "data-source-sync-history": {
         parameters: {
             query?: {
@@ -34703,39 +34249,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-        };
-    };
-    "fhir-build-user-bundle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FhirBuildBundleRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FhirBundleResponse"];
-                };
-            };
-            /** @description Invalid user list. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -37683,6 +37196,39 @@ export interface operations {
             };
         };
     };
+    "create-memory-dimension": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["src__routes__memory_dimensions__create_memory_dimension__Request"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "emit-metering-event": {
         parameters: {
             query?: never;
@@ -39615,6 +39161,8 @@ export interface operations {
                 channel?: ("voice" | "text" | "sms" | "email" | "web")[];
                 /** @description Filter conversation and live voice runs by up to 100 service IDs. Historical framework runs have no stored service attribution and are excluded. Repeated values are ORed; combines with other filters using AND. */
                 service_id?: string[];
+                /** @description Case-insensitive substring match on a conversation run's entity name, caller ID or phone number, applied before pagination. Framework runs carry none of these and are excluded when search is set. Combines with other filters using AND. */
+                search?: components["schemas"]["SearchString"] | null;
             };
             header?: never;
             path: {
@@ -41169,95 +40717,6 @@ export interface operations {
             };
             /** @description Rate limited */
             429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "gap-scanner-preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["GapScannerPreviewRequest"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Connector runner unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "gap-scanner-scan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Connector runner unavailable */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

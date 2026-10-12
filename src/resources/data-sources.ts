@@ -77,22 +77,4 @@ export class DataSourcesResource extends WorkspaceScopedResource {
       }),
     )
   }
-
-  /**
-   * Trigger a one-off manual sync of a data source.
-   *
-   * Bypasses the business-hours gate and per-resource cadence counter on
-   * connector-runner. Resolves with `{ status: "started", ... }` once the
-   * request is queued — the poll itself runs asynchronously. Platform-api
-   * returns 409 if the source is already mid-sync (see
-   * `TriggerSyncConflictResponse` for the body shape), 503 if
-   * connector-runner is unreachable.
-   */
-  async triggerSync(dataSourceId: DataSourceId | string) {
-    return extractData(
-      await this.client.POST('/v1/{workspace_id}/data-sources/{data_source_id}/sync', {
-        params: { path: { workspace_id: this.workspaceId, data_source_id: dataSourceId } },
-      }),
-    )
-  }
 }
