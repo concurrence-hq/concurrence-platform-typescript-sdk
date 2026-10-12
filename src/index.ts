@@ -213,7 +213,7 @@ export class AmigoClient {
   readonly analytics!: AnalyticsResource
   readonly simulations!: SimulationsResource
   readonly metrics!: MetricsResource
-  /** Production evals — eval definitions run against live calls, and each call's verdicts */
+  /** Production evals: eval definitions run against live calls, and each call's verdicts */
   readonly productionEvals!: ProductionEvalsResource
   readonly settings!: SettingsResource
   readonly recordings!: RecordingsResource

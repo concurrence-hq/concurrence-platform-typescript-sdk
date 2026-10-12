@@ -15,7 +15,7 @@ export type CallEvalResult = components['schemas']['CallEvalResult']
 export type CallEvalResultsResponse = components['schemas']['CallEvalResultsResponse']
 
 /**
- * Production evals — eval definitions that run against a workspace's live calls,
+ * Production evals: eval definitions that run against a workspace's live calls,
  * and the verdicts they record per call (keyed by conversation id, any channel).
  */
 export class ProductionEvalsResource extends WorkspaceScopedResource {
