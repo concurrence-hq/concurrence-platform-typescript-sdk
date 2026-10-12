@@ -95,7 +95,9 @@ export class IntakeResource extends WorkspaceScopedResource {
     upload: async (params: UploadIntakeFileParams) => {
       const form = new FormData()
       form.append('dataset', params.dataset)
-      form.append('file', params.file, params.filename)
+      // Node 20 and 22 name the part "undefined" when the filename argument is undefined.
+      if (params.filename === undefined) form.append('file', params.file)
+      else form.append('file', params.file, params.filename)
       if (params.document_id !== undefined) form.append('document_id', params.document_id)
       if (params.doc_metadata !== undefined) {
         form.append('doc_metadata', JSON.stringify(params.doc_metadata))
