@@ -206,20 +206,4 @@ export function resolveScopedPlatformClient(client: PlatformFetch): {
   }
 }
 
-export interface UntypedOpenApiResult<T> {
-  data?: T
-  error?: unknown
-  response?: Response
-}
-
-export interface UntypedOpenApiClient {
-  GET<T>(path: string, init: object): Promise<UntypedOpenApiResult<T>>
-  POST<T>(path: string, init: object): Promise<UntypedOpenApiResult<T>>
-  DELETE<T>(path: string, init: object): Promise<UntypedOpenApiResult<T>>
-}
-
-export function untypedClient(client: PlatformFetch): UntypedOpenApiClient {
-  return client as unknown as UntypedOpenApiClient
-}
-
 export { extractData }
