@@ -2117,7 +2117,7 @@ export interface paths {
         };
         /**
          * Event Stream
-         * @description Server-Sent Events stream for real-time workspace updates.
+         * @description Server-Sent Events stream for real-time workspace updates. Pass `conversation_id` to receive only the events that carry that conversation_id.
          */
         get: operations["get-event-stream"];
         put?: never;
@@ -5480,6 +5480,8 @@ export interface paths {
         /**
          * List Simulation Cases
          * @description List durable simulation cases for case-library inspection.
+         *
+         *     ``total`` counts every case that matches ``service_id``, ``tags`` and ``search``.
          */
         get: operations["list-simulation-cases"];
         put?: never;
@@ -5510,7 +5512,12 @@ export interface paths {
         post?: never;
         /**
          * Delete Simulation Case
-         * @description Delete one durable simulation case.
+         * @description Delete one durable simulation case and remove it from every suite that lists it.
+         *
+         *     The case row and its id in the workspace's suites go in one transaction, so
+         *     no suite keeps an id that resolves to nothing. A suite listing the case
+         *     doesn't block the delete (no 409): a suite selects cases from the library,
+         *     and the audit event records which suites lost the case.
          */
         delete: operations["delete-simulation-case"];
         options?: never;
@@ -5572,7 +5579,7 @@ export interface paths {
          *     overall pass rate, per-metric trend series, and per-case / per-suite rollups
          *     (each with its per-conversation verdicts).
          *
-         *     ``limit`` bounds how many recent runs are read (capped at 50). One request
+         *     ``limit`` (1 to 50) bounds how many recent runs are read. One request
          *     replaces the console's former one-fetch-per-run fan-out.
          */
         get: operations["get-simulation-performance"];
@@ -5591,7 +5598,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Simulation Runs */
+        /**
+         * List Simulation Runs
+         * @description List simulation runs, newest first by default.
+         *
+         *     Filters combine with AND. The list omits each run's objective, request and
+         *     scenarios; get-simulation-run returns them.
+         */
         get: operations["list-simulation-runs"];
         put?: never;
         /**
@@ -5636,7 +5649,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Complete Simulation Run */
+        /**
+         * Complete Simulation Run
+         * @description Finish a running run: failed when ``error`` is set, otherwise completed.
+         *
+         *     A run finishes once. Completing a finished run returns 409 and leaves it as it was.
+         */
         post: operations["complete-simulation-run"];
         delete?: never;
         options?: never;
@@ -5656,6 +5674,9 @@ export interface paths {
         /**
          * Create Simulation Session
          * @description Create a simulation session within a run. Proxies to agent-engine.
+         *
+         *     The run must be in the workspace (404 otherwise) and ``service_id`` must be
+         *     the run's service (422 otherwise), both checked before agent-engine is called.
          *
          *     entity_id ownership: agent-engine's _resolve_caller queries the entity
          *     with workspace_id scoping — a workspace-A entity_id resolves to None in
@@ -5896,6 +5917,9 @@ export interface paths {
         /**
          * Score Simulation Session
          * @description ASI assigns a score to a completed simulation session.
+         *
+         *     404 when the workspace has no coverage session with this id, such as a
+         *     run-less playground session that was never promoted.
          */
         post: operations["score-simulation-session"];
         delete?: never;
@@ -5915,7 +5939,7 @@ export interface paths {
         put?: never;
         /**
          * Simulation Step
-         * @description Step a simulation session and auto-store the turn observation.
+         * @description Step the session in the path and auto-store the turn observation.
          */
         post: operations["simulation-step"];
         delete?: never;
@@ -6002,6 +6026,30 @@ export interface paths {
         head?: never;
         /** Update Simulation Suite */
         patch: operations["update-simulation-suite"];
+        trace?: never;
+    };
+    "/v1/{workspace_id}/simulations/suites/{suite_id}/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Simulation Suite Cases
+         * @description List the cases a suite selects, one page per call.
+         *
+         *     A suite selects its explicit ``case_ids`` plus every case that carries all of
+         *     its ``required_tags``, so explicit, tag-defined and hybrid suites all resolve
+         *     here. Without ``search``, ``total`` equals the suite's ``case_count``.
+         */
+        get: operations["list-simulation-suite-cases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/{workspace_id}/simulations/suites/{suite_id}/run": {
@@ -9741,6 +9789,14 @@ export interface components {
              */
             workspace_id: string;
         };
+        /** CompleteSimulationRunResponse */
+        CompleteSimulationRunResponse: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "completed" | "failed";
+        };
         /** CompletionCriteria */
         CompletionCriteria: {
             /** State Based */
@@ -9826,6 +9882,11 @@ export interface components {
             config: {
                 [key: string]: unknown;
             };
+        };
+        /** ConfigToPolicyResponse */
+        ConfigToPolicyResponse: {
+            /** @description Only the fields the config sets. A field left out keeps its turn-policy default. */
+            turn_policy: components["schemas"]["TurnPolicyOverrides"];
         };
         /** ConnectorHealthItem */
         ConnectorHealthItem: {
@@ -10237,10 +10298,10 @@ export interface components {
          *
          *     Free-form residual on the raw ``conversation_summary`` JSONB:
          *     ``text_intelligence: dict`` (text-channel intelligence
-         *     sub-payload), and on the simulation path ``transcript_text:
-         *     str`` (PHI), ``tool_calls: list``, ``score``,
+         *     sub-payload), and on the simulation path ``score``,
          *     ``score_rationale``, ``terminal_reached``, ``states_visited``.
-         *     Not exposed via this typed shape.
+         *     Older simulation rows also carry ``transcript_text: str`` (PHI)
+         *     and ``tool_calls: list``. Not exposed via this typed shape.
          */
         ConversationSummary: {
             /**
@@ -10539,6 +10600,182 @@ export interface components {
              * @description When the alternative action was available (seconds)
              */
             timestamp_seconds?: number | null;
+        };
+        /** CoverageEdge */
+        CoverageEdge: {
+            /**
+             * First Seen Turn
+             * @description Index of the first turn that took this edge, or -1.
+             */
+            first_seen_turn: number;
+            /** Frequency */
+            frequency: number;
+            /** Observed */
+            observed: boolean;
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /**
+             * Theoretical
+             * @description The transition is an exit condition in the service's context graph.
+             */
+            theoretical: boolean;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "transition" | "self_loop";
+        };
+        /** CoverageFork */
+        CoverageFork: {
+            /** Children */
+            children: string[];
+            /** Fork Turn Index */
+            fork_turn_index: number | null;
+            /** Parent Session Id */
+            parent_session_id: string;
+        };
+        /** CoveragePath */
+        CoveragePath: {
+            /** Average Score */
+            average_score: number | null;
+            /** Average Turns */
+            average_turns: number | null;
+            /**
+             * Is Complete
+             * @description At least one session on the path reached a terminal state.
+             */
+            is_complete: boolean;
+            /** Session Count */
+            session_count: number;
+            /** Session Ids */
+            session_ids: string[];
+            /**
+             * Trajectory
+             * @description The states the sessions moved through, in order.
+             */
+            trajectory: string[];
+        };
+        /** CoverageSession */
+        CoverageSession: {
+            /** Created At */
+            created_at: string | null;
+            /** Fork Turn Index */
+            fork_turn_index: number | null;
+            /**
+             * Immediate Score
+             * @description The session's score, the same value as score.
+             */
+            immediate_score?: number | null;
+            /** Immediate Score Rationale */
+            immediate_score_rationale?: string | null;
+            /** Metric Result Count */
+            metric_result_count?: number | null;
+            /** Metric Status */
+            metric_status?: ("pending" | "available" | "unavailable") | null;
+            /** Metrics Last Checked At */
+            metrics_last_checked_at?: string | null;
+            /** Parent Session Id */
+            parent_session_id: string | null;
+            /** Score */
+            score: number | null;
+            /** Session Id */
+            session_id: string;
+            /** Tags */
+            tags: string[];
+            /** Terminal Reached */
+            terminal_reached: boolean;
+            /** Total Turns */
+            total_turns: number;
+        };
+        /** CoverageStateNode */
+        CoverageStateNode: {
+            /** Average Empathy Tier */
+            average_empathy_tier: number;
+            /** Average Engine Ms */
+            average_engine_ms: number | null;
+            /** Average Nav Ms */
+            average_nav_ms: number | null;
+            /** Fail Count */
+            fail_count: number;
+            /**
+             * First Seen Turn
+             * @description Index of the first turn that started in this state, or -1.
+             */
+            first_seen_turn: number;
+            /**
+             * Id
+             * @description The state name.
+             */
+            id: string;
+            /** Is Terminal */
+            is_terminal: boolean;
+            /**
+             * Observed
+             * @description At least one stored turn started in this state.
+             */
+            observed: boolean;
+            /** Pass Count */
+            pass_count: number;
+            /** Self Loop Count */
+            self_loop_count: number;
+            /** Session Count */
+            session_count: number;
+            /**
+             * Theoretical
+             * @description The state is in the service's context graph.
+             */
+            theoretical: boolean;
+            /** Tools Used */
+            tools_used: string[];
+            /** Transition Out Count */
+            transition_out_count: number;
+            /** Turn Count */
+            turn_count: number;
+            /**
+             * Type
+             * @description The state type in the context graph, or `unknown` for a state seen only in turns.
+             */
+            type: string;
+            /** Unknown Count */
+            unknown_count: number;
+        };
+        /** CoverageTree */
+        CoverageTree: {
+            /** Forks */
+            forks: components["schemas"]["CoverageFork"][];
+            /** Root Sessions */
+            root_sessions: string[];
+        };
+        /** CoverageTurn */
+        CoverageTurn: {
+            /** Agent Text */
+            agent_text: string | null;
+            /** Caller Text */
+            caller_text: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Empathy Tier */
+            empathy_tier: number;
+            /** Global Index */
+            global_index: number;
+            /** Is Terminal */
+            is_terminal: boolean;
+            /** Session Id */
+            session_id: string;
+            /** State After */
+            state_after: string;
+            /** State Before */
+            state_before: string;
+            /** State Changed */
+            state_changed: boolean;
+            /** Tool Call Details */
+            tool_call_details: components["schemas"]["ToolCallDetail"][];
+            /** Tools Called */
+            tools_called: string[];
+            /** Turn Index */
+            turn_index: number;
         };
         /** CreateAgentRequest */
         CreateAgentRequest: {
@@ -11008,6 +11245,33 @@ export interface components {
             /** Cases */
             cases: components["schemas"]["SimulationCaseResponse"][];
         };
+        /** CreateSimulationRunResponse */
+        CreateSimulationRunResponse: {
+            /** Branch Name */
+            branch_name: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "running";
+            /** Tags */
+            tags: string[];
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
         /** CreateSimulationSuiteRequest */
         CreateSimulationSuiteRequest: {
             /** Case Ids */
@@ -11081,7 +11345,7 @@ export interface components {
             max_tokens?: number;
             /**
              * Model
-             * @default claude-sonnet-5
+             * @default claude-sonnet-5-5
              */
             model?: string;
             name: components["schemas"]["NameString"];
@@ -12079,6 +12343,15 @@ export interface components {
             value?: string | number | boolean | {
                 [key: string]: unknown;
             } | null;
+        };
+        /** DeleteSimulationCoverageGraphResponse */
+        DeleteSimulationCoverageGraphResponse: {
+            /** Deleted Runs */
+            deleted_runs: number;
+            /** Deleted Sessions */
+            deleted_sessions: number;
+            /** Deleted Turns */
+            deleted_turns: number;
         };
         /**
          * DeliverSurfaceRequest
@@ -13462,14 +13735,14 @@ export interface components {
          * EvalQualitySummary
          * @description Aggregate production-eval verdict stats, overall or for one eval_key.
          *
-         *     Sourced from ``call_eval_results`` (LLM-judge + assertion verdicts), which is
+         *     Sourced from ``call_eval_results`` (assertion and metric verdicts), which is
          *     keyed by ``conversation_id`` and therefore CHANNEL-AGNOSTIC — voice, text,
          *     SMS, email all contribute equally, unlike the voice-shaped call-quality score.
          */
         EvalQualitySummary: {
             /**
              * Avg Score
-             * @description Mean numeric judge score across scored verdicts
+             * @description Mean numeric value of metric verdicts; null when none are numeric
              */
             avg_score?: number | null;
             /**
@@ -13500,7 +13773,7 @@ export interface components {
         EvalQualityTrendPoint: {
             /**
              * Avg Score
-             * @description Mean numeric judge score in this bucket
+             * @description Mean numeric value of metric verdicts in this bucket
              */
             avg_score?: number | null;
             /**
@@ -13557,8 +13830,6 @@ export interface components {
             run_id?: string | null;
             /** Score */
             score?: number | null;
-            /** Score Label */
-            score_label?: string | null;
             /** Session Id */
             session_id?: string | null;
             /**
@@ -14811,6 +15082,59 @@ export interface components {
             /** Valence */
             valence?: number | null;
         };
+        /** ForkBranch */
+        ForkBranch: {
+            /**
+             * Error
+             * @description Why the branch failed. Null when it stepped.
+             */
+            error?: string | null;
+            /** @description The branch's first turn. Null when the branch failed. */
+            observation?: components["schemas"]["ForkObservation"] | null;
+            /** Session Id */
+            session_id: string;
+        };
+        /** ForkObservation */
+        ForkObservation: {
+            /** Agent Text */
+            agent_text: string;
+            /** Caller Text */
+            caller_text: string;
+            /**
+             * Empathy Tier
+             * @default 0
+             */
+            empathy_tier?: number;
+            /** Engine Ms */
+            engine_ms?: number | null;
+            /**
+             * Has Pause
+             * @default false
+             */
+            has_pause?: boolean;
+            /** Is Terminal */
+            is_terminal: boolean;
+            /** Nav Ms */
+            nav_ms?: number | null;
+            /** Selected Action */
+            selected_action?: string | null;
+            /** State After */
+            state_after: string;
+            /** State Before */
+            state_before: string;
+            /** State Changed */
+            state_changed: boolean;
+            /**
+             * Tool Call Details
+             * @default []
+             */
+            tool_call_details?: components["schemas"]["ToolCallDetail"][];
+            /**
+             * Tools Called
+             * @default []
+             */
+            tools_called?: string[];
+        };
         /** ForkRequest */
         ForkRequest: {
             /** Alternatives */
@@ -15710,7 +16034,7 @@ export interface components {
             max_tokens?: number;
             /**
              * Model
-             * @default claude-sonnet-5
+             * @default claude-sonnet-5-5
              */
             model?: string;
             /** Name */
@@ -19614,7 +19938,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "running" | "paused" | "completed" | "failed" | "timed_out";
+            status: "running" | "paused" | "dormant" | "completed" | "failed" | "timed_out";
             /**
              * @description Channel-neutral takeover eligibility, derived from this run's own fields.
              *
@@ -19840,7 +20164,8 @@ export interface components {
          *     Honest workspace totals the paginated list cannot derive client-side (it only
          *     holds the loaded page). ``by_status`` carries the full canonical breakdown
          *     (incl. any status beyond the named convenience fields); ``by_kind`` splits
-         *     framework vs conversation. ``live`` = running + paused.
+         *     framework vs conversation. ``live`` = running + paused. ``dormant`` counts
+         *     open conversations idle past their channel threshold, which are not live.
          */
         RunsSummaryResponse: {
             /** By Kind */
@@ -19853,6 +20178,8 @@ export interface components {
             };
             /** Completed */
             completed: number;
+            /** Dormant */
+            dormant: number;
             /** Failed */
             failed: number;
             /** Live */
@@ -20690,6 +21017,12 @@ export interface components {
              *     so the console renders each drill-down verdict without parsing raw shapes.
              */
             readonly checks: components["schemas"]["EvaluationResultView"][];
+            /**
+             * Error
+             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @default 0
+             */
+            error?: number;
             /** Eval Key */
             eval_key: string;
             /**
@@ -20702,7 +21035,10 @@ export interface components {
              * @default 0
              */
             failed?: number;
-            /** Pass Rate */
+            /**
+             * Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             pass_rate?: number | null;
             /**
              * Passed
@@ -20711,11 +21047,18 @@ export interface components {
             passed?: number;
             /**
              * Pending
+             * @description Verdicts not graded yet; not in the pass_rate denominator
              * @default 0
              */
             pending?: number;
             /** Results */
             results?: components["schemas"]["SimulationEvalResultResponse"][];
+            /**
+             * Skipped
+             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @default 0
+             */
+            skipped?: number;
         };
         /** SimCasePerfResponse */
         SimCasePerfResponse: {
@@ -20725,6 +21068,17 @@ export interface components {
             case_id?: string | null;
             /** Case Name */
             case_name: string;
+            /**
+             * Error
+             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @default 0
+             */
+            error?: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed?: number;
             /** Latest Run At */
             latest_run_at?: string | null;
             /**
@@ -20734,16 +21088,32 @@ export interface components {
             latest_run_id: string;
             /**
              * Measured
+             * @description passed + failed
              * @default 0
              */
             measured?: number;
-            /** Pass Rate */
+            /**
+             * Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             pass_rate?: number | null;
             /**
              * Passed
              * @default 0
              */
             passed?: number;
+            /**
+             * Pending
+             * @description Verdicts not graded yet; not in the pass_rate denominator
+             * @default 0
+             */
+            pending?: number;
+            /**
+             * Skipped
+             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @default 0
+             */
+            skipped?: number;
         };
         /** SimMetricPerfResponse */
         SimMetricPerfResponse: {
@@ -20772,6 +21142,7 @@ export interface components {
             at?: string | null;
             /**
              * Measured
+             * @description Passed + failed verdicts; error, pending and skipped are excluded
              * @default 0
              */
             measured?: number;
@@ -20786,7 +21157,14 @@ export interface components {
         /** SimPerformanceOverviewResponse */
         SimPerformanceOverviewResponse: {
             /**
+             * Error Count
+             * @description Verdicts where grading broke; not in overall_pass_rate
+             * @default 0
+             */
+            error_count?: number;
+            /**
              * Evals Run
+             * @description Passed + failed verdicts: the overall_pass_rate denominator
              * @default 0
              */
             evals_run?: number;
@@ -20795,32 +21173,74 @@ export interface components {
              * @default 0
              */
             needs_attention_count?: number;
-            /** Overall Pass Rate */
+            /**
+             * Overall Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             overall_pass_rate?: number | null;
+            /**
+             * Pending Count
+             * @description Verdicts not graded yet; not in overall_pass_rate
+             * @default 0
+             */
+            pending_count?: number;
             /**
              * Runs Analyzed
              * @default 0
              */
             runs_analyzed?: number;
+            /**
+             * Skipped Count
+             * @description Verdicts that did not apply; not in overall_pass_rate
+             * @default 0
+             */
+            skipped_count?: number;
         };
         /** SimSuitePerfResponse */
         SimSuitePerfResponse: {
             /** Cases */
             cases?: components["schemas"]["SimCasePerfResponse"][];
+            /**
+             * Error
+             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @default 0
+             */
+            error?: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed?: number;
             /** Latest Run At */
             latest_run_at?: string | null;
             /**
              * Measured
+             * @description passed + failed
              * @default 0
              */
             measured?: number;
-            /** Pass Rate */
+            /**
+             * Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             pass_rate?: number | null;
             /**
              * Passed
              * @default 0
              */
             passed?: number;
+            /**
+             * Pending
+             * @description Verdicts not graded yet; not in the pass_rate denominator
+             * @default 0
+             */
+            pending?: number;
+            /**
+             * Skipped
+             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @default 0
+             */
+            skipped?: number;
             /** Suite Id */
             suite_id?: string | null;
             /** Suite Name */
@@ -21129,6 +21549,11 @@ export interface components {
             has_more: boolean;
             /** Items */
             items: components["schemas"]["SimulationCaseResponse"][];
+            /**
+             * Total
+             * @description Cases matching the filters and search, across every page.
+             */
+            total: number;
         };
         /** SimulationCaseMetricEval */
         SimulationCaseMetricEval: {
@@ -21203,6 +21628,56 @@ export interface components {
             /** Temperament */
             temperament?: string | null;
         };
+        /**
+         * SimulationCoverageGraphResponse
+         * @description The service's context graph states and transitions, overlaid with the stored turns.
+         */
+        SimulationCoverageGraphResponse: {
+            /** Coverage Percentage */
+            coverage_percentage: number;
+            /** Edges */
+            edges: components["schemas"]["CoverageEdge"][];
+            /** Metric Result Count */
+            metric_result_count?: number | null;
+            /**
+             * Metric Status
+             * @description Delayed-metric availability for the run. Set only when the request names a run_id.
+             */
+            metric_status?: ("pending" | "available" | "unavailable") | null;
+            /** Metrics Last Checked At */
+            metrics_last_checked_at?: string | null;
+            /** Run Id */
+            run_id: string | null;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Sessions */
+            sessions: components["schemas"]["CoverageSession"][];
+            /** State Nodes */
+            state_nodes: components["schemas"]["CoverageStateNode"][];
+            /** Total Forks */
+            total_forks: number;
+            /** Total Sessions */
+            total_sessions: number;
+            /** Total Turns */
+            total_turns: number;
+            tree: components["schemas"]["CoverageTree"];
+            /**
+             * Turns
+             * @description Every stored turn in order. Set only with include_turns=true.
+             */
+            turns?: components["schemas"]["CoverageTurn"][] | null;
+        };
+        /** SimulationCoveragePathsResponse */
+        SimulationCoveragePathsResponse: {
+            /**
+             * Paths
+             * @description Most sessions first.
+             */
+            paths: components["schemas"]["CoveragePath"][];
+        };
         /** SimulationEvalResultResponse */
         SimulationEvalResultResponse: {
             /** Actual */
@@ -21253,6 +21728,26 @@ export interface components {
              * @enum {string}
              */
             status: "passed" | "failed" | "pending" | "skipped" | "error";
+        };
+        /**
+         * SimulationForkResponse
+         * @description One branch per alternative, in request order.
+         */
+        SimulationForkResponse: {
+            /** Branches */
+            branches: components["schemas"]["ForkBranch"][];
+            /**
+             * Fork Turn Index
+             * @description The parent's turn count when it forked. Each branch's first turn is stored at the next index.
+             */
+            fork_turn_index: number;
+            /** Parent Session Id */
+            parent_session_id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
         };
         /** SimulationIntelligenceResponse */
         SimulationIntelligenceResponse: {
@@ -21329,6 +21824,20 @@ export interface components {
             detail: string | {
                 [key: string]: unknown;
             }[];
+        };
+        /** SimulationRunListResponse */
+        SimulationRunListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Runs */
+            runs: components["schemas"]["src__routes__simulations__SimulationRunListResponse__Item"][];
+            /**
+             * Total
+             * @description Runs that match the filters, across every page.
+             */
+            total: number;
         };
         /**
          * SimulationRunResponse
@@ -21429,6 +21938,14 @@ export interface components {
              */
             total_turns?: number;
         };
+        /** SimulationSessionListResponse */
+        SimulationSessionListResponse: {
+            /**
+             * Sessions
+             * @description Newest first.
+             */
+            sessions: components["schemas"]["src__routes__simulations__SimulationSessionListResponse__Item"][];
+        };
         /** SimulationSessionResponse */
         SimulationSessionResponse: {
             /** Greeting */
@@ -21438,6 +21955,16 @@ export interface components {
             /** Session Id */
             session_id: string;
             snapshot: components["schemas"]["SimulationSnapshotResponse"];
+        };
+        /** SimulationSessionTurnsResponse */
+        SimulationSessionTurnsResponse: {
+            /** Session Id */
+            session_id: string;
+            /**
+             * Turns
+             * @description In turn order, at most 200.
+             */
+            turns: components["schemas"]["SimulationTurnResponse"][];
         };
         /** SimulationSnapshotResponse */
         SimulationSnapshotResponse: {
@@ -21746,6 +22273,46 @@ export interface components {
              * @default suspend_forward
              */
             safety_response?: string;
+        };
+        /** SimulationTurnQueryResponse */
+        SimulationTurnQueryResponse: {
+            /**
+             * Turns
+             * @description Newest first.
+             */
+            turns: components["schemas"]["SimulationTurnResponse"][];
+        };
+        /**
+         * SimulationTurnResponse
+         * @description One stored turn of a simulation session.
+         */
+        SimulationTurnResponse: {
+            /** Agent Text */
+            agent_text: string | null;
+            /** Caller Text */
+            caller_text: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Empathy Tier */
+            empathy_tier: number;
+            /** Is Terminal */
+            is_terminal: boolean;
+            /** Session Id */
+            session_id: string;
+            /** State After */
+            state_after: string;
+            /** State Before */
+            state_before: string;
+            /** State Changed */
+            state_changed: boolean;
+            /** Tool Call Details */
+            tool_call_details: components["schemas"]["ToolCallDetail"][];
+            /** Tools Available */
+            tools_available: string[];
+            /** Tools Called */
+            tools_called: string[];
+            /** Turn Index */
+            turn_index: number;
         };
         /** SimulationTurnStoredEvent */
         SimulationTurnStoredEvent: {
@@ -22303,6 +22870,23 @@ export interface components {
             emotion?: string | null;
             /** Session Id */
             session_id: string;
+            /** Valence */
+            valence?: number | null;
+        };
+        /**
+         * StepSessionRequest
+         * @description One caller turn for the session named in the path.
+         */
+        StepSessionRequest: {
+            /** Caller Text */
+            caller_text: string;
+            /** Emotion */
+            emotion?: string | null;
+            /**
+             * Session Id
+             * @description Leave unset: the path names the session. A value that differs from the path returns 422.
+             */
+            session_id?: string | null;
             /** Valence */
             valence?: number | null;
         };
@@ -24841,6 +25425,23 @@ export interface components {
             /** Stt Eot Timeout Ms */
             stt_eot_timeout_ms?: number | null;
         };
+        /** TurnPolicyOverrides */
+        TurnPolicyOverrides: {
+            /** Barge In Enabled */
+            barge_in_enabled?: boolean | null;
+            /** Block Forward Call */
+            block_forward_call?: boolean | null;
+            /** Block Forward Call After Turns */
+            block_forward_call_after_turns?: number | null;
+            /** Context Strategy */
+            context_strategy?: "compact" | null;
+            /** Degradation Threshold */
+            degradation_threshold?: number | null;
+            /** Greeting Shield S */
+            greeting_shield_s?: number | null;
+            /** Safety Response */
+            safety_response?: ("stay_empathize" | "alert") | null;
+        };
         /** TurnRequest */
         TurnRequest: {
             /** Content */
@@ -24856,6 +25457,7 @@ export interface components {
             media_url?: string | null;
             /**
              * Message
+             * @description The user's message. Leave it empty (with no ``content`` or media) only to kick off a conversation that has no turns yet: the agent answers with its greeting. Once the conversation has a turn, a turn with no user input is a 422.
              * @default
              */
             message?: string;
@@ -26633,6 +27235,8 @@ export interface components {
         _Access: "read" | "write";
         /** @enum {string} */
         _AgentSortField: "name" | "created_at" | "updated_at";
+        /** @enum {string} */
+        _CaseSortField: "created_at" | "updated_at" | "description";
         _DatasetSlug: string;
         /** @enum {string} */
         _DatasetUpdateStatus: "checking_drive" | "preparing" | "publishing" | "completed" | "needs_review" | "failed";
@@ -26653,6 +27257,8 @@ export interface components {
         _FileType: string;
         /** @enum {string} */
         _ResourceType: "integration_endpoint" | "skill" | "kb_scope";
+        /** @constant */
+        _RunSortField: "created_at";
         /** @enum {string} */
         _SourceEventSortField: "ingested_at" | "event_type" | "confidence";
         _ToolMockKey: string;
@@ -27339,6 +27945,84 @@ export interface components {
         src__routes__scheduling_rule_sets___SortField: "agent_kind" | "rule_kind";
         /** @enum {string} */
         src__routes__services___SortField: "name" | "created_at" | "updated_at";
+        /** Item */
+        src__routes__simulations__SimulationRunListResponse__Item: {
+            /** Branch Name */
+            branch_name: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Created At */
+            created_at: string | null;
+            /**
+             * Error
+             * @description Failure reason saved by complete-run. Null unless status is failed, and null on
+             *     failed runs older than the column.
+             */
+            error: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "completed" | "failed";
+            /** Tags */
+            tags: string[];
+            /** Total Sessions */
+            total_sessions: number;
+            /** Total Turns */
+            total_turns: number;
+        };
+        /** Item */
+        src__routes__simulations__SimulationSessionListResponse__Item: {
+            /** Created At */
+            created_at: string | null;
+            /** Fork Turn Index */
+            fork_turn_index: number | null;
+            /**
+             * Immediate Score
+             * @description The session's score, the same value as score.
+             */
+            immediate_score?: number | null;
+            /** Immediate Score Rationale */
+            immediate_score_rationale?: string | null;
+            /** Metric Result Count */
+            metric_result_count?: number | null;
+            /** Metric Status */
+            metric_status?: ("pending" | "available" | "unavailable") | null;
+            /** Metrics Last Checked At */
+            metrics_last_checked_at?: string | null;
+            /** Parent Session Id */
+            parent_session_id: string | null;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Score */
+            score: number | null;
+            /** Score Rationale */
+            score_rationale: string | null;
+            /** Session Id */
+            session_id: string;
+            /**
+             * Tags
+             * @description Bridge-written tags, such as `scenario_index:<n>`, `temperament:<x>` and `forked`.
+             */
+            tags: string[];
+            /** Terminal Reached */
+            terminal_reached: boolean;
+            /** Total Turns */
+            total_turns: number;
+        };
         /** @enum {string} */
         src__routes__skills___SortField: "name" | "created_at" | "updated_at" | "slug";
         /**
@@ -33140,7 +33824,10 @@ export interface operations {
     };
     "get-event-stream": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace. */
+                conversation_id?: string | null;
+            };
             header?: never;
             path: {
                 workspace_id: string;
@@ -33157,6 +33844,15 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkspaceSSEEvent"];
                     "text/event-stream": components["schemas"]["WorkspaceSSEEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Rate limit exceeded */
@@ -39156,7 +39852,7 @@ export interface operations {
                 sort_by?: string[];
                 limit?: number;
                 continuation_token?: unknown;
-                status?: ("live" | "running" | "paused" | "completed" | "failed" | "timed_out")[];
+                status?: ("live" | "running" | "paused" | "dormant" | "completed" | "failed" | "timed_out")[];
                 kind?: ("conversation" | "framework")[];
                 channel?: ("voice" | "text" | "sms" | "email" | "web")[];
                 /** @description Filter conversation and live voice runs by up to 100 service IDs. Historical framework runs have no stored service attribution and are excluded. Repeated values are ORed; combines with other filters using AND. */
@@ -41138,6 +41834,10 @@ export interface operations {
             query?: {
                 limit?: number;
                 continuation_token?: unknown;
+                /** @description Sort axes as `+field` or `-field`, applied left to right. Newest created first when empty. */
+                sort_by?: string[];
+                /** @description Case-insensitive substring match on the case description. */
+                search?: components["schemas"]["SearchString"] | null;
                 service_id?: string | null;
                 tags?: string[] | null;
             };
@@ -41380,9 +42080,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ConfigToPolicyResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41433,8 +42131,25 @@ export interface operations {
     "list-simulation-runs": {
         parameters: {
             query?: {
-                service_id?: string | null;
+                /** @description Page order: `-created_at` (the default, newest first) or `+created_at`. */
+                sort_by?: string[];
                 limit?: number;
+                continuation_token?: unknown;
+                service_id?: string | null;
+                /** @description Runs in any of these statuses. Repeat the parameter for more than one. */
+                status?: ("running" | "completed" | "failed")[];
+                /**
+                 * @description How the run was launched, read from its tags. `case`: a saved-case run (tagged `case`,
+                 *     `case_rerun` or `case:<id>`). `suite`: a saved-case run that also carries a `suite:<id>` or
+                 *     `benchmark` tag. `spot_check`: any other run. Repeat the parameter for more than one.
+                 */
+                source?: ("suite" | "case" | "spot_check")[];
+                /** @description Runs of this saved case: runs tagged `case:<case_id>`. */
+                case_id?: string | null;
+                /** @description Runs of this suite: runs tagged `suite:<suite_id>`. */
+                suite_id?: string | null;
+                /** @description Runs that carry every one of these tags. */
+                tags?: string[];
             };
             header?: never;
             path: {
@@ -41450,9 +42165,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationRunListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41487,9 +42200,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CreateSimulationRunResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41538,6 +42249,7 @@ export interface operations {
     "complete-simulation-run": {
         parameters: {
             query?: {
+                /** @description Failure reason. Set it to finish the run as failed. */
                 error?: string | null;
             };
             header?: never;
@@ -41555,10 +42267,22 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["CompleteSimulationRunResponse"];
                 };
+            };
+            /** @description Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Run has already finished */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -41596,7 +42320,7 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationSessionResponse"];
                 };
             };
-            /** @description Simulation session or configuration not found */
+            /** @description Run or simulation configuration not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -41607,6 +42331,15 @@ export interface operations {
             };
             /** @description Request validation or simulation configuration error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -41646,9 +42379,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationCoverageGraphResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41680,9 +42411,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DeleteSimulationCoverageGraphResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41716,9 +42445,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationCoveragePathsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41753,9 +42480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationSessionListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41792,9 +42517,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationTurnQueryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -41843,6 +42566,15 @@ export interface operations {
             };
             /** @description Request validation or simulation configuration error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -41903,6 +42635,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description Simulation runtime error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Voice agent not reachable */
             503: {
                 headers: {
@@ -41949,6 +42690,15 @@ export interface operations {
             };
             /** @description Request validation or simulation configuration error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -42006,6 +42756,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description Simulation runtime error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Voice agent not reachable */
             503: {
                 headers: {
@@ -42038,13 +42797,40 @@ export interface operations {
                     "application/json": components["schemas"]["DestroySessionResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation session or configuration not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Request validation or simulation configuration error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Voice agent not reachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
         };
@@ -42071,9 +42857,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationForkResponse"];
                 };
             };
             /** @description Simulation session or configuration not found */
@@ -42087,6 +42871,15 @@ export interface operations {
             };
             /** @description Request validation or simulation configuration error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -42144,6 +42937,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description Simulation runtime error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Voice agent not reachable */
             503: {
                 headers: {
@@ -42176,13 +42978,40 @@ export interface operations {
                     "application/json": components["schemas"]["PromoteSessionResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation session or configuration not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Request validation or simulation configuration error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Voice agent not reachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
         };
@@ -42214,6 +43043,13 @@ export interface operations {
                     };
                 };
             };
+            /** @description Simulation session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -42237,7 +43073,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepRequest"];
+                "application/json": components["schemas"]["StepSessionRequest"];
             };
         };
         responses: {
@@ -42261,6 +43097,15 @@ export interface operations {
             };
             /** @description Request validation or simulation configuration error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
+            /** @description Simulation runtime error */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -42297,9 +43142,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulationSessionTurnsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -42488,6 +43331,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SimulationSuiteResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "list-simulation-suite-cases": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+                /** @description Sort axes as `+field` or `-field`, applied left to right. Newest created first when empty. */
+                sort_by?: string[];
+                /** @description Case-insensitive substring match on the case description. */
+                search?: components["schemas"]["SearchString"] | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                suite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationCaseListResponse"];
+                };
+            };
+            /** @description Simulation suite not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

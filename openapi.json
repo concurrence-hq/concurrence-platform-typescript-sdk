@@ -6194,6 +6194,23 @@
         "title": "CommandCenterResponse",
         "type": "object"
       },
+      "CompleteSimulationRunResponse": {
+        "properties": {
+          "status": {
+            "enum": [
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CompleteSimulationRunResponse",
+        "type": "object"
+      },
       "CompletionCriteria": {
         "properties": {
           "state_based": {
@@ -6424,6 +6441,19 @@
           "config"
         ],
         "title": "ConfigToPolicyRequest",
+        "type": "object"
+      },
+      "ConfigToPolicyResponse": {
+        "properties": {
+          "turn_policy": {
+            "$ref": "#/components/schemas/TurnPolicyOverrides",
+            "description": "Only the fields the config sets. A field left out keeps its turn-policy default."
+          }
+        },
+        "required": [
+          "turn_policy"
+        ],
+        "title": "ConfigToPolicyResponse",
         "type": "object"
       },
       "ConnectorHealthItem": {
@@ -7470,7 +7500,7 @@
         "type": "object"
       },
       "ConversationSummary": {
-        "description": "Conversation flow metrics.\n\nFree-form residual on the raw ``conversation_summary`` JSONB:\n``text_intelligence: dict`` (text-channel intelligence\nsub-payload), and on the simulation path ``transcript_text:\nstr`` (PHI), ``tool_calls: list``, ``score``,\n``score_rationale``, ``terminal_reached``, ``states_visited``.\nNot exposed via this typed shape.",
+        "description": "Conversation flow metrics.\n\nFree-form residual on the raw ``conversation_summary`` JSONB:\n``text_intelligence: dict`` (text-channel intelligence\nsub-payload), and on the simulation path ``score``,\n``score_rationale``, ``terminal_reached``, ``states_visited``.\nOlder simulation rows also carry ``transcript_text: str`` (PHI)\nand ``tool_calls: list``. Not exposed via this typed shape.",
         "properties": {
           "barge_in_count": {
             "default": 0,
@@ -8062,6 +8092,528 @@
           "predicted_impact"
         ],
         "title": "Counterfactual",
+        "type": "object"
+      },
+      "CoverageEdge": {
+        "properties": {
+          "first_seen_turn": {
+            "description": "Index of the first turn that took this edge, or -1.",
+            "title": "First Seen Turn",
+            "type": "integer"
+          },
+          "frequency": {
+            "title": "Frequency",
+            "type": "integer"
+          },
+          "observed": {
+            "title": "Observed",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "theoretical": {
+            "description": "The transition is an exit condition in the service's context graph.",
+            "title": "Theoretical",
+            "type": "boolean"
+          },
+          "type": {
+            "enum": [
+              "transition",
+              "self_loop"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "type",
+          "theoretical",
+          "observed",
+          "frequency",
+          "first_seen_turn"
+        ],
+        "title": "CoverageEdge",
+        "type": "object"
+      },
+      "CoverageFork": {
+        "properties": {
+          "children": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "fork_turn_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork Turn Index"
+          },
+          "parent_session_id": {
+            "title": "Parent Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parent_session_id",
+          "fork_turn_index",
+          "children"
+        ],
+        "title": "CoverageFork",
+        "type": "object"
+      },
+      "CoveragePath": {
+        "properties": {
+          "average_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Score"
+          },
+          "average_turns": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Turns"
+          },
+          "is_complete": {
+            "description": "At least one session on the path reached a terminal state.",
+            "title": "Is Complete",
+            "type": "boolean"
+          },
+          "session_count": {
+            "title": "Session Count",
+            "type": "integer"
+          },
+          "session_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Session Ids",
+            "type": "array"
+          },
+          "trajectory": {
+            "description": "The states the sessions moved through, in order.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Trajectory",
+            "type": "array"
+          }
+        },
+        "required": [
+          "trajectory",
+          "session_count",
+          "session_ids",
+          "average_score",
+          "average_turns",
+          "is_complete"
+        ],
+        "title": "CoveragePath",
+        "type": "object"
+      },
+      "CoverageSession": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "fork_turn_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork Turn Index"
+          },
+          "immediate_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The session's score, the same value as score.",
+            "title": "Immediate Score"
+          },
+          "immediate_score_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Immediate Score Rationale"
+          },
+          "metric_result_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Result Count"
+          },
+          "metric_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Status"
+          },
+          "metrics_last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics Last Checked At"
+          },
+          "parent_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Session Id"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "terminal_reached": {
+            "title": "Terminal Reached",
+            "type": "boolean"
+          },
+          "total_turns": {
+            "title": "Total Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "parent_session_id",
+          "fork_turn_index",
+          "tags",
+          "total_turns",
+          "terminal_reached",
+          "score",
+          "created_at"
+        ],
+        "title": "CoverageSession",
+        "type": "object"
+      },
+      "CoverageStateNode": {
+        "properties": {
+          "average_empathy_tier": {
+            "title": "Average Empathy Tier",
+            "type": "number"
+          },
+          "average_engine_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Engine Ms"
+          },
+          "average_nav_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Nav Ms"
+          },
+          "fail_count": {
+            "title": "Fail Count",
+            "type": "integer"
+          },
+          "first_seen_turn": {
+            "description": "Index of the first turn that started in this state, or -1.",
+            "title": "First Seen Turn",
+            "type": "integer"
+          },
+          "id": {
+            "description": "The state name.",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_terminal": {
+            "title": "Is Terminal",
+            "type": "boolean"
+          },
+          "observed": {
+            "description": "At least one stored turn started in this state.",
+            "title": "Observed",
+            "type": "boolean"
+          },
+          "pass_count": {
+            "title": "Pass Count",
+            "type": "integer"
+          },
+          "self_loop_count": {
+            "title": "Self Loop Count",
+            "type": "integer"
+          },
+          "session_count": {
+            "title": "Session Count",
+            "type": "integer"
+          },
+          "theoretical": {
+            "description": "The state is in the service's context graph.",
+            "title": "Theoretical",
+            "type": "boolean"
+          },
+          "tools_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Used",
+            "type": "array"
+          },
+          "transition_out_count": {
+            "title": "Transition Out Count",
+            "type": "integer"
+          },
+          "turn_count": {
+            "title": "Turn Count",
+            "type": "integer"
+          },
+          "type": {
+            "description": "The state type in the context graph, or `unknown` for a state seen only in turns.",
+            "title": "Type",
+            "type": "string"
+          },
+          "unknown_count": {
+            "title": "Unknown Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "theoretical",
+          "observed",
+          "turn_count",
+          "session_count",
+          "self_loop_count",
+          "transition_out_count",
+          "pass_count",
+          "fail_count",
+          "unknown_count",
+          "is_terminal",
+          "first_seen_turn",
+          "tools_used",
+          "average_empathy_tier",
+          "average_engine_ms",
+          "average_nav_ms"
+        ],
+        "title": "CoverageStateNode",
+        "type": "object"
+      },
+      "CoverageTree": {
+        "properties": {
+          "forks": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageFork"
+            },
+            "title": "Forks",
+            "type": "array"
+          },
+          "root_sessions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Root Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "root_sessions",
+          "forks"
+        ],
+        "title": "CoverageTree",
+        "type": "object"
+      },
+      "CoverageTurn": {
+        "properties": {
+          "agent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Text"
+          },
+          "caller_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caller Text"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "empathy_tier": {
+            "title": "Empathy Tier",
+            "type": "integer"
+          },
+          "global_index": {
+            "title": "Global Index",
+            "type": "integer"
+          },
+          "is_terminal": {
+            "title": "Is Terminal",
+            "type": "boolean"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "state_after": {
+            "title": "State After",
+            "type": "string"
+          },
+          "state_before": {
+            "title": "State Before",
+            "type": "string"
+          },
+          "state_changed": {
+            "title": "State Changed",
+            "type": "boolean"
+          },
+          "tool_call_details": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallDetail"
+            },
+            "title": "Tool Call Details",
+            "type": "array"
+          },
+          "tools_called": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Called",
+            "type": "array"
+          },
+          "turn_index": {
+            "title": "Turn Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn_index",
+          "state_before",
+          "state_after",
+          "state_changed",
+          "caller_text",
+          "agent_text",
+          "tools_called",
+          "tool_call_details",
+          "empathy_tier",
+          "is_terminal",
+          "created_at",
+          "global_index"
+        ],
+        "title": "CoverageTurn",
         "type": "object"
       },
       "CreateAgentRequest": {
@@ -9283,6 +9835,58 @@
         "title": "CreateSimulationCasesResponse",
         "type": "object"
       },
+      "CreateSimulationRunResponse": {
+        "properties": {
+          "branch_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Name"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "running",
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "service_id",
+          "branch_name",
+          "status",
+          "tags"
+        ],
+        "title": "CreateSimulationRunResponse",
+        "type": "object"
+      },
       "CreateSimulationSuiteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -9415,7 +10019,7 @@
             "type": "integer"
           },
           "model": {
-            "default": "claude-sonnet-5",
+            "default": "claude-sonnet-5-5",
             "maxLength": 128,
             "minLength": 1,
             "title": "Model",
@@ -11472,6 +12076,29 @@
           "kind"
         ],
         "title": "Default",
+        "type": "object"
+      },
+      "DeleteSimulationCoverageGraphResponse": {
+        "properties": {
+          "deleted_runs": {
+            "title": "Deleted Runs",
+            "type": "integer"
+          },
+          "deleted_sessions": {
+            "title": "Deleted Sessions",
+            "type": "integer"
+          },
+          "deleted_turns": {
+            "title": "Deleted Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "deleted_runs",
+          "deleted_sessions",
+          "deleted_turns"
+        ],
+        "title": "DeleteSimulationCoverageGraphResponse",
         "type": "object"
       },
       "DeliverSurfaceRequest": {
@@ -14851,7 +15478,7 @@
         "type": "object"
       },
       "EvalQualitySummary": {
-        "description": "Aggregate production-eval verdict stats, overall or for one eval_key.\n\nSourced from ``call_eval_results`` (LLM-judge + assertion verdicts), which is\nkeyed by ``conversation_id`` and therefore CHANNEL-AGNOSTIC \u2014 voice, text,\nSMS, email all contribute equally, unlike the voice-shaped call-quality score.",
+        "description": "Aggregate production-eval verdict stats, overall or for one eval_key.\n\nSourced from ``call_eval_results`` (assertion and metric verdicts), which is\nkeyed by ``conversation_id`` and therefore CHANNEL-AGNOSTIC \u2014 voice, text,\nSMS, email all contribute equally, unlike the voice-shaped call-quality score.",
         "properties": {
           "avg_score": {
             "anyOf": [
@@ -14862,7 +15489,7 @@
                 "type": "null"
               }
             ],
-            "description": "Mean numeric judge score across scored verdicts",
+            "description": "Mean numeric value of metric verdicts; null when none are numeric",
             "title": "Avg Score"
           },
           "eval_key": {
@@ -14919,7 +15546,7 @@
                 "type": "null"
               }
             ],
-            "description": "Mean numeric judge score in this bucket",
+            "description": "Mean numeric value of metric verdicts in this bucket",
             "title": "Avg Score"
           },
           "date": {
@@ -15095,18 +15722,6 @@
               }
             ],
             "title": "Score"
-          },
-          "score_label": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Label"
           },
           "session_id": {
             "anyOf": [
@@ -18654,6 +19269,139 @@
         "title": "ForkAlternative",
         "type": "object"
       },
+      "ForkBranch": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the branch failed. Null when it stepped.",
+            "title": "Error"
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ForkObservation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The branch's first turn. Null when the branch failed."
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "ForkBranch",
+        "type": "object"
+      },
+      "ForkObservation": {
+        "properties": {
+          "agent_text": {
+            "title": "Agent Text",
+            "type": "string"
+          },
+          "caller_text": {
+            "title": "Caller Text",
+            "type": "string"
+          },
+          "empathy_tier": {
+            "default": 0,
+            "title": "Empathy Tier",
+            "type": "integer"
+          },
+          "engine_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Ms"
+          },
+          "has_pause": {
+            "default": false,
+            "title": "Has Pause",
+            "type": "boolean"
+          },
+          "is_terminal": {
+            "title": "Is Terminal",
+            "type": "boolean"
+          },
+          "nav_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Ms"
+          },
+          "selected_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Action"
+          },
+          "state_after": {
+            "title": "State After",
+            "type": "string"
+          },
+          "state_before": {
+            "title": "State Before",
+            "type": "string"
+          },
+          "state_changed": {
+            "title": "State Changed",
+            "type": "boolean"
+          },
+          "tool_call_details": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ToolCallDetail"
+            },
+            "title": "Tool Call Details",
+            "type": "array"
+          },
+          "tools_called": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Called",
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_before",
+          "state_after",
+          "state_changed",
+          "agent_text",
+          "is_terminal",
+          "caller_text"
+        ],
+        "title": "ForkObservation",
+        "type": "object"
+      },
       "ForkRequest": {
         "properties": {
           "alternatives": {
@@ -20688,7 +21436,7 @@
             "type": "integer"
           },
           "model": {
-            "default": "claude-sonnet-5",
+            "default": "claude-sonnet-5-5",
             "title": "Model",
             "type": "string"
           },
@@ -29680,6 +30428,7 @@
             "enum": [
               "running",
               "paused",
+              "dormant",
               "completed",
               "failed",
               "timed_out"
@@ -30189,7 +30938,7 @@
         "type": "object"
       },
       "RunsSummaryResponse": {
-        "description": "Aggregate run counts for the Runs page summary strip.\n\nHonest workspace totals the paginated list cannot derive client-side (it only\nholds the loaded page). ``by_status`` carries the full canonical breakdown\n(incl. any status beyond the named convenience fields); ``by_kind`` splits\nframework vs conversation. ``live`` = running + paused.",
+        "description": "Aggregate run counts for the Runs page summary strip.\n\nHonest workspace totals the paginated list cannot derive client-side (it only\nholds the loaded page). ``by_status`` carries the full canonical breakdown\n(incl. any status beyond the named convenience fields); ``by_kind`` splits\nframework vs conversation. ``live`` = running + paused. ``dormant`` counts\nopen conversations idle past their channel threshold, which are not live.",
         "properties": {
           "by_kind": {
             "additionalProperties": {
@@ -30207,6 +30956,10 @@
           },
           "completed": {
             "title": "Completed",
+            "type": "integer"
+          },
+          "dormant": {
+            "title": "Dormant",
             "type": "integer"
           },
           "failed": {
@@ -30242,6 +30995,7 @@
           "completed",
           "failed",
           "timed_out",
+          "dormant",
           "by_status",
           "by_kind"
         ],
@@ -32197,6 +32951,12 @@
             "title": "Checks",
             "type": "array"
           },
+          "error": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "title": "Error",
+            "type": "integer"
+          },
           "eval_key": {
             "maxLength": 128,
             "title": "Eval Key",
@@ -32224,6 +32984,7 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Pass Rate"
           },
           "passed": {
@@ -32233,6 +32994,7 @@
           },
           "pending": {
             "default": 0,
+            "description": "Verdicts not graded yet; not in the pass_rate denominator",
             "title": "Pending",
             "type": "integer"
           },
@@ -32242,6 +33004,12 @@
             },
             "title": "Results",
             "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "title": "Skipped",
+            "type": "integer"
           }
         },
         "required": [
@@ -32278,6 +33046,17 @@
             "title": "Case Name",
             "type": "string"
           },
+          "error": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "title": "Error",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
           "latest_run_at": {
             "anyOf": [
               {
@@ -32296,6 +33075,7 @@
           },
           "measured": {
             "default": 0,
+            "description": "passed + failed",
             "title": "Measured",
             "type": "integer"
           },
@@ -32308,11 +33088,24 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Pass Rate"
           },
           "passed": {
             "default": 0,
             "title": "Passed",
+            "type": "integer"
+          },
+          "pending": {
+            "default": 0,
+            "description": "Verdicts not graded yet; not in the pass_rate denominator",
+            "title": "Pending",
+            "type": "integer"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "title": "Skipped",
             "type": "integer"
           }
         },
@@ -32383,6 +33176,7 @@
           },
           "measured": {
             "default": 0,
+            "description": "Passed + failed verdicts; error, pending and skipped are excluded",
             "title": "Measured",
             "type": "integer"
           },
@@ -32408,8 +33202,15 @@
       },
       "SimPerformanceOverviewResponse": {
         "properties": {
+          "error_count": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in overall_pass_rate",
+            "title": "Error Count",
+            "type": "integer"
+          },
           "evals_run": {
             "default": 0,
+            "description": "Passed + failed verdicts: the overall_pass_rate denominator",
             "title": "Evals Run",
             "type": "integer"
           },
@@ -32427,11 +33228,24 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Overall Pass Rate"
+          },
+          "pending_count": {
+            "default": 0,
+            "description": "Verdicts not graded yet; not in overall_pass_rate",
+            "title": "Pending Count",
+            "type": "integer"
           },
           "runs_analyzed": {
             "default": 0,
             "title": "Runs Analyzed",
+            "type": "integer"
+          },
+          "skipped_count": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in overall_pass_rate",
+            "title": "Skipped Count",
             "type": "integer"
           }
         },
@@ -32447,6 +33261,17 @@
             "title": "Cases",
             "type": "array"
           },
+          "error": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "title": "Error",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
           "latest_run_at": {
             "anyOf": [
               {
@@ -32460,6 +33285,7 @@
           },
           "measured": {
             "default": 0,
+            "description": "passed + failed",
             "title": "Measured",
             "type": "integer"
           },
@@ -32472,11 +33298,24 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Pass Rate"
           },
           "passed": {
             "default": 0,
             "title": "Passed",
+            "type": "integer"
+          },
+          "pending": {
+            "default": 0,
+            "description": "Verdicts not graded yet; not in the pass_rate denominator",
+            "title": "Pending",
+            "type": "integer"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "title": "Skipped",
             "type": "integer"
           },
           "suite_id": {
@@ -33194,10 +34033,17 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "total": {
+            "description": "Cases matching the filters and search, across every page.",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
           }
         },
         "required": [
           "items",
+          "total",
           "has_more"
         ],
         "title": "SimulationCaseListResponse",
@@ -33395,6 +34241,154 @@
           "instructions"
         ],
         "title": "SimulationCaseScenario",
+        "type": "object"
+      },
+      "SimulationCoverageGraphResponse": {
+        "description": "The service's context graph states and transitions, overlaid with the stored turns.",
+        "properties": {
+          "coverage_percentage": {
+            "title": "Coverage Percentage",
+            "type": "number"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "metric_result_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Result Count"
+          },
+          "metric_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Delayed-metric availability for the run. Set only when the request names a run_id.",
+            "title": "Metric Status"
+          },
+          "metrics_last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics Last Checked At"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageSession"
+            },
+            "title": "Sessions",
+            "type": "array"
+          },
+          "state_nodes": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageStateNode"
+            },
+            "title": "State Nodes",
+            "type": "array"
+          },
+          "total_forks": {
+            "title": "Total Forks",
+            "type": "integer"
+          },
+          "total_sessions": {
+            "title": "Total Sessions",
+            "type": "integer"
+          },
+          "total_turns": {
+            "title": "Total Turns",
+            "type": "integer"
+          },
+          "tree": {
+            "$ref": "#/components/schemas/CoverageTree"
+          },
+          "turns": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CoverageTurn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Every stored turn in order. Set only with include_turns=true.",
+            "title": "Turns"
+          }
+        },
+        "required": [
+          "service_id",
+          "run_id",
+          "total_sessions",
+          "total_turns",
+          "total_forks",
+          "coverage_percentage",
+          "state_nodes",
+          "edges",
+          "tree",
+          "sessions"
+        ],
+        "title": "SimulationCoverageGraphResponse",
+        "type": "object"
+      },
+      "SimulationCoveragePathsResponse": {
+        "properties": {
+          "paths": {
+            "description": "Most sessions first.",
+            "items": {
+              "$ref": "#/components/schemas/CoveragePath"
+            },
+            "title": "Paths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "title": "SimulationCoveragePathsResponse",
         "type": "object"
       },
       "SimulationEvalResultResponse": {
@@ -33597,6 +34591,40 @@
         "title": "SimulationEvalResultResponse",
         "type": "object"
       },
+      "SimulationForkResponse": {
+        "description": "One branch per alternative, in request order.",
+        "properties": {
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/ForkBranch"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "fork_turn_index": {
+            "description": "The parent's turn count when it forked. Each branch's first turn is stored at the next index.",
+            "title": "Fork Turn Index",
+            "type": "integer"
+          },
+          "parent_session_id": {
+            "title": "Parent Session Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parent_session_id",
+          "fork_turn_index",
+          "service_id",
+          "branches"
+        ],
+        "title": "SimulationForkResponse",
+        "type": "object"
+      },
       "SimulationIntelligenceResponse": {
         "properties": {
           "intelligence": {
@@ -33765,6 +34793,36 @@
           "detail"
         ],
         "title": "SimulationProxyErrorResponse",
+        "type": "object"
+      },
+      "SimulationRunListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/src__routes__simulations__SimulationRunListResponse__Item"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "total": {
+            "description": "Runs that match the filters, across every page.",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "runs",
+          "has_more",
+          "total"
+        ],
+        "title": "SimulationRunListResponse",
         "type": "object"
       },
       "SimulationRunResponse": {
@@ -33988,6 +35046,23 @@
         "title": "SimulationRunResponse",
         "type": "object"
       },
+      "SimulationSessionListResponse": {
+        "properties": {
+          "sessions": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/src__routes__simulations__SimulationSessionListResponse__Item"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "title": "SimulationSessionListResponse",
+        "type": "object"
+      },
       "SimulationSessionResponse": {
         "properties": {
           "greeting": {
@@ -34013,6 +35088,28 @@
           "snapshot"
         ],
         "title": "SimulationSessionResponse",
+        "type": "object"
+      },
+      "SimulationSessionTurnsResponse": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "turns": {
+            "description": "In turn order, at most 200.",
+            "items": {
+              "$ref": "#/components/schemas/SimulationTurnResponse"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_id",
+          "turns"
+        ],
+        "title": "SimulationSessionTurnsResponse",
         "type": "object"
       },
       "SimulationSnapshotResponse": {
@@ -34603,6 +35700,127 @@
           }
         },
         "title": "SimulationTurnPolicyResponse",
+        "type": "object"
+      },
+      "SimulationTurnQueryResponse": {
+        "properties": {
+          "turns": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/SimulationTurnResponse"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "turns"
+        ],
+        "title": "SimulationTurnQueryResponse",
+        "type": "object"
+      },
+      "SimulationTurnResponse": {
+        "description": "One stored turn of a simulation session.",
+        "properties": {
+          "agent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Text"
+          },
+          "caller_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caller Text"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "empathy_tier": {
+            "title": "Empathy Tier",
+            "type": "integer"
+          },
+          "is_terminal": {
+            "title": "Is Terminal",
+            "type": "boolean"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "state_after": {
+            "title": "State After",
+            "type": "string"
+          },
+          "state_before": {
+            "title": "State Before",
+            "type": "string"
+          },
+          "state_changed": {
+            "title": "State Changed",
+            "type": "boolean"
+          },
+          "tool_call_details": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallDetail"
+            },
+            "title": "Tool Call Details",
+            "type": "array"
+          },
+          "tools_available": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Available",
+            "type": "array"
+          },
+          "tools_called": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Called",
+            "type": "array"
+          },
+          "turn_index": {
+            "title": "Turn Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn_index",
+          "state_before",
+          "state_after",
+          "state_changed",
+          "caller_text",
+          "agent_text",
+          "tools_called",
+          "tool_call_details",
+          "empathy_tier",
+          "is_terminal",
+          "created_at",
+          "tools_available"
+        ],
+        "title": "SimulationTurnResponse",
         "type": "object"
       },
       "SimulationTurnStoredEvent": {
@@ -35932,6 +37150,59 @@
           "caller_text"
         ],
         "title": "StepRequest",
+        "type": "object"
+      },
+      "StepSessionRequest": {
+        "description": "One caller turn for the session named in the path.",
+        "properties": {
+          "caller_text": {
+            "maxLength": 2000,
+            "title": "Caller Text",
+            "type": "string"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Leave unset: the path names the session. A value that differs from the path returns 422.",
+            "title": "Session Id"
+          },
+          "valence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valence"
+          }
+        },
+        "required": [
+          "caller_text"
+        ],
+        "title": "StepSessionRequest",
         "type": "object"
       },
       "StoredParameter": {
@@ -41571,6 +42842,94 @@
         "title": "TurnPolicy",
         "type": "object"
       },
+      "TurnPolicyOverrides": {
+        "properties": {
+          "barge_in_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barge In Enabled"
+          },
+          "block_forward_call": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Forward Call"
+          },
+          "block_forward_call_after_turns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Forward Call After Turns"
+          },
+          "context_strategy": {
+            "anyOf": [
+              {
+                "const": "compact",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Strategy"
+          },
+          "degradation_threshold": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degradation Threshold"
+          },
+          "greeting_shield_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Greeting Shield S"
+          },
+          "safety_response": {
+            "anyOf": [
+              {
+                "enum": [
+                  "stay_empathize",
+                  "alert"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safety Response"
+          }
+        },
+        "title": "TurnPolicyOverrides",
+        "type": "object"
+      },
       "TurnRequest": {
         "properties": {
           "content": {
@@ -41627,6 +42986,7 @@
           },
           "message": {
             "default": "",
+            "description": "The user's message. Leave it empty (with no ``content`` or media) only to kick off a conversation that has no turns yet: the agent answers with its greeting. Once the conversation has a turn, a turn with no user input is a 422.",
             "maxLength": 10000,
             "title": "Message",
             "type": "string"
@@ -46789,6 +48149,14 @@
         ],
         "type": "string"
       },
+      "_CaseSortField": {
+        "enum": [
+          "created_at",
+          "updated_at",
+          "description"
+        ],
+        "type": "string"
+      },
       "_DatasetSlug": {
         "maxLength": 63,
         "minLength": 2,
@@ -46857,6 +48225,10 @@
           "skill",
           "kb_scope"
         ],
+        "type": "string"
+      },
+      "_RunSortField": {
+        "const": "created_at",
         "type": "string"
       },
       "_SourceEventSortField": {
@@ -48200,6 +49572,263 @@
           "updated_at"
         ],
         "type": "string"
+      },
+      "src__routes__simulations__SimulationRunListResponse__Item": {
+        "properties": {
+          "branch_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Name"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Failure reason saved by complete-run. Null unless status is failed, and null on\nfailed runs older than the column.",
+            "title": "Error"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "total_sessions": {
+            "title": "Total Sessions",
+            "type": "integer"
+          },
+          "total_turns": {
+            "title": "Total Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "branch_name",
+          "status",
+          "tags",
+          "total_sessions",
+          "total_turns",
+          "error",
+          "created_at",
+          "completed_at"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "src__routes__simulations__SimulationSessionListResponse__Item": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "fork_turn_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork Turn Index"
+          },
+          "immediate_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The session's score, the same value as score.",
+            "title": "Immediate Score"
+          },
+          "immediate_score_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Immediate Score Rationale"
+          },
+          "metric_result_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Result Count"
+          },
+          "metric_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Status"
+          },
+          "metrics_last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics Last Checked At"
+          },
+          "parent_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Session Id"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Rationale"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "tags": {
+            "description": "Bridge-written tags, such as `scenario_index:<n>`, `temperament:<x>` and `forked`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "terminal_reached": {
+            "title": "Terminal Reached",
+            "type": "boolean"
+          },
+          "total_turns": {
+            "title": "Total Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "run_id",
+          "parent_session_id",
+          "fork_turn_index",
+          "tags",
+          "total_turns",
+          "terminal_reached",
+          "score",
+          "score_rationale",
+          "created_at"
+        ],
+        "title": "Item",
+        "type": "object"
       },
       "src__routes__skills___SortField": {
         "enum": [
@@ -57927,7 +59556,7 @@
     },
     "/v1/{workspace_id}/events/stream": {
       "get": {
-        "description": "Server-Sent Events stream for real-time workspace updates.",
+        "description": "Server-Sent Events stream for real-time workspace updates. Pass `conversation_id` to receive only the events that carry that conversation_id.",
         "operationId": "get-event-stream",
         "parameters": [
           {
@@ -57938,6 +59567,25 @@
               "format": "uuid",
               "title": "Workspace Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace.",
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace.",
+              "title": "Conversation Id"
             }
           }
         ],
@@ -57956,6 +59604,16 @@
               }
             },
             "description": "SSE stream"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           },
           "429": {
             "description": "Rate limit exceeded"
@@ -69115,6 +70773,7 @@
                   "live",
                   "running",
                   "paused",
+                  "dormant",
                   "completed",
                   "failed",
                   "timed_out"
@@ -71959,7 +73618,7 @@
     },
     "/v1/{workspace_id}/simulations/cases": {
       "get": {
-        "description": "List durable simulation cases for case-library inspection.",
+        "description": "List durable simulation cases for case-library inspection.\n\n``total`` counts every case that matches ``service_id``, ``tags`` and ``search``.",
         "operationId": "list-simulation-cases",
         "parameters": [
           {
@@ -71990,6 +73649,39 @@
             "required": false,
             "schema": {
               "title": "Continuation Token"
+            }
+          },
+          {
+            "description": "Sort axes as `+field` or `-field`, applied left to right. Newest created first when empty.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Sort axes as `+field` or `-field`, applied left to right. Newest created first when empty.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the case description.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SearchString"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive substring match on the case description.",
+              "title": "Search"
             }
           },
           {
@@ -72113,7 +73805,7 @@
     },
     "/v1/{workspace_id}/simulations/cases/{case_id}": {
       "delete": {
-        "description": "Delete one durable simulation case.",
+        "description": "Delete one durable simulation case and remove it from every suite that lists it.\n\nThe case row and its id in the workspace's suites go in one transaction, so\nno suite keeps an id that resolves to nothing. A suite listing the case\ndoesn't block the delete (no 409): a suite selects cases from the library,\nand the audit event records which suites lost the case.",
         "operationId": "delete-simulation-case",
         "parameters": [
           {
@@ -72375,9 +74067,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Config-To-Turn-Policy",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ConfigToPolicyResponse"
                 }
               }
             },
@@ -72402,7 +74092,7 @@
     },
     "/v1/{workspace_id}/simulations/performance": {
       "get": {
-        "description": "Aggregate recent graded (case/suite) runs into the Simulations overview:\noverall pass rate, per-metric trend series, and per-case / per-suite rollups\n(each with its per-conversation verdicts).\n\n``limit`` bounds how many recent runs are read (capped at 50). One request\nreplaces the console's former one-fetch-per-run fan-out.",
+        "description": "Aggregate recent graded (case/suite) runs into the Simulations overview:\noverall pass rate, per-metric trend series, and per-case / per-suite rollups\n(each with its per-conversation verdicts).\n\n``limit`` (1 to 50) bounds how many recent runs are read. One request\nreplaces the console's former one-fetch-per-run fan-out.",
         "operationId": "get-simulation-performance",
         "parameters": [
           {
@@ -72438,6 +74128,8 @@
             "required": false,
             "schema": {
               "default": 15,
+              "maximum": 50,
+              "minimum": 1,
               "title": "Limit",
               "type": "integer"
             }
@@ -72473,6 +74165,7 @@
     },
     "/v1/{workspace_id}/simulations/runs": {
       "get": {
+        "description": "List simulation runs, newest first by default.\n\nFilters combine with AND. The list omits each run's objective, request and\nscenarios; get-simulation-run returns them.",
         "operationId": "list-simulation-runs",
         "parameters": [
           {
@@ -72483,6 +74176,41 @@
               "format": "uuid",
               "title": "Workspace Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Page order: `-created_at` (the default, newest first) or `+created_at`.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Page order: `-created_at` (the default, newest first) or `+created_at`.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
             }
           },
           {
@@ -72503,13 +74231,98 @@
             }
           },
           {
+            "description": "Runs in any of these statuses. Repeat the parameter for more than one.",
             "in": "query",
-            "name": "limit",
+            "name": "status",
             "required": false,
             "schema": {
-              "default": 20,
-              "title": "Limit",
-              "type": "integer"
+              "default": [],
+              "description": "Runs in any of these statuses. Repeat the parameter for more than one.",
+              "items": {
+                "enum": [
+                  "running",
+                  "completed",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "title": "Status",
+              "type": "array"
+            }
+          },
+          {
+            "description": "How the run was launched, read from its tags. `case`: a saved-case run (tagged `case`,\n`case_rerun` or `case:<id>`). `suite`: a saved-case run that also carries a `suite:<id>` or\n`benchmark` tag. `spot_check`: any other run. Repeat the parameter for more than one.",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "How the run was launched, read from its tags. `case`: a saved-case run (tagged `case`,\n`case_rerun` or `case:<id>`). `suite`: a saved-case run that also carries a `suite:<id>` or\n`benchmark` tag. `spot_check`: any other run. Repeat the parameter for more than one.",
+              "items": {
+                "enum": [
+                  "suite",
+                  "case",
+                  "spot_check"
+                ],
+                "type": "string"
+              },
+              "title": "Source",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Runs of this saved case: runs tagged `case:<case_id>`.",
+            "in": "query",
+            "name": "case_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Runs of this saved case: runs tagged `case:<case_id>`.",
+              "title": "Case Id"
+            }
+          },
+          {
+            "description": "Runs of this suite: runs tagged `suite:<suite_id>`.",
+            "in": "query",
+            "name": "suite_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Runs of this suite: runs tagged `suite:<suite_id>`.",
+              "title": "Suite Id"
+            }
+          },
+          {
+            "description": "Runs that carry every one of these tags.",
+            "in": "query",
+            "name": "tags",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Runs that carry every one of these tags.",
+              "items": {
+                "maxLength": 128,
+                "type": "string"
+              },
+              "maxItems": 20,
+              "title": "Tags",
+              "type": "array"
             }
           }
         ],
@@ -72518,9 +74331,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List-Simulation-Runs",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationRunListResponse"
                 }
               }
             },
@@ -72572,9 +74383,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create-Simulation-Run",
-                  "type": "object"
+                  "$ref": "#/components/schemas/CreateSimulationRunResponse"
                 }
               }
             },
@@ -72653,6 +74462,7 @@
     },
     "/v1/{workspace_id}/simulations/runs/{run_id}/complete": {
       "post": {
+        "description": "Finish a running run: failed when ``error`` is set, otherwise completed.\n\nA run finishes once. Completing a finished run returns 409 and leaves it as it was.",
         "operationId": "complete-simulation-run",
         "parameters": [
           {
@@ -72676,18 +74486,21 @@
             }
           },
           {
+            "description": "Failure reason. Set it to finish the run as failed.",
             "in": "query",
             "name": "error",
             "required": false,
             "schema": {
               "anyOf": [
                 {
+                  "maxLength": 500,
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Failure reason. Set it to finish the run as failed.",
               "title": "Error"
             }
           }
@@ -72697,15 +74510,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Complete-Simulation-Run",
-                  "type": "object"
+                  "$ref": "#/components/schemas/CompleteSimulationRunResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Run not found"
+          },
+          "409": {
+            "description": "Run has already finished"
           },
           "422": {
             "content": {
@@ -72726,7 +74541,7 @@
     },
     "/v1/{workspace_id}/simulations/runs/{run_id}/sessions": {
       "post": {
-        "description": "Create a simulation session within a run. Proxies to agent-engine.\n\nentity_id ownership: agent-engine's _resolve_caller queries the entity\nwith workspace_id scoping \u2014 a workspace-A entity_id resolves to None in\nworkspace-B, so no cross-tenant data is exposed.",
+        "description": "Create a simulation session within a run. Proxies to agent-engine.\n\nThe run must be in the workspace (404 otherwise) and ``service_id`` must be\nthe run's service (422 otherwise), both checked before agent-engine is called.\n\nentity_id ownership: agent-engine's _resolve_caller queries the entity\nwith workspace_id scoping \u2014 a workspace-A entity_id resolves to None in\nworkspace-B, so no cross-tenant data is exposed.",
         "operationId": "create-simulation-session",
         "parameters": [
           {
@@ -72779,7 +74594,7 @@
                 }
               }
             },
-            "description": "Simulation session or configuration not found"
+            "description": "Run or simulation configuration not found"
           },
           "422": {
             "content": {
@@ -72790,6 +74605,16 @@
               }
             },
             "description": "Request validation or simulation configuration error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
           },
           "503": {
             "content": {
@@ -72838,9 +74663,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete-Simulation-Coverage-Graph",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DeleteSimulationCoverageGraphResponse"
                 }
               }
             },
@@ -72919,9 +74742,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Simulation-Coverage-Graph",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationCoverageGraphResponse"
                 }
               }
             },
@@ -72992,9 +74813,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Simulation-Coverage-Paths",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationCoveragePathsResponse"
                 }
               }
             },
@@ -73064,6 +74883,8 @@
             "required": false,
             "schema": {
               "default": 50,
+              "maximum": 100,
+              "minimum": 1,
               "title": "Limit",
               "type": "integer"
             }
@@ -73074,9 +74895,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List-Simulation-Sessions",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationSessionListResponse"
                 }
               }
             },
@@ -73177,6 +74996,8 @@
             "required": false,
             "schema": {
               "default": 100,
+              "maximum": 500,
+              "minimum": 1,
               "title": "Limit",
               "type": "integer"
             }
@@ -73187,9 +75008,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Query-Simulation-Turns",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationTurnQueryResponse"
                 }
               }
             },
@@ -73269,6 +75088,16 @@
             },
             "description": "Request validation or simulation configuration error"
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73341,6 +75170,16 @@
               }
             },
             "description": "Request validation or simulation configuration error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
           },
           "503": {
             "content": {
@@ -73416,6 +75255,16 @@
             },
             "description": "Request validation or simulation configuration error"
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73468,15 +75317,45 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation session or configuration not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Request validation or simulation configuration error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Voice agent not reachable"
           }
         },
         "summary": "Simulation Destroy",
@@ -73538,6 +75417,16 @@
             },
             "description": "Request validation or simulation configuration error"
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73595,9 +75484,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Simulation-Fork",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationForkResponse"
                 }
               }
             },
@@ -73622,6 +75509,16 @@
               }
             },
             "description": "Request validation or simulation configuration error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
           },
           "503": {
             "content": {
@@ -73695,6 +75592,16 @@
             },
             "description": "Request validation or simulation configuration error"
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -73748,15 +75655,45 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation session or configuration not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Request validation or simulation configuration error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Voice agent not reachable"
           }
         },
         "summary": "Promote Simulation Session",
@@ -73767,7 +75704,7 @@
     },
     "/v1/{workspace_id}/simulations/sessions/{session_id}/score": {
       "post": {
-        "description": "ASI assigns a score to a completed simulation session.",
+        "description": "ASI assigns a score to a completed simulation session.\n\n404 when the workspace has no coverage session with this id, such as a\nrun-less playground session that was never promoted.",
         "operationId": "score-simulation-session",
         "parameters": [
           {
@@ -73815,6 +75752,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Simulation session not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -73834,7 +75774,7 @@
     },
     "/v1/{workspace_id}/simulations/sessions/{session_id}/step": {
       "post": {
-        "description": "Step a simulation session and auto-store the turn observation.",
+        "description": "Step the session in the path and auto-store the turn observation.",
         "operationId": "simulation-step",
         "parameters": [
           {
@@ -73852,6 +75792,7 @@
             "name": "session_id",
             "required": true,
             "schema": {
+              "maxLength": 64,
               "title": "Session Id",
               "type": "string"
             }
@@ -73861,7 +75802,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StepRequest"
+                "$ref": "#/components/schemas/StepSessionRequest"
               }
             }
           },
@@ -73897,6 +75838,16 @@
               }
             },
             "description": "Request validation or simulation configuration error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation runtime error"
           },
           "503": {
             "content": {
@@ -73944,9 +75895,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Simulation-Session-Turns",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulationSessionTurnsResponse"
                 }
               }
             },
@@ -74262,6 +76211,116 @@
           }
         },
         "summary": "Update Simulation Suite",
+        "tags": [
+          "Simulations"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/simulations/suites/{suite_id}/cases": {
+      "get": {
+        "description": "List the cases a suite selects, one page per call.\n\nA suite selects its explicit ``case_ids`` plus every case that carries all of\nits ``required_tags``, so explicit, tag-defined and hybrid suites all resolve\nhere. Without ``search``, ``total`` equals the suite's ``case_count``.",
+        "operationId": "list-simulation-suite-cases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          },
+          {
+            "description": "Sort axes as `+field` or `-field`, applied left to right. Newest created first when empty.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Sort axes as `+field` or `-field`, applied left to right. Newest created first when empty.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the case description.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SearchString"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive substring match on the case description.",
+              "title": "Search"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationCaseListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Simulation suite not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Simulation Suite Cases",
         "tags": [
           "Simulations"
         ]

@@ -258,6 +258,7 @@ exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
   "list-simulation-cases",
   "list-simulation-runs",
   "list-simulation-sessions",
+  "list-simulation-suite-cases",
   "list-simulation-suite-runs",
   "list-simulation-suites",
   "list-skills",
