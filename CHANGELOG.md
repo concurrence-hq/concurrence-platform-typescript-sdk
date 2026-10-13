@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.112.0] - 2026-10-13
+
+### Features
+
+- wrap intake, dashboards and the other routes the console calls raw (#471)
+
+### Improvements
+
+- fix!: remove SDK wrappers for routes platform-api no longer serves (#470)
+
+### Bug Fixes
+
+- listLatest takes filters; wrap production evals, eval quality and voice judge (#468)
+- take run filter values from the generated spec (#467)
+
 ## [0.111.0] - 2026-10-12
 
 ### Improvements
