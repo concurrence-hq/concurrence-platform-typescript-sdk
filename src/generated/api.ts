@@ -1457,7 +1457,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Call Eval Results */
+        /**
+         * Get Call Eval Results
+         * @description A call's verdicts. Empty when the call exists but hasn't been evaluated; 404 when it doesn't exist.
+         */
         get: operations["get-call-eval-results"];
         put?: never;
         post?: never;
@@ -2117,7 +2120,7 @@ export interface paths {
         };
         /**
          * Event Stream
-         * @description Server-Sent Events stream for real-time workspace updates.
+         * @description Server-Sent Events stream for real-time workspace updates. Pass `conversation_id` to receive only the events that carry that conversation_id.
          */
         get: operations["get-event-stream"];
         put?: never;
@@ -3846,7 +3849,11 @@ export interface paths {
         };
         /**
          * List latest metric values
-         * @description List the latest value for each metric in the workspace.
+         * @description List metric values. By default, the newest period of each metric series.
+         *
+         *     A categorical or boolean series folds its newest period into one row:
+         *     ``distribution`` counts each value and ``value`` is the most frequent.
+         *     Pages cover the first 10,000 values; narrow the filters or dates to read past them.
          *
          *     Permissions: authenticated (any role).
          */
@@ -3868,7 +3875,10 @@ export interface paths {
         };
         /**
          * List available metrics (builtin + custom)
-         * @description List all available metrics (builtin + custom defined on workspace).
+         * @description List the workspace's active metrics: builtins plus custom definitions.
+         *
+         *     Resolved from the workspace's metric settings, so a builtin turned off
+         *     there is not listed.
          *
          *     Permissions: authenticated (any role).
          */
@@ -3890,7 +3900,7 @@ export interface paths {
         };
         /**
          * Get values for a specific metric
-         * @description Get values for a specific metric with optional time range.
+         * @description Get values for a specific metric with optional time range, newest period first.
          *
          *     Permissions: authenticated (any role).
          */
@@ -3912,7 +3922,7 @@ export interface paths {
         };
         /**
          * Get time-series trend for a metric
-         * @description Get time-series trend for a specific metric.
+         * @description Get every value a metric recorded in the last ``days`` days, newest period first.
          *
          *     Permissions: authenticated (any role).
          */
@@ -4489,7 +4499,13 @@ export interface paths {
         /** List Production Eval Definitions */
         get: operations["list-production-eval-definitions"];
         put?: never;
-        /** Create Production Eval Definition */
+        /**
+         * Create Production Eval Definition
+         * @description Create a production eval definition.
+         *
+         *     ``metric_key`` must name an active ai_query metric on call_intelligence in
+         *     this workspace's metric settings; any other key returns 422.
+         */
         post: operations["create-production-eval-definition"];
         delete?: never;
         options?: never;
@@ -4511,7 +4527,16 @@ export interface paths {
         delete: operations["delete-production-eval-definition"];
         options?: never;
         head?: never;
-        /** Update Production Eval Definition */
+        /**
+         * Update Production Eval Definition
+         * @description Update a production eval definition.
+         *
+         *     A patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to
+         *     true, re-checks the metric: a metric eval must name an active ai_query
+         *     metric on call_intelligence, else 422. Clearing ``metric_key`` on a metric
+         *     eval also returns 422. Any other patch, including ``active: false``,
+         *     leaves the stored key alone.
+         */
         patch: operations["update-production-eval-definition"];
         trace?: never;
     };
@@ -8317,12 +8342,26 @@ export interface components {
              */
             status: "pending";
         };
+        /** BooleanCount */
+        BooleanCount: {
+            /** Count */
+            count: number;
+            /** Value */
+            value: boolean;
+        };
         /** BooleanMetricValueResponse */
         BooleanMetricValueResponse: {
             /** Avg Confidence */
             avg_confidence?: number | null;
             /** Computed At */
             computed_at?: string | null;
+            /**
+             * Distribution
+             * @description Events per value in this row's period, most frequent first. A list-metrics latest row
+             *     lists both values its period saw; any other row lists its own value.
+             * @default []
+             */
+            distribution?: components["schemas"]["BooleanCount"][];
             /** Entity Id */
             entity_id?: string | null;
             /** Entity Type */
@@ -8359,7 +8398,10 @@ export interface components {
             source?: string;
             /** Unit */
             unit?: string | null;
-            /** Value */
+            /**
+             * Value
+             * @description The value this row counts. A list-metrics latest row gives its period's more frequent value.
+             */
             value: boolean | null;
         };
         /**
@@ -9300,6 +9342,13 @@ export interface components {
             avg_confidence?: number | null;
             /** Computed At */
             computed_at?: string | null;
+            /**
+             * Distribution
+             * @description Events per category in this row's period, most frequent first. A list-metrics latest row
+             *     lists every category its period saw; any other row lists its own category.
+             * @default []
+             */
+            distribution?: components["schemas"]["CategoryCount"][];
             /** Entity Id */
             entity_id?: string | null;
             /** Entity Type */
@@ -9336,8 +9385,18 @@ export interface components {
             source?: string;
             /** Unit */
             unit?: string | null;
-            /** Value */
+            /**
+             * Value
+             * @description The category this row counts. A list-metrics latest row gives its period's most frequent category.
+             */
             value: string | null;
+        };
+        /** CategoryCount */
+        CategoryCount: {
+            /** Count */
+            count: number;
+            /** Value */
+            value: string;
         };
         /** ChangeColumnTypeAction */
         ChangeColumnTypeAction: {
@@ -10237,10 +10296,10 @@ export interface components {
          *
          *     Free-form residual on the raw ``conversation_summary`` JSONB:
          *     ``text_intelligence: dict`` (text-channel intelligence
-         *     sub-payload), and on the simulation path ``transcript_text:
-         *     str`` (PHI), ``tool_calls: list``, ``score``,
+         *     sub-payload), and on the simulation path ``score``,
          *     ``score_rationale``, ``terminal_reached``, ``states_visited``.
-         *     Not exposed via this typed shape.
+         *     Older simulation rows also carry ``transcript_text: str`` (PHI)
+         *     and ``tool_calls: list``. Not exposed via this typed shape.
          */
         ConversationSummary: {
             /**
@@ -11081,7 +11140,7 @@ export interface components {
             max_tokens?: number;
             /**
              * Model
-             * @default claude-sonnet-5
+             * @default claude-sonnet-5-5
              */
             model?: string;
             name: components["schemas"]["NameString"];
@@ -13462,14 +13521,14 @@ export interface components {
          * EvalQualitySummary
          * @description Aggregate production-eval verdict stats, overall or for one eval_key.
          *
-         *     Sourced from ``call_eval_results`` (LLM-judge + assertion verdicts), which is
+         *     Sourced from ``call_eval_results`` (assertion and metric verdicts), which is
          *     keyed by ``conversation_id`` and therefore CHANNEL-AGNOSTIC — voice, text,
          *     SMS, email all contribute equally, unlike the voice-shaped call-quality score.
          */
         EvalQualitySummary: {
             /**
              * Avg Score
-             * @description Mean numeric judge score across scored verdicts
+             * @description Mean numeric value of metric verdicts; null when none are numeric
              */
             avg_score?: number | null;
             /**
@@ -13500,7 +13559,7 @@ export interface components {
         EvalQualityTrendPoint: {
             /**
              * Avg Score
-             * @description Mean numeric judge score in this bucket
+             * @description Mean numeric value of metric verdicts in this bucket
              */
             avg_score?: number | null;
             /**
@@ -13557,8 +13616,6 @@ export interface components {
             run_id?: string | null;
             /** Score */
             score?: number | null;
-            /** Score Label */
-            score_label?: string | null;
             /** Session Id */
             session_id?: string | null;
             /**
@@ -15710,7 +15767,7 @@ export interface components {
             max_tokens?: number;
             /**
              * Model
-             * @default claude-sonnet-5
+             * @default claude-sonnet-5-5
              */
             model?: string;
             /** Name */
@@ -16539,6 +16596,15 @@ export interface components {
             run_id: number;
             /** State Message */
             state_message?: string | null;
+        };
+        /** MetricValueListResponse */
+        MetricValueListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Metrics */
+            metrics: (components["schemas"]["NumericalMetricValueResponse"] | components["schemas"]["CategoricalMetricValueResponse"] | components["schemas"]["BooleanMetricValueResponse"])[];
         };
         /** MigrationConversationItem */
         MigrationConversationItem: {
@@ -19614,7 +19680,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "running" | "paused" | "completed" | "failed" | "timed_out";
+            status: "running" | "paused" | "dormant" | "completed" | "failed" | "timed_out";
             /**
              * @description Channel-neutral takeover eligibility, derived from this run's own fields.
              *
@@ -19840,7 +19906,8 @@ export interface components {
          *     Honest workspace totals the paginated list cannot derive client-side (it only
          *     holds the loaded page). ``by_status`` carries the full canonical breakdown
          *     (incl. any status beyond the named convenience fields); ``by_kind`` splits
-         *     framework vs conversation. ``live`` = running + paused.
+         *     framework vs conversation. ``live`` = running + paused. ``dormant`` counts
+         *     open conversations idle past their channel threshold, which are not live.
          */
         RunsSummaryResponse: {
             /** By Kind */
@@ -19853,6 +19920,8 @@ export interface components {
             };
             /** Completed */
             completed: number;
+            /** Dormant */
+            dormant: number;
             /** Failed */
             failed: number;
             /** Live */
@@ -20690,6 +20759,12 @@ export interface components {
              *     so the console renders each drill-down verdict without parsing raw shapes.
              */
             readonly checks: components["schemas"]["EvaluationResultView"][];
+            /**
+             * Error
+             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @default 0
+             */
+            error?: number;
             /** Eval Key */
             eval_key: string;
             /**
@@ -20702,7 +20777,10 @@ export interface components {
              * @default 0
              */
             failed?: number;
-            /** Pass Rate */
+            /**
+             * Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             pass_rate?: number | null;
             /**
              * Passed
@@ -20711,11 +20789,18 @@ export interface components {
             passed?: number;
             /**
              * Pending
+             * @description Verdicts not graded yet; not in the pass_rate denominator
              * @default 0
              */
             pending?: number;
             /** Results */
             results?: components["schemas"]["SimulationEvalResultResponse"][];
+            /**
+             * Skipped
+             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @default 0
+             */
+            skipped?: number;
         };
         /** SimCasePerfResponse */
         SimCasePerfResponse: {
@@ -20725,6 +20810,17 @@ export interface components {
             case_id?: string | null;
             /** Case Name */
             case_name: string;
+            /**
+             * Error
+             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @default 0
+             */
+            error?: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed?: number;
             /** Latest Run At */
             latest_run_at?: string | null;
             /**
@@ -20734,16 +20830,32 @@ export interface components {
             latest_run_id: string;
             /**
              * Measured
+             * @description passed + failed
              * @default 0
              */
             measured?: number;
-            /** Pass Rate */
+            /**
+             * Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             pass_rate?: number | null;
             /**
              * Passed
              * @default 0
              */
             passed?: number;
+            /**
+             * Pending
+             * @description Verdicts not graded yet; not in the pass_rate denominator
+             * @default 0
+             */
+            pending?: number;
+            /**
+             * Skipped
+             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @default 0
+             */
+            skipped?: number;
         };
         /** SimMetricPerfResponse */
         SimMetricPerfResponse: {
@@ -20772,6 +20884,7 @@ export interface components {
             at?: string | null;
             /**
              * Measured
+             * @description Passed + failed verdicts; error, pending and skipped are excluded
              * @default 0
              */
             measured?: number;
@@ -20786,7 +20899,14 @@ export interface components {
         /** SimPerformanceOverviewResponse */
         SimPerformanceOverviewResponse: {
             /**
+             * Error Count
+             * @description Verdicts where grading broke; not in overall_pass_rate
+             * @default 0
+             */
+            error_count?: number;
+            /**
              * Evals Run
+             * @description Passed + failed verdicts: the overall_pass_rate denominator
              * @default 0
              */
             evals_run?: number;
@@ -20795,32 +20915,74 @@ export interface components {
              * @default 0
              */
             needs_attention_count?: number;
-            /** Overall Pass Rate */
+            /**
+             * Overall Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             overall_pass_rate?: number | null;
+            /**
+             * Pending Count
+             * @description Verdicts not graded yet; not in overall_pass_rate
+             * @default 0
+             */
+            pending_count?: number;
             /**
              * Runs Analyzed
              * @default 0
              */
             runs_analyzed?: number;
+            /**
+             * Skipped Count
+             * @description Verdicts that did not apply; not in overall_pass_rate
+             * @default 0
+             */
+            skipped_count?: number;
         };
         /** SimSuitePerfResponse */
         SimSuitePerfResponse: {
             /** Cases */
             cases?: components["schemas"]["SimCasePerfResponse"][];
+            /**
+             * Error
+             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @default 0
+             */
+            error?: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed?: number;
             /** Latest Run At */
             latest_run_at?: string | null;
             /**
              * Measured
+             * @description passed + failed
              * @default 0
              */
             measured?: number;
-            /** Pass Rate */
+            /**
+             * Pass Rate
+             * @description passed / (passed + failed); null when there is no passed or failed verdict
+             */
             pass_rate?: number | null;
             /**
              * Passed
              * @default 0
              */
             passed?: number;
+            /**
+             * Pending
+             * @description Verdicts not graded yet; not in the pass_rate denominator
+             * @default 0
+             */
+            pending?: number;
+            /**
+             * Skipped
+             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @default 0
+             */
+            skipped?: number;
             /** Suite Id */
             suite_id?: string | null;
             /** Suite Name */
@@ -24856,6 +25018,7 @@ export interface components {
             media_url?: string | null;
             /**
              * Message
+             * @description The user's message. Leave it empty (with no ``content`` or media) only to kick off a conversation that has no turns yet: the agent answers with its greeting. Once the conversation has a turn, a turn with no user input is a 422.
              * @default
              */
             message?: string;
@@ -27266,6 +27429,8 @@ export interface components {
              */
             service_id: string;
         };
+        /** @enum {string} */
+        src__routes__metrics___SortField: "metric_key" | "period_start";
         /** AuditEventResponse */
         src__routes__operators_models__AuditEventResponse: {
             /**
@@ -31174,6 +31339,13 @@ export interface operations {
                     "application/json": components["schemas"]["CallEvalResultsResponse"];
                 };
             };
+            /** @description Conversation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -33140,7 +33312,10 @@ export interface operations {
     };
     "get-event-stream": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace. */
+                conversation_id?: string | null;
+            };
             header?: never;
             path: {
                 workspace_id: string;
@@ -33157,6 +33332,15 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkspaceSSEEvent"];
                     "text/event-stream": components["schemas"]["WorkspaceSSEEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Rate limit exceeded */
@@ -37361,6 +37545,8 @@ export interface operations {
     "list-metrics": {
         parameters: {
             query?: {
+                /** @description Order of the page, e.g. `-period_start` (the default, newest first) or `+metric_key`. */
+                sort_by?: string[];
                 source?: "production" | "simulation" | "all";
                 scope?: "aggregate" | "entity" | "all";
                 entity_type?: string | null;
@@ -37370,9 +37556,10 @@ export interface operations {
                 session_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
+                /** @description Return each series' newest period only, a categorical or boolean period folded into one row. */
                 latest_only?: boolean;
                 limit?: number;
-                offset?: number;
+                continuation_token?: unknown;
             };
             header?: never;
             path: {
@@ -37388,7 +37575,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MetricListResponse"];
+                    "application/json": components["schemas"]["MetricValueListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -37471,6 +37658,13 @@ export interface operations {
                     "application/json": components["schemas"]["MetricListResponse"];
                 };
             };
+            /** @description Metric key is not defined in this workspace */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -37519,6 +37713,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MetricListResponse"];
                 };
+            };
+            /** @description Metric key is not defined in this workspace */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -39156,7 +39357,7 @@ export interface operations {
                 sort_by?: string[];
                 limit?: number;
                 continuation_token?: unknown;
-                status?: ("live" | "running" | "paused" | "completed" | "failed" | "timed_out")[];
+                status?: ("live" | "running" | "paused" | "dormant" | "completed" | "failed" | "timed_out")[];
                 kind?: ("conversation" | "framework")[];
                 channel?: ("voice" | "text" | "sms" | "email" | "web")[];
                 /** @description Filter conversation and live voice runs by up to 100 service IDs. Historical framework runs have no stored service attribution and are excluded. Repeated values are ORed; combines with other filters using AND. */

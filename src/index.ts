@@ -59,6 +59,7 @@ import { ExternalIntegrationsResource } from './resources/external-integrations.
 import { AnalyticsResource } from './resources/analytics.js'
 import { SimulationsResource } from './resources/simulations.js'
 import { MetricsResource } from './resources/metrics.js'
+import { ProductionEvalsResource } from './resources/production-evals.js'
 import { SettingsResource } from './resources/settings.js'
 import { RecordingsResource } from './resources/recordings.js'
 import { AuditResource } from './resources/audit.js'
@@ -212,6 +213,8 @@ export class AmigoClient {
   readonly analytics!: AnalyticsResource
   readonly simulations!: SimulationsResource
   readonly metrics!: MetricsResource
+  /** Production evals: eval definitions run against live calls, and each call's verdicts */
+  readonly productionEvals!: ProductionEvalsResource
   readonly settings!: SettingsResource
   readonly recordings!: RecordingsResource
   readonly audit!: AuditResource
@@ -479,6 +482,7 @@ export class AmigoClient {
     mutable.analytics = new AnalyticsResource(client, workspaceId)
     mutable.simulations = new SimulationsResource(client, workspaceId)
     mutable.metrics = new MetricsResource(client, workspaceId)
+    mutable.productionEvals = new ProductionEvalsResource(client, workspaceId)
     mutable.settings = new SettingsResource(client, workspaceId)
     mutable.recordings = new RecordingsResource(client, workspaceId)
     mutable.audit = new AuditResource(client, workspaceId)
@@ -704,10 +708,12 @@ export type {
   MetricCatalogEntry,
   MetricCatalogResponse,
   MetricListResponse,
+  MetricValueListResponse,
   MetricValue,
   NumericalMetricValue,
   CategoricalMetricValue,
   BooleanMetricValue,
+  MetricListParams,
   MetricValuesParams,
   MetricTrendParams,
 } from './resources/metrics.js'
@@ -717,11 +723,29 @@ export type MetricValueResponse = MetricValueAlias
 export type { FireTriggerRequest, ListTriggersParams } from './resources/triggers.js'
 
 export type {
+  CallEvalResult,
+  CallEvalResultsResponse,
+  CreateProductionEvalDefinitionRequest,
+  ListProductionEvalDefinitionsParams,
+  ProductionEvalDefinition,
+  ProductionEvalDefinitionListResponse,
+  UpdateProductionEvalDefinitionRequest,
+} from './resources/production-evals.js'
+
+export type {
   EntitySurfaceHistoryParams,
+  EvalQualityParams,
+  EvalQualityResponse,
   SurfaceChannelEffectivenessParams,
   SurfaceCompletionRatesParams,
   SurfaceFieldAbandonmentParams,
 } from './resources/analytics.js'
+
+export type {
+  ListVoiceJudgeResultsParams,
+  VoiceJudgeResult,
+  VoiceJudgeResultListResponse,
+} from './resources/services.js'
 
 /** Voice provider constants and types. */
 export { STT_PROVIDERS, TTS_PROVIDERS, VOICE_SESSION_PROVIDERS } from './resources/voice.js'

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
-import type { TtsProvider, VoiceSessionProvider } from '../../src/index.js'
+import type {
+  TtsProvider,
+  VoiceJudgeResultListResponse,
+  VoiceSessionProvider,
+} from '../../src/index.js'
 import { mockFetch } from '../helpers/mock-fetch.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -30,6 +34,23 @@ const SERVICE_FIXTURE = {
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
+
+const VOICE_JUDGE_FIXTURE = {
+  service_id: SERVICE_ID,
+  count: 1,
+  items: [
+    {
+      call_sid: 'CA00000000000000000000000000000001',
+      call_entity_id: null,
+      overall_score: 4.2,
+      clarity_score: 4.5,
+      flag_count: 1,
+      critical_count: 0,
+      judge_json: null,
+      computed_at: '2026-10-11T18:00:00Z',
+    },
+  ],
+} satisfies VoiceJudgeResultListResponse
 
 const BASE = `/v1/${TEST_WORKSPACE_ID}`
 
@@ -173,5 +194,31 @@ describe('ServicesResource', () => {
 
   it('deletes a service', async () => {
     await expect(client.services.delete(SERVICE_ID)).resolves.toBeUndefined()
+  })
+})
+
+describe('ServicesResource voice-judge results', () => {
+  it('lists recent voice-judge results for one service, forwarding limit and offset', async () => {
+    let captured: URL | undefined
+    const voiceJudgeClient = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input: string | URL | Request, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init)
+        captured = new URL(request.url)
+        return Response.json(VOICE_JUDGE_FIXTURE)
+      },
+    })
+
+    const result = await voiceJudgeClient.services.listVoiceJudgeResults(SERVICE_ID, {
+      limit: 10,
+      offset: 20,
+    })
+
+    expect(captured?.pathname).toBe(`${BASE}/services/${SERVICE_ID}/voice-judge/recent`)
+    expect(captured?.searchParams.get('limit')).toBe('10')
+    expect(captured?.searchParams.get('offset')).toBe('20')
+    expect(result.count).toBe(1)
+    expect(result.items[0]?.overall_score).toBe(4.2)
   })
 })

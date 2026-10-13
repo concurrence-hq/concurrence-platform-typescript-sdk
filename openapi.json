@@ -2541,6 +2541,24 @@
         "title": "BookingResponse",
         "type": "object"
       },
+      "BooleanCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "BooleanCount",
+        "type": "object"
+      },
       "BooleanMetricValueResponse": {
         "properties": {
           "avg_confidence": {
@@ -2565,6 +2583,15 @@
               }
             ],
             "title": "Computed At"
+          },
+          "distribution": {
+            "default": [],
+            "description": "Events per value in this row's period, most frequent first. A list-metrics latest row\nlists both values its period saw; any other row lists its own value.",
+            "items": {
+              "$ref": "#/components/schemas/BooleanCount"
+            },
+            "title": "Distribution",
+            "type": "array"
           },
           "entity_id": {
             "anyOf": [
@@ -2670,6 +2697,7 @@
                 "type": "null"
               }
             ],
+            "description": "The value this row counts. A list-metrics latest row gives its period's more frequent value.",
             "title": "Value"
           }
         },
@@ -5066,6 +5094,15 @@
             ],
             "title": "Computed At"
           },
+          "distribution": {
+            "default": [],
+            "description": "Events per category in this row's period, most frequent first. A list-metrics latest row\nlists every category its period saw; any other row lists its own category.",
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            },
+            "title": "Distribution",
+            "type": "array"
+          },
           "entity_id": {
             "anyOf": [
               {
@@ -5170,6 +5207,7 @@
                 "type": "null"
               }
             ],
+            "description": "The category this row counts. A list-metrics latest row gives its period's most frequent category.",
             "title": "Value"
           }
         },
@@ -5182,6 +5220,24 @@
           "value"
         ],
         "title": "CategoricalMetricValueResponse",
+        "type": "object"
+      },
+      "CategoryCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "CategoryCount",
         "type": "object"
       },
       "ChangeColumnTypeAction": {
@@ -7470,7 +7526,7 @@
         "type": "object"
       },
       "ConversationSummary": {
-        "description": "Conversation flow metrics.\n\nFree-form residual on the raw ``conversation_summary`` JSONB:\n``text_intelligence: dict`` (text-channel intelligence\nsub-payload), and on the simulation path ``transcript_text:\nstr`` (PHI), ``tool_calls: list``, ``score``,\n``score_rationale``, ``terminal_reached``, ``states_visited``.\nNot exposed via this typed shape.",
+        "description": "Conversation flow metrics.\n\nFree-form residual on the raw ``conversation_summary`` JSONB:\n``text_intelligence: dict`` (text-channel intelligence\nsub-payload), and on the simulation path ``score``,\n``score_rationale``, ``terminal_reached``, ``states_visited``.\nOlder simulation rows also carry ``transcript_text: str`` (PHI)\nand ``tool_calls: list``. Not exposed via this typed shape.",
         "properties": {
           "barge_in_count": {
             "default": 0,
@@ -9415,7 +9471,7 @@
             "type": "integer"
           },
           "model": {
-            "default": "claude-sonnet-5",
+            "default": "claude-sonnet-5-5",
             "maxLength": 128,
             "minLength": 1,
             "title": "Model",
@@ -14851,7 +14907,7 @@
         "type": "object"
       },
       "EvalQualitySummary": {
-        "description": "Aggregate production-eval verdict stats, overall or for one eval_key.\n\nSourced from ``call_eval_results`` (LLM-judge + assertion verdicts), which is\nkeyed by ``conversation_id`` and therefore CHANNEL-AGNOSTIC \u2014 voice, text,\nSMS, email all contribute equally, unlike the voice-shaped call-quality score.",
+        "description": "Aggregate production-eval verdict stats, overall or for one eval_key.\n\nSourced from ``call_eval_results`` (assertion and metric verdicts), which is\nkeyed by ``conversation_id`` and therefore CHANNEL-AGNOSTIC \u2014 voice, text,\nSMS, email all contribute equally, unlike the voice-shaped call-quality score.",
         "properties": {
           "avg_score": {
             "anyOf": [
@@ -14862,7 +14918,7 @@
                 "type": "null"
               }
             ],
-            "description": "Mean numeric judge score across scored verdicts",
+            "description": "Mean numeric value of metric verdicts; null when none are numeric",
             "title": "Avg Score"
           },
           "eval_key": {
@@ -14919,7 +14975,7 @@
                 "type": "null"
               }
             ],
-            "description": "Mean numeric judge score in this bucket",
+            "description": "Mean numeric value of metric verdicts in this bucket",
             "title": "Avg Score"
           },
           "date": {
@@ -15095,18 +15151,6 @@
               }
             ],
             "title": "Score"
-          },
-          "score_label": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Label"
           },
           "session_id": {
             "anyOf": [
@@ -20688,7 +20732,7 @@
             "type": "integer"
           },
           "model": {
-            "default": "claude-sonnet-5",
+            "default": "claude-sonnet-5-5",
             "title": "Model",
             "type": "string"
           },
@@ -22482,6 +22526,48 @@
           "run_id"
         ],
         "title": "MetricStoreRunStatusResponse",
+        "type": "object"
+      },
+      "MetricValueListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "metrics": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "boolean": "#/components/schemas/BooleanMetricValueResponse",
+                  "categorical": "#/components/schemas/CategoricalMetricValueResponse",
+                  "numerical": "#/components/schemas/NumericalMetricValueResponse"
+                },
+                "propertyName": "metric_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/NumericalMetricValueResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/CategoricalMetricValueResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/BooleanMetricValueResponse"
+                }
+              ]
+            },
+            "title": "Metrics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "metrics",
+          "has_more"
+        ],
+        "title": "MetricValueListResponse",
         "type": "object"
       },
       "MigrationConversationItem": {
@@ -29680,6 +29766,7 @@
             "enum": [
               "running",
               "paused",
+              "dormant",
               "completed",
               "failed",
               "timed_out"
@@ -30189,7 +30276,7 @@
         "type": "object"
       },
       "RunsSummaryResponse": {
-        "description": "Aggregate run counts for the Runs page summary strip.\n\nHonest workspace totals the paginated list cannot derive client-side (it only\nholds the loaded page). ``by_status`` carries the full canonical breakdown\n(incl. any status beyond the named convenience fields); ``by_kind`` splits\nframework vs conversation. ``live`` = running + paused.",
+        "description": "Aggregate run counts for the Runs page summary strip.\n\nHonest workspace totals the paginated list cannot derive client-side (it only\nholds the loaded page). ``by_status`` carries the full canonical breakdown\n(incl. any status beyond the named convenience fields); ``by_kind`` splits\nframework vs conversation. ``live`` = running + paused. ``dormant`` counts\nopen conversations idle past their channel threshold, which are not live.",
         "properties": {
           "by_kind": {
             "additionalProperties": {
@@ -30207,6 +30294,10 @@
           },
           "completed": {
             "title": "Completed",
+            "type": "integer"
+          },
+          "dormant": {
+            "title": "Dormant",
             "type": "integer"
           },
           "failed": {
@@ -30242,6 +30333,7 @@
           "completed",
           "failed",
           "timed_out",
+          "dormant",
           "by_status",
           "by_kind"
         ],
@@ -32197,6 +32289,12 @@
             "title": "Checks",
             "type": "array"
           },
+          "error": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "title": "Error",
+            "type": "integer"
+          },
           "eval_key": {
             "maxLength": 128,
             "title": "Eval Key",
@@ -32224,6 +32322,7 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Pass Rate"
           },
           "passed": {
@@ -32233,6 +32332,7 @@
           },
           "pending": {
             "default": 0,
+            "description": "Verdicts not graded yet; not in the pass_rate denominator",
             "title": "Pending",
             "type": "integer"
           },
@@ -32242,6 +32342,12 @@
             },
             "title": "Results",
             "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "title": "Skipped",
+            "type": "integer"
           }
         },
         "required": [
@@ -32278,6 +32384,17 @@
             "title": "Case Name",
             "type": "string"
           },
+          "error": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "title": "Error",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
           "latest_run_at": {
             "anyOf": [
               {
@@ -32296,6 +32413,7 @@
           },
           "measured": {
             "default": 0,
+            "description": "passed + failed",
             "title": "Measured",
             "type": "integer"
           },
@@ -32308,11 +32426,24 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Pass Rate"
           },
           "passed": {
             "default": 0,
             "title": "Passed",
+            "type": "integer"
+          },
+          "pending": {
+            "default": 0,
+            "description": "Verdicts not graded yet; not in the pass_rate denominator",
+            "title": "Pending",
+            "type": "integer"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "title": "Skipped",
             "type": "integer"
           }
         },
@@ -32383,6 +32514,7 @@
           },
           "measured": {
             "default": 0,
+            "description": "Passed + failed verdicts; error, pending and skipped are excluded",
             "title": "Measured",
             "type": "integer"
           },
@@ -32408,8 +32540,15 @@
       },
       "SimPerformanceOverviewResponse": {
         "properties": {
+          "error_count": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in overall_pass_rate",
+            "title": "Error Count",
+            "type": "integer"
+          },
           "evals_run": {
             "default": 0,
+            "description": "Passed + failed verdicts: the overall_pass_rate denominator",
             "title": "Evals Run",
             "type": "integer"
           },
@@ -32427,11 +32566,24 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Overall Pass Rate"
+          },
+          "pending_count": {
+            "default": 0,
+            "description": "Verdicts not graded yet; not in overall_pass_rate",
+            "title": "Pending Count",
+            "type": "integer"
           },
           "runs_analyzed": {
             "default": 0,
             "title": "Runs Analyzed",
+            "type": "integer"
+          },
+          "skipped_count": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in overall_pass_rate",
+            "title": "Skipped Count",
             "type": "integer"
           }
         },
@@ -32447,6 +32599,17 @@
             "title": "Cases",
             "type": "array"
           },
+          "error": {
+            "default": 0,
+            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "title": "Error",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
           "latest_run_at": {
             "anyOf": [
               {
@@ -32460,6 +32623,7 @@
           },
           "measured": {
             "default": 0,
+            "description": "passed + failed",
             "title": "Measured",
             "type": "integer"
           },
@@ -32472,11 +32636,24 @@
                 "type": "null"
               }
             ],
+            "description": "passed / (passed + failed); null when there is no passed or failed verdict",
             "title": "Pass Rate"
           },
           "passed": {
             "default": 0,
             "title": "Passed",
+            "type": "integer"
+          },
+          "pending": {
+            "default": 0,
+            "description": "Verdicts not graded yet; not in the pass_rate denominator",
+            "title": "Pending",
+            "type": "integer"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "title": "Skipped",
             "type": "integer"
           },
           "suite_id": {
@@ -41627,6 +41804,7 @@
           },
           "message": {
             "default": "",
+            "description": "The user's message. Leave it empty (with no ``content`` or media) only to kick off a conversation that has no turns yet: the agent answers with its greeting. Once the conversation has a turn, a turn with no user input is a 422.",
             "maxLength": 10000,
             "title": "Message",
             "type": "string"
@@ -48042,6 +48220,13 @@
         ],
         "title": "Request",
         "type": "object"
+      },
+      "src__routes__metrics___SortField": {
+        "enum": [
+          "metric_key",
+          "period_start"
+        ],
+        "type": "string"
       },
       "src__routes__operators_models__AuditEventResponse": {
         "properties": {
@@ -54953,6 +55138,7 @@
     },
     "/v1/{workspace_id}/calls/{conversation_id}/eval-results": {
       "get": {
+        "description": "A call's verdicts. Empty when the call exists but hasn't been evaluated; 404 when it doesn't exist.",
         "operationId": "get-call-eval-results",
         "parameters": [
           {
@@ -54986,6 +55172,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Conversation not found"
           },
           "422": {
             "content": {
@@ -57927,7 +58116,7 @@
     },
     "/v1/{workspace_id}/events/stream": {
       "get": {
-        "description": "Server-Sent Events stream for real-time workspace updates.",
+        "description": "Server-Sent Events stream for real-time workspace updates. Pass `conversation_id` to receive only the events that carry that conversation_id.",
         "operationId": "get-event-stream",
         "parameters": [
           {
@@ -57938,6 +58127,25 @@
               "format": "uuid",
               "title": "Workspace Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace.",
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace.",
+              "title": "Conversation Id"
             }
           }
         ],
@@ -57956,6 +58164,16 @@
               }
             },
             "description": "SSE stream"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           },
           "429": {
             "description": "Rate limit exceeded"
@@ -65399,7 +65617,7 @@
     },
     "/v1/{workspace_id}/metrics": {
       "get": {
-        "description": "List the latest value for each metric in the workspace.\n\nPermissions: authenticated (any role).",
+        "description": "List metric values. By default, the newest period of each metric series.\n\nA categorical or boolean series folds its newest period into one row:\n``distribution`` counts each value and ``value`` is the most frequent.\nPages cover the first 10,000 values; narrow the filters or dates to read past them.\n\nPermissions: authenticated (any role).",
         "operationId": "list-metrics",
         "parameters": [
           {
@@ -65410,6 +65628,21 @@
               "format": "uuid",
               "title": "Workspace Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Order of the page, e.g. `-period_start` (the default, newest first) or `+metric_key`.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Order of the page, e.g. `-period_start` (the default, newest first) or `+metric_key`.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
             }
           },
           {
@@ -65483,7 +65716,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -65500,7 +65733,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -65562,11 +65795,13 @@
             }
           },
           {
+            "description": "Return each series' newest period only, a categorical or boolean period folded into one row.",
             "in": "query",
             "name": "latest_only",
             "required": false,
             "schema": {
               "default": true,
+              "description": "Return each series' newest period only, a categorical or boolean period folded into one row.",
               "title": "Latest Only",
               "type": "boolean"
             }
@@ -65577,21 +65812,18 @@
             "required": false,
             "schema": {
               "default": 100,
+              "exclusiveMinimum": 0,
               "maximum": 500,
-              "minimum": 1,
               "title": "Limit",
               "type": "integer"
             }
           },
           {
             "in": "query",
-            "name": "offset",
+            "name": "continuation_token",
             "required": false,
             "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
+              "title": "Continuation Token"
             }
           }
         ],
@@ -65600,7 +65832,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MetricListResponse"
+                  "$ref": "#/components/schemas/MetricValueListResponse"
                 }
               }
             },
@@ -65628,7 +65860,7 @@
     },
     "/v1/{workspace_id}/metrics/catalog": {
       "get": {
-        "description": "List all available metrics (builtin + custom defined on workspace).\n\nPermissions: authenticated (any role).",
+        "description": "List the workspace's active metrics: builtins plus custom definitions.\n\nResolved from the workspace's metric settings, so a builtin turned off\nthere is not listed.\n\nPermissions: authenticated (any role).",
         "operationId": "get-metric-catalog",
         "parameters": [
           {
@@ -65665,7 +65897,7 @@
     },
     "/v1/{workspace_id}/metrics/{metric_key}": {
       "get": {
-        "description": "Get values for a specific metric with optional time range.\n\nPermissions: authenticated (any role).",
+        "description": "Get values for a specific metric with optional time range, newest period first.\n\nPermissions: authenticated (any role).",
         "operationId": "get-metric-values",
         "parameters": [
           {
@@ -65763,7 +65995,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -65780,7 +66012,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -65865,6 +66097,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Metric key is not defined in this workspace"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -65887,7 +66122,7 @@
     },
     "/v1/{workspace_id}/metrics/{metric_key}/trend": {
       "get": {
-        "description": "Get time-series trend for a specific metric.\n\nPermissions: authenticated (any role).",
+        "description": "Get every value a metric recorded in the last ``days`` days, newest period first.\n\nPermissions: authenticated (any role).",
         "operationId": "get-metric-trend",
         "parameters": [
           {
@@ -65985,7 +66220,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -66002,7 +66237,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
@@ -66052,6 +66287,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Metric key is not defined in this workspace"
           },
           "422": {
             "content": {
@@ -68223,6 +68461,7 @@
         ]
       },
       "post": {
+        "description": "Create a production eval definition.\n\n``metric_key`` must name an active ai_query metric on call_intelligence in\nthis workspace's metric settings; any other key returns 422.",
         "operationId": "create-production-eval-definition",
         "parameters": [
           {
@@ -68320,6 +68559,7 @@
         ]
       },
       "patch": {
+        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone.",
         "operationId": "update-production-eval-definition",
         "parameters": [
           {
@@ -69115,6 +69355,7 @@
                   "live",
                   "running",
                   "paused",
+                  "dormant",
                   "completed",
                   "failed",
                   "timed_out"

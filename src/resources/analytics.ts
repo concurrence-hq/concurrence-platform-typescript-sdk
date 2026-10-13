@@ -1,4 +1,4 @@
-import type { operations } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export type SurfaceCompletionRatesParams = NonNullable<
@@ -13,6 +13,10 @@ export type SurfaceFieldAbandonmentParams = NonNullable<
 export type EntitySurfaceHistoryParams = NonNullable<
   operations['get-entity-surface-history']['parameters']['query']
 >
+export type EvalQualityParams = NonNullable<
+  operations['get-eval-quality-analytics']['parameters']['query']
+>
+export type EvalQualityResponse = components['schemas']['EvalQualityResponse']
 
 /**
  * Analytics — aggregate metrics about calls, agents, quality, and usage.
@@ -164,6 +168,18 @@ export class AnalyticsResource extends WorkspaceScopedResource {
   }) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/analytics/calls/advanced', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  /**
+   * Production-eval pass rate and score: the workspace summary, one row per eval key, and a
+   * trend. Built from stored call verdicts, so every channel counts.
+   */
+  async getEvalQuality(params?: EvalQualityParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/analytics/eval-quality', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
       }),
     )

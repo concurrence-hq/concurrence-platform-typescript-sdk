@@ -198,6 +198,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `update`
 - `upsertVersionSet`
 - `delete`
+- `listVoiceJudgeResults`
 
 ### `contextGraphs`
 
@@ -315,6 +316,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getEventBreakdown`
 - `getOperatorPerformance`
 - `getAdvancedCallStats`
+- `getEvalQuality`
 - `compareCallPeriods`
 - `surfaces.getCompletionRates`
 - `surfaces.getChannelEffectiveness`
@@ -350,6 +352,16 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getCatalog`
 - `getValues`
 - `getTrend`
+
+### `productionEvals`
+
+- `listDefinitions`
+- `listDefinitionsAutoPaging`
+- `createDefinition`
+- `updateDefinition`
+- `deleteDefinition`
+- `evaluate`
+- `getResults`
 
 ### `settings`
 
