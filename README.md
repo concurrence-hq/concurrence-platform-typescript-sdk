@@ -524,6 +524,11 @@ await client.services.update(service.id, {
     session_provider: 'inhouse' satisfies VoiceSessionProvider,
   },
 })
+
+// Replace one version set and leave the others as they are
+await client.services.upsertVersionSet(service.id, 'canary', {
+  version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+})
 ```
 
 ### Runs
@@ -585,6 +590,10 @@ const results = await client.world.search({
   entity_type: 'patient',
   limit: 5,
 })
+
+// Current enrichment values for an entity, and the history of one key
+const { values } = await client.world.listEnrichment('entity-id')
+const { history } = await client.world.getEnrichmentHistory('entity-id', 'preferred_language')
 ```
 
 ### Calls
@@ -914,6 +923,72 @@ const query = await client.workspaceDataQueries.create({
 const result = await client.workspaceDataQueries.invoke(query.id, {
   input: { status: 'open' },
 })
+```
+
+To run one statement without saving it, use `dataQuery.execute`. It runs as the workspace's own
+database role, so it reaches only what that role's grants allow.
+
+```typescript
+const { columns, rows } = await client.dataQuery.execute({
+  sql: "select id, status from custom.orders where status = 'open'",
+})
+```
+
+### Intake
+
+Files land in registered datasets, either uploaded directly or synced from Google Shared Drive
+sources. Snapshot datasets then materialize into customer-data tables.
+
+```typescript
+await client.intake.datasets.registerSchema({
+  name: 'clinical-notes',
+  file_type: 'pdf',
+  accepted_file_types: ['pdf', 'docx'],
+})
+
+// A File uploads under its own name. Pass `filename` for a plain Blob.
+const uploaded = await client.intake.files.upload({
+  dataset: 'clinical-notes',
+  file: new File([pdfBytes], 'visit.pdf', { type: 'application/pdf' }),
+  doc_metadata: { patient_id: 'patient-123' },
+})
+const original = await client.intake.files.download(uploaded.id)
+
+for await (const file of client.intake.files.listAutoPaging({ status: 'curated' })) {
+  console.log(file.filename, file.version)
+}
+
+// Sync a dataset's Drive folders, prepare new files and publish, then wait for the run
+let run = await client.intake.datasets.startUpdate('clinical-notes')
+while (['checking_drive', 'preparing', 'publishing'].includes(run.status)) {
+  await new Promise((resolve) => setTimeout(resolve, 5000))
+  run = await client.intake.datasets.getUpdateRun(run.run_id)
+}
+
+// Write a snapshot dataset to its customer-data table
+await client.intake.materialize({ dataset: 'claims' })
+```
+
+### Dashboards
+
+```typescript
+const dashboard = await client.dashboards.getBySlug('call-quality')
+const { results } = await client.dashboards.execute(dashboard.id, {
+  filter_values: { days: 30 },
+})
+for (const panel of results) {
+  if (panel.error) console.warn(panel.panel_id, panel.error)
+}
+```
+
+### Tool catalog and client config
+
+```typescript
+// Built-in world and surface tools, read live from the agent engine
+const { tools } = await client.tools.listCatalog()
+
+// Platform values that are safe to embed in browser code
+const { google_maps_api_key } = await client.clientConfig.get()
 ```
 
 ## Webhook Verification

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { AmigoClient } from '../../src/index.js'
+import { AmigoClient, NotFoundError } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
@@ -141,5 +141,92 @@ describe('WorldResource', () => {
   it('gets entity stats', async () => {
     const result = await client.world.getStats()
     expect(result.total_entities).toBe(150)
+  })
+})
+
+describe('WorldResource enrichment', () => {
+  function recordingClient(handler: (request: Request) => Response) {
+    const requests: Request[] = []
+    const recordingClient = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input: string | URL | Request, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init)
+        requests.push(request)
+        return handler(request)
+      },
+    })
+    return { client: recordingClient, requests }
+  }
+
+  it("lists an entity's current enrichment values with limit and offset", async () => {
+    const { client: enrichmentClient, requests } = recordingClient(() =>
+      Response.json({
+        entity_id: ENTITY_ID,
+        values: [
+          {
+            key: 'preferred_language',
+            value: 'es',
+            value_type: 'string',
+            confidence: 0.9,
+            source: 'memory_extract',
+            event_id: 'event-001',
+          },
+        ],
+      }),
+    )
+
+    const result = await enrichmentClient.world.listEnrichment(ENTITY_ID, { limit: 50, offset: 50 })
+    const url = new URL(requests[0]!.url)
+
+    expect(url.pathname).toBe(`${BASE}/world/entities/${ENTITY_ID}/enrichment`)
+    expect(Object.fromEntries(url.searchParams)).toEqual({ limit: '50', offset: '50' })
+    expect(result.values[0]?.value).toBe('es')
+  })
+
+  it('gets the history of one key, newest first, with the limit', async () => {
+    const { client: enrichmentClient, requests } = recordingClient(() =>
+      Response.json({
+        entity_id: ENTITY_ID,
+        key: 'preferred_language',
+        history: [
+          {
+            event_id: 'event-002',
+            value: 'es',
+            value_type: 'string',
+            confidence: 0.9,
+            source: 'memory_extract',
+            ingested_at: '2026-10-11T18:00:00Z',
+            supersedes: 'event-001',
+            is_current: true,
+          },
+        ],
+        dropped_count: 1,
+      }),
+    )
+
+    const result = await enrichmentClient.world.getEnrichmentHistory(
+      ENTITY_ID,
+      'preferred_language',
+      { limit: 10 },
+    )
+    const url = new URL(requests[0]!.url)
+
+    expect(url.pathname).toBe(
+      `${BASE}/world/entities/${ENTITY_ID}/enrichment/preferred_language/history`,
+    )
+    expect(url.searchParams.get('limit')).toBe('10')
+    expect(result.history[0]?.supersedes).toBe('event-001')
+    expect(result.dropped_count).toBe(1)
+  })
+
+  it('throws NotFoundError for a missing entity', async () => {
+    const { client: enrichmentClient } = recordingClient(() =>
+      Response.json({ detail: 'Entity not found' }, { status: 404 }),
+    )
+
+    await expect(enrichmentClient.world.listEnrichment(ENTITY_ID)).rejects.toBeInstanceOf(
+      NotFoundError,
+    )
   })
 })

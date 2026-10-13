@@ -1,3 +1,4 @@
+import type { operations } from '../generated/api.js'
 import type { EntityId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
@@ -216,6 +217,50 @@ export class WorldResource extends WorkspaceScopedResource {
       (pageParams) => this.getTimeline(entityId, pageParams),
       (page) => page.events,
       params,
+    )
+  }
+
+  // ---- Enrichment ----
+
+  /**
+   * List an entity's current enrichment values, one per key with its provenance, sorted by
+   * key. Page with `limit` (default 200, max 500) and `offset`. A fresh write can take a moment
+   * to appear. A missing entity throws `NotFoundError`.
+   */
+  async listEnrichment(
+    entityId: EntityId | string,
+    params?: NonNullable<operations['list-entity-enrichment']['parameters']['query']>,
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/entities/{entity_id}/enrichment', {
+        params: {
+          path: { workspace_id: this.workspaceId, entity_id: entityId },
+          query: params,
+        },
+      }),
+    )
+  }
+
+  /**
+   * Get the audit trail of one enrichment key on an entity, newest first, up to `limit` entries
+   * (default 50, max 200). `dropped_count` counts entries left out for missing provenance. A
+   * missing entity throws `NotFoundError`.
+   */
+  async getEnrichmentHistory(
+    entityId: EntityId | string,
+    key: string,
+    params?: NonNullable<operations['get-entity-enrichment-history']['parameters']['query']>,
+  ) {
+    return extractData(
+      await this.client.GET(
+        '/v1/{workspace_id}/world/entities/{entity_id}/enrichment/{key}/history',
+        {
+          params: {
+            path: { workspace_id: this.workspaceId, entity_id: entityId, key },
+            query: params,
+          },
+        },
+      ),
     )
   }
 

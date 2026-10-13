@@ -52,6 +52,23 @@ export class ServicesResource extends WorkspaceScopedResource {
     )
   }
 
+  /**
+   * Create or replace one named version set, such as `release`, leaving the others as they
+   * are. A name outside `^[A-Za-z0-9_-]+$` (max 40) or a model the gateway doesn't serve
+   * throws `ValidationError`. A pinned agent or context graph version that doesn't exist
+   * throws `NotFoundError`.
+   */
+  async upsertVersionSet(
+    serviceId: ServiceId | string,
+    name: string,
+    body: components['schemas']['UpsertVersionSetRequest'],
+  ): Promise<void> {
+    await this.client.PUT('/v1/{workspace_id}/services/{service_id}/version-sets/{name}', {
+      params: { path: { workspace_id: this.workspaceId, service_id: serviceId, name } },
+      body,
+    })
+  }
+
   async delete(serviceId: ServiceId | string): Promise<void> {
     await this.client.DELETE('/v1/{workspace_id}/services/{service_id}', {
       params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
