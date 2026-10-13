@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.113.0] - 2026-10-13
+
+### Features
+
+- wrap cases, suites, suite runs, benchmarks and the path step (#469)
+
 ## [0.112.0] - 2026-10-13
 
 ### Features
