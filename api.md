@@ -358,8 +358,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `outreach.update`
 - `retention.get`
 - `retention.update`
-- `gapScanner.get`
-- `gapScanner.update`
 - `metrics.get`
 - `metrics.update`
 
@@ -453,14 +451,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getForEntity`
 - `regenerateForEntity`
 
-### `desktopSessions`
-
-- `create`
-- `disconnect`
-- `sendAction`
-- `getScreenshot`
-- `getStatus`
-
 ### `network`
 
 - `getEgressIps`
@@ -477,11 +467,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `sources.getOverview`
 - `sources.listEvents`
 - `sources.getHistory`
-
-### `tasks`
-
-- `get`
-- `listByCall`
 
 ### `tools`
 
@@ -508,23 +493,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listActive`
 - `getFleetStatus`
 - `inject`
-
-### `workspaceDatabase`
-
-- `get`
-- `post`
-- `patch`
-- `delete`
-- `getFork`
-- `createFork`
-- `deleteFork`
-- `executeQuery`
-- `listQueryTools`
-- `listQueryToolsAutoPaging`
-- `createQueryTool`
-- `updateQueryTool`
-- `deleteQueryTool`
-- `testQueryTool`
 
 ### `workspaceDataQueries`
 

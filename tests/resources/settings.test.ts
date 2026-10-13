@@ -77,9 +77,6 @@ const client = new AmigoClient({
 
     [`PUT ${BASE}/settings/retention`]: () =>
       Response.json({ ...RETENTION_FIXTURE, call_recordings_days: 180 }),
-
-    [`GET ${BASE}/settings/gap-scanner`]: () => Response.json({ enabled: true, rules: [] }),
-    [`PUT ${BASE}/settings/gap-scanner`]: () => Response.json({ enabled: false, rules: [] }),
   }),
 })
 
@@ -149,17 +146,6 @@ describe('SettingsResource', () => {
     it('updates retention policy', async () => {
       const result = await client.settings.retention.update({ call_recordings_days: 180 } as never)
       expect(result.call_recordings_days).toBe(180)
-    })
-  })
-
-  describe('gapScanner', () => {
-    it('gets and updates the rules', async () => {
-      expect(await client.settings.gapScanner.get()).toMatchObject({ enabled: true })
-      expect(
-        await client.settings.gapScanner.update({ enabled: false } as Parameters<
-          typeof client.settings.gapScanner.update
-        >[0]),
-      ).toMatchObject({ enabled: false })
     })
   })
 })

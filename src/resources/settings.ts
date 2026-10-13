@@ -72,22 +72,6 @@ export class SettingsResource extends WorkspaceScopedResource {
       ),
   }
 
-  readonly gapScanner = {
-    get: async () =>
-      extractData(
-        await this.client.GET('/v1/{workspace_id}/settings/gap-scanner', {
-          params: { path: { workspace_id: this.workspaceId } },
-        }),
-      ),
-    update: async (body: components['schemas']['GapScannerSettingsRequest']) =>
-      extractData(
-        await this.client.PUT('/v1/{workspace_id}/settings/gap-scanner', {
-          params: { path: { workspace_id: this.workspaceId } },
-          body,
-        }),
-      ),
-  }
-
   readonly metrics = {
     get: async () =>
       extractData(
