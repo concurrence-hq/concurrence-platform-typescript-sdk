@@ -53,6 +53,8 @@ Notes:
 - Pagination and response helpers: `paginate`, `buildLastResponse`, `extractRequestId`
 - Conversation helpers: `sessionConnectAuthProtocols`, `textStreamAuthProtocols`
 - Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TextStreamAuthProtocols` (WebSocket constructor subprotocol tuple), `TextStreamUrlParams`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Test-call helpers: `TestCallsResource`, `testCallAuthProtocols`
+- Test-call types: `TestCallAuthProtocols`, `TestCallCloseEvent`, `TestCallConnectOptions`, `TestCallControlMessage`, `TestCallAgentTranscriptEvent`, `TestCallEmotionEvent`, `TestCallEvent`, `TestCallHandle`, `TestCallInterruptionEvent`, `TestCallLatencyEvent`, `TestCallProgressEvent`, `TestCallReadyEvent`, `TestCallSessionStartedEvent`, `TestCallToolCallCompletedEvent`, `TestCallToolCallStartedEvent`, `TestCallUrlParams`, `TestCallUserTranscriptEvent`
 - Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_SESSION_PROVIDERS`
 - Voice provider types: `AgentVoiceConfig`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
 - Response and hook types: `PaginatedList`, `ListParams`, `LastResponseInfo`, `ResponseMetadata`, `WithResponseMetadata`, `AmigoResponse`, `RetryOptions`, `RateLimitInfo`, `ClientHooks`, `RequestHookContext`, `ResponseHookContext`, `ErrorHookContext`
@@ -437,6 +439,12 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `observers`
 
 - `subscribe`
+
+### `testCalls`
+
+- `withOptions`
+- `url`
+- `connect`
 
 ### `fhir`
 

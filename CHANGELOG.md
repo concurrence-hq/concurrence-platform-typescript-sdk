@@ -156,6 +156,7 @@
 
 ### Features
 
+- `client.testCalls` — first-class `/agent/test-call` WebSocket resource for browser voice testing, including safe URL and subprotocol-auth construction, typed session metadata, duplex PCM16 audio, stop/close lifecycle handling, and abort support.
 - `simulations.promoteSession(sessionId)` — typed wrapper for `POST /simulations/sessions/{id}/promote`. Promotes a run-less (interactive playground) session into a coverage run so it can be forked/scored; idempotent (`already_bound: true` when the session already belongs to a run). Regenerates types with the new `promote-simulation-session` operation + `PromoteSessionResponse` schema.
 
 ### Fixes

@@ -679,6 +679,43 @@ const url = client.conversations.textStreamUrl({ serviceId: 'service-id', token:
 const socket = new WebSocket(url)
 ```
 
+### Browser voice test calls
+
+Use `client.testCalls.connect()` to open a browser voice test call against the
+agent engine. The SDK builds `/agent/test-call`, authenticates through the
+WebSocket subprotocol, parses metadata frames, and exposes PCM16 audio in both
+directions. Your application remains responsible for microphone capture and
+audio playback.
+
+```typescript
+const call = client.testCalls.connect({
+  serviceId: 'service-id',
+  token: apiKey,
+  callerId: '+15555550123', // optional simulated caller context
+  onAudio: (pcm16) => playback.enqueue(pcm16),
+  onEvent: (event) => {
+    if (event.type === 'session_started') {
+      console.log('call started:', event.call_sid)
+    } else if (event.type === 'interruption') {
+      playback.clear()
+    }
+  },
+})
+
+microphone.onPcm16 = (pcm16) => call.sendAudio(pcm16)
+
+// Sends { type: 'stop' }, then closes normally.
+call.stop()
+await call.done
+```
+
+The microphone sample rate defaults to 16 kHz and can be changed with
+`sampleRate`. Test calls intentionally do not reconnect: losing the duplex
+media socket terminates the allocated voice session. The URL builder also
+supports `inbound`, `outbound`, and `silent` scenarios, version-set selection,
+and freeform prompt overrides. Live control helpers include `injectEvent()`,
+`injectGuidance()`, and `refreshContext()`.
+
 ### Real-time event streams
 
 For workspace-wide events (calls, surfaces, pipeline, operators, channels), use the typed SSE consumer:
