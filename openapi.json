@@ -10206,6 +10206,17 @@
             "default": false,
             "title": "Use Structured Output",
             "type": "boolean"
+          },
+          "write_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What this skill's writes do, for its sub-tool calls to an endpoint whose kind ``varies``\n(one generic GraphQL endpoint that books, cancels and reads). Sub-tool endpoints with their\nown kind write that kind whatever the skill says. Leave unset when unknown."
           }
         },
         "required": [
@@ -13141,6 +13152,42 @@
         "title": "EncounterUpdatedEvent",
         "type": "object"
       },
+      "EndpointDeclarations-Input": {
+        "description": "What an endpoint's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses.",
+        "properties": {
+          "writes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointWrites-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a successful call writes and how its response reports it. Null when undeclared: the\nvoice agent then never treats the endpoint's calls as a booking or cancellation."
+          }
+        },
+        "title": "EndpointDeclarations",
+        "type": "object"
+      },
+      "EndpointDeclarations-Output": {
+        "description": "What an endpoint's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses.",
+        "properties": {
+          "writes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointWrites-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a successful call writes and how its response reports it. Null when undeclared: the\nvoice agent then never treats the endpoint's calls as a booking or cancellation."
+          }
+        },
+        "title": "EndpointDeclarations",
+        "type": "object"
+      },
       "EndpointResponse": {
         "description": "Per-endpoint response (V186 flat shape).",
         "properties": {
@@ -13164,6 +13211,10 @@
               }
             ],
             "description": "Opt-in typed artifact contract for external-user conversation delivery."
+          },
+          "declarations": {
+            "$ref": "#/components/schemas/EndpointDeclarations-Output",
+            "description": "What the endpoint's author declares about its calls. A declaration left out is unknown:\nwith no `writes`, the voice agent never treats the endpoint's calls as a booking or cancellation."
           },
           "description": {
             "description": "LLM-facing description.",
@@ -13265,9 +13316,74 @@
           "name",
           "description",
           "method",
-          "path"
+          "path",
+          "declarations"
         ],
         "title": "EndpointResponse",
+        "type": "object"
+      },
+      "EndpointWriteKind": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WriteKind"
+          },
+          {
+            "enum": [
+              "none",
+              "varies"
+            ],
+            "type": "string"
+          }
+        ]
+      },
+      "EndpointWrites-Input": {
+        "description": "What a successful call to an endpoint writes, and how its response reports the write.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/EndpointWriteKind",
+            "description": "What the write does, ``none`` when the endpoint never writes, or ``varies`` when the\ncompanion skill that calls it says."
+          },
+          "success": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteSuccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the response says the write happened. Required unless ``kind`` is ``none``."
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "EndpointWrites",
+        "type": "object"
+      },
+      "EndpointWrites-Output": {
+        "description": "What a successful call to an endpoint writes, and how its response reports the write.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/EndpointWriteKind",
+            "description": "What the write does, ``none`` when the endpoint never writes, or ``varies`` when the\ncompanion skill that calls it says."
+          },
+          "success": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteSuccess"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the response says the write happened. Required unless ``kind`` is ``none``."
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "EndpointWrites",
         "type": "object"
       },
       "EnrichmentHistoryEntry": {
@@ -18903,6 +19019,52 @@
         "title": "FieldSaveRequest",
         "type": "object"
       },
+      "FieldSuccess": {
+        "description": "A field of the JSON response holds the value that means the write happened.",
+        "properties": {
+          "equals": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The value at ``pointer`` when the write happened. Compared as JSON: ``\"0\"`` is not ``0``,\nand ``true`` is not ``1``. A form-encoded response holds only strings.",
+            "title": "Equals"
+          },
+          "pointer": {
+            "description": "RFC 6901 JSON Pointer into the parsed response body, such as ``/code``.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Pointer",
+            "type": "string"
+          },
+          "reported_by": {
+            "const": "field",
+            "title": "Reported By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reported_by",
+          "pointer",
+          "equals"
+        ],
+        "title": "FieldSuccess",
+        "type": "object"
+      },
       "FieldType": {
         "description": "Input field types for surface data collection.",
         "enum": [
@@ -20128,371 +20290,6 @@
         "title": "FunctionExample",
         "type": "object"
       },
-      "GapRequiredField": {
-        "description": "A field that must be present in entity state.",
-        "properties": {
-          "field_type": {
-            "$ref": "#/components/schemas/FieldType",
-            "default": "text"
-          },
-          "label": {
-            "$ref": "#/components/schemas/NameString"
-          },
-          "min_items": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "For list fields, minimum items required",
-            "title": "Min Items"
-          },
-          "path": {
-            "description": "Dot-notation path into entity state",
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "label"
-        ],
-        "title": "GapRequiredField",
-        "type": "object"
-      },
-      "GapRequirement-Input": {
-        "description": "A named gap detection rule.",
-        "properties": {
-          "channel": {
-            "$ref": "#/components/schemas/ChannelType",
-            "default": "email"
-          },
-          "entity_type": {
-            "const": "person",
-            "default": "person",
-            "title": "Entity Type",
-            "type": "string"
-          },
-          "name": {
-            "$ref": "#/components/schemas/NameString"
-          },
-          "priority": {
-            "default": "normal",
-            "enum": [
-              "low",
-              "normal",
-              "high"
-            ],
-            "title": "Priority",
-            "type": "string"
-          },
-          "required_fields": {
-            "items": {
-              "$ref": "#/components/schemas/GapRequiredField"
-            },
-            "maxItems": 50,
-            "minItems": 1,
-            "title": "Required Fields",
-            "type": "array"
-          },
-          "surface_description": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DescriptionString"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "surface_title": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NameString"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Title for generated surfaces. Defaults to requirement name."
-          },
-          "trigger": {
-            "default": "upcoming_appointment",
-            "enum": [
-              "upcoming_appointment",
-              "recent_interaction"
-            ],
-            "title": "Trigger",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "required_fields"
-        ],
-        "title": "GapRequirement",
-        "type": "object"
-      },
-      "GapRequirement-Output": {
-        "description": "A named gap detection rule.",
-        "properties": {
-          "channel": {
-            "$ref": "#/components/schemas/ChannelType",
-            "default": "email"
-          },
-          "entity_type": {
-            "const": "person",
-            "default": "person",
-            "title": "Entity Type",
-            "type": "string"
-          },
-          "name": {
-            "$ref": "#/components/schemas/NameString"
-          },
-          "priority": {
-            "default": "normal",
-            "enum": [
-              "low",
-              "normal",
-              "high"
-            ],
-            "title": "Priority",
-            "type": "string"
-          },
-          "required_fields": {
-            "items": {
-              "$ref": "#/components/schemas/GapRequiredField"
-            },
-            "maxItems": 50,
-            "minItems": 1,
-            "title": "Required Fields",
-            "type": "array"
-          },
-          "surface_description": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DescriptionString"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "surface_title": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NameString"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Title for generated surfaces. Defaults to requirement name."
-          },
-          "trigger": {
-            "default": "upcoming_appointment",
-            "enum": [
-              "upcoming_appointment",
-              "recent_interaction"
-            ],
-            "title": "Trigger",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "required_fields"
-        ],
-        "title": "GapRequirement",
-        "type": "object"
-      },
-      "GapScannerSettingsRequest": {
-        "properties": {
-          "appointment_lookahead_hours": {
-            "anyOf": [
-              {
-                "maximum": 720.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Appointment Lookahead Hours"
-          },
-          "channel_optimization": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Use entity preferred channel over static requirement channel",
-            "title": "Channel Optimization"
-          },
-          "cooldown_hours": {
-            "anyOf": [
-              {
-                "maximum": 8760.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cooldown Hours"
-          },
-          "enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Enabled"
-          },
-          "max_pending_surfaces": {
-            "anyOf": [
-              {
-                "maximum": 50.0,
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Max non-terminal surfaces per entity (0 = disabled)",
-            "title": "Max Pending Surfaces"
-          },
-          "max_surfaces_per_tick": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Surfaces Per Tick"
-          },
-          "min_completion_rate": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Min historical completion rate to create new surfaces (0.0 = disabled)",
-            "title": "Min Completion Rate"
-          },
-          "requirements": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/GapRequirement-Input"
-                },
-                "maxItems": 100,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requirements"
-          },
-          "scan_interval_seconds": {
-            "anyOf": [
-              {
-                "maximum": 86400.0,
-                "minimum": 60.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scan Interval Seconds"
-          }
-        },
-        "title": "GapScannerSettingsRequest",
-        "type": "object"
-      },
-      "GapScannerSettingsResponse": {
-        "properties": {
-          "appointment_lookahead_hours": {
-            "title": "Appointment Lookahead Hours",
-            "type": "integer"
-          },
-          "channel_optimization": {
-            "title": "Channel Optimization",
-            "type": "boolean"
-          },
-          "cooldown_hours": {
-            "title": "Cooldown Hours",
-            "type": "integer"
-          },
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "max_pending_surfaces": {
-            "title": "Max Pending Surfaces",
-            "type": "integer"
-          },
-          "max_surfaces_per_tick": {
-            "title": "Max Surfaces Per Tick",
-            "type": "integer"
-          },
-          "min_completion_rate": {
-            "title": "Min Completion Rate",
-            "type": "number"
-          },
-          "requirements": {
-            "items": {
-              "$ref": "#/components/schemas/GapRequirement-Output"
-            },
-            "title": "Requirements",
-            "type": "array"
-          },
-          "scan_interval_seconds": {
-            "title": "Scan Interval Seconds",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "enabled",
-          "scan_interval_seconds",
-          "appointment_lookahead_hours",
-          "cooldown_hours",
-          "max_surfaces_per_tick",
-          "max_pending_surfaces",
-          "min_completion_rate",
-          "channel_optimization",
-          "requirements"
-        ],
-        "title": "GapScannerSettingsResponse",
-        "type": "object"
-      },
       "GetSimulationBenchmarkResultsRequest": {
         "properties": {
           "run_ids": {
@@ -20510,6 +20307,21 @@
           "run_ids"
         ],
         "title": "GetSimulationBenchmarkResultsRequest",
+        "type": "object"
+      },
+      "GraphQLSuccess": {
+        "description": "The request is a GraphQL mutation, the response has no top-level ``errors``, and every\nmutation payload holds something other than null past its user errors.",
+        "properties": {
+          "reported_by": {
+            "const": "graphql",
+            "title": "Reported By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reported_by"
+        ],
+        "title": "GraphQLSuccess",
         "type": "object"
       },
       "Guardrail": {
@@ -21611,6 +21423,16 @@
             "format": "uuid",
             "title": "Workspace Id",
             "type": "string"
+          },
+          "write_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -22809,7 +22631,7 @@
                 "type": "null"
               }
             ],
-            "description": "Labels for ai_classify (categories) or ai_extract (field names). Required when extraction_mode='ai_classify' or 'ai_extract'. Examples: ['positive', 'negative', 'neutral'] or ['diagnosis', 'medication'].",
+            "description": "Labels for ai_classify, the allowed answers of a categorical ai_query metric, or field names for ai_extract. Required when extraction_mode='ai_classify' or 'ai_extract'. Examples: ['positive', 'negative', 'neutral'] or ['diagnosis', 'medication'].",
             "title": "Ai Labels"
           },
           "ai_query_endpoint": {
@@ -22885,7 +22707,7 @@
                 "type": "null"
               }
             ],
-            "description": "Allowed values for categorical metrics. Pipeline drops values not in this list when set.",
+            "description": "Allowed values for categorical metrics. Pipeline drops values not in this list when set. An ai_query metric reads ai_labels instead, and falls back to categories only when ai_labels is empty.",
             "title": "Categories"
           },
           "channel_scope": {
@@ -30397,10 +30219,11 @@
               {
                 "enum": [
                   "voice",
-                  "text",
                   "sms",
+                  "whatsapp",
                   "email",
-                  "web"
+                  "web",
+                  "imessage"
                 ],
                 "type": "string"
               },
@@ -31469,6 +31292,17 @@
             "title": "Ai Functions",
             "type": "array"
           },
+          "customer_data_tables": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "description": "This workspace's customer-data tables and views, by the name to query them by, each mapped to its column types.",
+            "title": "Customer Data Tables",
+            "type": "object"
+          },
           "databricks_catalogs": {
             "items": {
               "type": "string"
@@ -31500,6 +31334,7 @@
         "required": [
           "lakebase_tables",
           "databricks_catalogs",
+          "customer_data_tables",
           "uc_functions",
           "ai_functions"
         ],
@@ -36276,6 +36111,17 @@
             "format": "uuid",
             "title": "Workspace Id",
             "type": "string"
+          },
+          "write_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What this skill's writes do through an endpoint whose kind ``varies``. Null when undeclared."
           }
         },
         "required": [
@@ -36304,6 +36150,7 @@
           "max_agent_turns",
           "checkpoint_enabled",
           "approval_required",
+          "write_kind",
           "created_at",
           "updated_at"
         ],
@@ -37216,6 +37063,21 @@
           "code"
         ],
         "title": "Status",
+        "type": "object"
+      },
+      "StatusSuccess": {
+        "description": "Any 2xx response is the write. For a vendor that turns a write down with an error status.",
+        "properties": {
+          "reported_by": {
+            "const": "http_status",
+            "title": "Reported By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reported_by"
+        ],
+        "title": "StatusSuccess",
         "type": "object"
       },
       "StatusWriteBackRequest": {
@@ -39459,7 +39321,7 @@
         "type": "object"
       },
       "TextAgentMessageEvent": {
-        "description": "An agent text turn pushed live over workspace SSE \u2014 the outbox of the\ndurable text-conversation actor (text-conversation-actor Stage A).\n\nWhere ``TextBackgroundResultEvent`` surfaces the raw tool card,\nthis carries the agent's *narrated* response (the turn the actor produces after\nre-entering on a background completion or other off-request signal), so a\nsubscribed web client renders it as a normal agent message with no polling and\nno user turn. ``conversation_id`` is the durable conversation UUID (web-only).",
+        "description": "An agent text turn pushed live to the conversation's stream \u2014 the outbox of the\ndurable text-conversation actor (text-conversation-actor Stage A).\n\nWhere ``TextBackgroundResultEvent`` surfaces the raw tool card,\nthis carries the agent's *narrated* response (the turn the actor produces after\nre-entering on a background completion or other off-request signal), so a\nclient watching the conversation renders it as a normal agent message with no polling\nand no user turn. ``conversation_id`` is the durable conversation UUID (web-only).",
         "properties": {
           "conversation_id": {
             "format": "uuid",
@@ -39487,7 +39349,8 @@
           },
           "text": {
             "title": "Text",
-            "type": "string"
+            "type": "string",
+            "x-phi": true
           }
         },
         "required": [
@@ -39498,7 +39361,7 @@
         "type": "object"
       },
       "TextBackgroundResultEvent": {
-        "description": "A background (``execution=\"background\"``) tool finished for a web text\nconversation. Pushed live the instant the completion lands so a subscribed\nclient renders the result without polling or sending another message.\n\n``call_id`` is ``bg:<task_id>`` to match the card identity the next-turn drain\nsurfaces (``build_background_completion_effect``), so a client that receives\nboth the live push and the eventual drained card sees one consistent card.\nWeb-only: ``conversation_id`` is the durable conversation UUID (non-web\nchannels route by a composite key and deliver via their own transport).",
+        "description": "A background (``execution=\"background\"``) tool finished for a web text\nconversation. Pushed live the instant the completion lands so a client watching\nthe conversation renders the result without polling or sending another message.\n\n``call_id`` is ``bg:<task_id>`` to match the card identity the next-turn drain\nsurfaces (``build_background_completion_effect``), so a client that receives\nboth the live push and the eventual drained card sees one consistent card.\nWeb-only: ``conversation_id`` is the durable conversation UUID (non-web\nchannels route by a composite key and deliver via their own transport).",
         "properties": {
           "call_id": {
             "title": "Call Id",
@@ -39533,7 +39396,8 @@
           },
           "result": {
             "title": "Result",
-            "type": "string"
+            "type": "string",
+            "x-phi": true
           },
           "succeeded": {
             "title": "Succeeded",
@@ -43219,7 +43083,7 @@
           },
           "background_pending": {
             "default": false,
-            "description": "Whether this turn's ``output`` is the final answer, or only an acknowledgement that\nwork is still running in the background.\n\n``false`` (default): ``output`` is the complete agent response for this turn.\n\n``true``: a tool crossed the server's blocking window and was handed to a background\ntask, so ``output`` is NOT the final answer \u2014 the definitive assistant answer is\nproduced later, out-of-band. Under delivery protocol v2, collect it by re-issuing\n``POST \u2026/turns`` with ``poll=true`` (a no-message, receipt-backed claim), render or\ndurably persist the returned answer, then acknowledge its exact delivery receipt.\nThis is the per-conversation delivery contract \u2014 see\nthe web-integration paved path. (The workspace observer bus,\n``GET /v1/{workspace_id}/events/stream``, mirrors this activity as ``text.agent_message``\n/ ``text.tool_started`` / ``text.background_result`` for *dashboards* watching many\nconversations, but is not the per-chat delivery path.) A client that treats a\n``background_pending=true`` turn as complete without polling and acknowledging will\nmiss the final answer.",
+            "description": "Whether this turn's ``output`` is the final answer, or only an acknowledgement that\nwork is still running in the background.\n\n``false`` (default): ``output`` is the complete agent response for this turn.\n\n``true``: a tool crossed the server's blocking window and was handed to a background\ntask, so ``output`` is NOT the final answer \u2014 the definitive assistant answer is\nproduced later, out-of-band. Under delivery protocol v2, collect it by re-issuing\n``POST \u2026/turns`` with ``poll=true`` (a no-message, receipt-backed claim), render or\ndurably persist the returned answer, then acknowledge its exact delivery receipt.\nThis is the per-conversation delivery contract \u2014 see\nthe web-integration paved path. (``GET /v1/{workspace_id}/events/stream?conversation_id=``\nmirrors this activity as ``text.tool_started`` / ``text.background_result`` /\n``text.agent_message`` for a view watching this one conversation, but is not the\nper-chat delivery path. The stream without ``conversation_id`` carries none of it.) A\nclient that treats a ``background_pending=true`` turn as complete without polling and\nacknowledging will miss the final answer.",
             "title": "Background Pending",
             "type": "boolean"
           },
@@ -43291,6 +43155,63 @@
         "title": "TurnResponse",
         "type": "object"
       },
+      "TurnStateEvent": {
+        "description": "The conversation's context-graph state after the turn.\n\nSent on every turn, after any ``state_transition`` frames and before ``done``. It is\nthe state ``POST /turns`` returns on ``conversation.context_graph_state``.",
+        "properties": {
+          "context_graph_state": {
+            "$ref": "#/components/schemas/ContextGraphState-Output"
+          },
+          "event": {
+            "const": "state",
+            "default": "state",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "context_graph_state"
+        ],
+        "title": "TurnStateEvent",
+        "type": "object"
+      },
+      "TurnStateTransitionEvent": {
+        "description": "One context-graph hop the turn took.\n\nOne frame per hop, in the order the turn took them, after the turn's ``message``\nframes. These are the hops ``POST /turns`` returns on ``output[0].state_transitions``.",
+        "properties": {
+          "event": {
+            "const": "state_transition",
+            "default": "state_transition",
+            "title": "Event",
+            "type": "string"
+          },
+          "exit_condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The exit condition the agent took out of ``from_state``, as the context graph words it. Null on a hop out of an annotation state, which has no exit conditions.",
+            "title": "Exit Condition"
+          },
+          "from_state": {
+            "title": "From State",
+            "type": "string"
+          },
+          "to_state": {
+            "title": "To State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_state",
+          "to_state"
+        ],
+        "title": "TurnStateTransitionEvent",
+        "type": "object"
+      },
       "TurnStreamEvent": {
         "discriminator": {
           "mapping": {
@@ -43298,6 +43219,8 @@
             "done": "#/components/schemas/TurnDoneEvent",
             "error": "#/components/schemas/TurnErrorEvent",
             "message": "#/components/schemas/TurnMessageEvent",
+            "state": "#/components/schemas/TurnStateEvent",
+            "state_transition": "#/components/schemas/TurnStateTransitionEvent",
             "thinking": "#/components/schemas/TurnThinkingEvent",
             "token": "#/components/schemas/TurnTokenEvent",
             "tool_call_completed": "#/components/schemas/TurnToolCallCompletedEvent",
@@ -43323,6 +43246,12 @@
           },
           {
             "$ref": "#/components/schemas/TurnMessageEvent"
+          },
+          {
+            "$ref": "#/components/schemas/TurnStateTransitionEvent"
+          },
+          {
+            "$ref": "#/components/schemas/TurnStateEvent"
           },
           {
             "$ref": "#/components/schemas/TurnDoneEvent"
@@ -44664,6 +44593,17 @@
               }
             ],
             "title": "Use Structured Output"
+          },
+          "write_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What this skill's writes do; see CreateSkillRequest. null/absent leaves it unchanged."
           }
         },
         "title": "UpdateSkillRequest",
@@ -48301,6 +48241,36 @@
         "title": "WriteFloor",
         "type": "object"
       },
+      "WriteKind": {
+        "enum": [
+          "booking",
+          "cancellation",
+          "reschedule",
+          "other"
+        ],
+        "type": "string"
+      },
+      "WriteSuccess": {
+        "discriminator": {
+          "mapping": {
+            "field": "#/components/schemas/FieldSuccess",
+            "graphql": "#/components/schemas/GraphQLSuccess",
+            "http_status": "#/components/schemas/StatusSuccess"
+          },
+          "propertyName": "reported_by"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StatusSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/GraphQLSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/FieldSuccess"
+          }
+        ]
+      },
       "_Access": {
         "enum": [
           "read",
@@ -48930,6 +48900,10 @@
             ],
             "description": "Optional external-user-safe output contract. Uses response_template as its projection."
           },
+          "declarations": {
+            "$ref": "#/components/schemas/EndpointDeclarations-Input",
+            "description": "What the endpoint's author declares about its calls. Leave a declaration out when unknown:\nwith no `writes`, the voice agent never treats the endpoint's calls as a booking or cancellation."
+          },
           "description": {
             "description": "LLM-facing description shown in the tool definition.",
             "maxLength": 2048,
@@ -49311,6 +49285,18 @@
             ],
             "description": "HTTP status code from the upstream call.",
             "title": "Status Code"
+          },
+          "wrote": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the endpoint's declared write happened, as its `declarations.writes.success` reads\nthis response. Null when the endpoint declares no write, or the call failed.",
+            "title": "Wrote"
           }
         },
         "title": "Response",
@@ -49338,6 +49324,11 @@
             ],
             "description": "Client output contract; pass `null` to disable external artifact delivery.",
             "title": "Client Output"
+          },
+          "declarations": {
+            "$ref": "#/components/schemas/EndpointDeclarations-Input",
+            "description": "The declarations to change. Each one named replaces the stored one (`null` undeclares it),\nand each one left out stays as stored.",
+            "title": "Declarations"
           },
           "description": {
             "maxLength": 2048,
@@ -58076,7 +58067,7 @@
         ]
       },
       "post": {
-        "description": "Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, message, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.",
+        "description": "Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.",
         "operationId": "create_turn_v1__workspace_id__conversations__conversation_id__turns_post",
         "parameters": [
           {
@@ -58188,7 +58179,7 @@
     },
     "/v1/{workspace_id}/conversations/{conversation_id}/turns/stream": {
       "post": {
-        "description": "Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header \u2014 no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, message, done, error). Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.",
+        "description": "Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header \u2014 no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.",
         "operationId": "create_turn_stream_v1__workspace_id__conversations__conversation_id__turns_stream_post",
         "parameters": [
           {
@@ -59873,7 +59864,7 @@
     },
     "/v1/{workspace_id}/events/stream": {
       "get": {
-        "description": "Server-Sent Events stream for real-time workspace updates. Pass `conversation_id` to receive only the events that carry that conversation_id.",
+        "description": "Server-Sent Events stream for real-time workspace updates. Workspace events carry ids and metadata, never message text. Pass `conversation_id` to stream that conversation's own events instead, including its agent messages and tool results.",
         "operationId": "get-event-stream",
         "parameters": [
           {
@@ -59887,7 +59878,7 @@
             }
           },
           {
-            "description": "Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace.",
+            "description": "Stream this web text conversation's own events instead of the workspace's: text.tool_started, text.background_result and text.agent_message, with their text. These go out on no other stream. Omit for the workspace's events.",
             "in": "query",
             "name": "conversation_id",
             "required": false,
@@ -59901,7 +59892,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace.",
+              "description": "Stream this web text conversation's own events instead of the workspace's: text.tool_started, text.background_result and text.agent_message, with their text. These go out on no other stream. Omit for the workspace's events.",
               "title": "Conversation Id"
             }
           }
@@ -66043,7 +66034,7 @@
         ]
       },
       "patch": {
-        "description": "Patch an endpoint on a REST integration. The endpoint `name` is immutable. Pass `response_template: null` to clear the Jinja template (the only DB-nullable column). Every other field rejects explicit null at validation time. Requires `Integration.update` permission.",
+        "description": "Patch an endpoint on a REST integration. The endpoint `name` is immutable. Pass `null` for `response_template` or `client_output` to clear it. `declarations` changes only the declarations it names; pass one as `null` to undeclare it. Every other field rejects explicit null at validation time. Requires `Integration.update` permission.",
         "operationId": "update-integration-endpoint",
         "parameters": [
           {
@@ -71055,7 +71046,7 @@
     },
     "/v1/{workspace_id}/runs": {
       "get": {
-        "description": "Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/text/sms/email/web \u2014 conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.",
+        "description": "Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage \u2014 conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.",
         "operationId": "list_runs_v1__workspace_id__runs_get",
         "parameters": [
           {
@@ -71149,10 +71140,11 @@
               "items": {
                 "enum": [
                   "voice",
-                  "text",
                   "sms",
+                  "whatsapp",
                   "email",
-                  "web"
+                  "web",
+                  "imessage"
                 ],
                 "type": "string"
               },
@@ -71263,10 +71255,11 @@
               "items": {
                 "enum": [
                   "voice",
-                  "text",
                   "sms",
+                  "whatsapp",
                   "email",
-                  "web"
+                  "web",
+                  "imessage"
                 ],
                 "type": "string"
               },
@@ -71359,7 +71352,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/authored-turn": {
       "post": {
-        "description": "Stage an operator-authored reply for a NON-voice run (text/sms/email/web) the caller has taken over. The agent-engine send-gate substitutes it for the agent's next outbound (exactly-once), so the caller receives the operator's words while the agent stays suspended. Repeatable \u2014 each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg \u2014 use the conference, not an authored turn).",
+        "description": "Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. The agent-engine send-gate substitutes it for the agent's next outbound (exactly-once), so the caller receives the operator's words while the agent stays suspended. Repeatable \u2014 each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg \u2014 use the conference, not an authored turn).",
         "operationId": "author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post",
         "parameters": [
           {
@@ -73394,94 +73387,6 @@
         ]
       }
     },
-    "/v1/{workspace_id}/settings/gap-scanner": {
-      "get": {
-        "description": "Get the workspace gap scanner settings.\n\nReturns defaults when not configured. Gap scanner is disabled by default.\n\nPermissions: authenticated (any role).",
-        "operationId": "get-gap-scanner-settings",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workspace_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Workspace Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GapScannerSettingsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "429": {
-            "description": "Rate limited"
-          }
-        },
-        "summary": "Get gap scanner settings",
-        "tags": [
-          "Settings"
-        ]
-      },
-      "put": {
-        "description": "Update the workspace gap scanner settings.\n\nPartial updates supported \u2014 only provided fields are changed.\nRequirements list is replaced entirely when provided (not merged).\n\nPermissions: admin, owner (enforced via ``Workspace.update``, matching\nthe outreach-settings sibling).",
-        "operationId": "update-gap-scanner-settings",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workspace_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Workspace Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GapScannerSettingsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GapScannerSettingsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "404": {
-            "description": "Workspace not found"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "429": {
-            "description": "Rate limited"
-          }
-        },
-        "summary": "Update gap scanner settings",
-        "tags": [
-          "Settings"
-        ]
-      }
-    },
     "/v1/{workspace_id}/settings/metrics": {
       "get": {
         "description": "Get the workspace metric definitions.\n\nReturns built-in defaults when not configured.\n\nPermissions: authenticated (any role).",
@@ -73519,7 +73424,7 @@
         ]
       },
       "put": {
-        "description": "Update the workspace metric definitions.\n\nPartial updates supported \u2014 only provided fields are changed.\nThe definitions list is replaced entirely when provided.\n\nPermissions: admin, owner.",
+        "description": "Update the workspace metric definitions.\n\nPartial updates supported \u2014 only provided fields are changed.\nThe definitions list is replaced entirely when provided.\n\nA custom ai_query metric needs an output set whenever the save adds it or\nchanges its type, prompt, labels or range: categorical requires a\nnon-empty ai_labels list, numerical requires valid_range_min <\nvalid_range_max. A missing or inverted bound returns 422 naming the field.\n\nPermissions: admin, owner.",
         "operationId": "update-metric-settings",
         "parameters": [
           {
@@ -81775,7 +81680,7 @@
   "servers": [
     {
       "description": "Production",
-      "url": "https://api.platform.amigo.ai"
+      "url": "https://platform.api-us.concurrence.com"
     }
   ]
 }

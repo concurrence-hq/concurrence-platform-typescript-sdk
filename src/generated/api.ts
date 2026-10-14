@@ -1793,7 +1793,7 @@ export interface paths {
         put?: never;
         /**
          * Send a message and get the agent's response
-         * @description Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, message, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.
+         * @description Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.
          */
         post: operations["create_turn_v1__workspace_id__conversations__conversation_id__turns_post"];
         delete?: never;
@@ -1813,7 +1813,7 @@ export interface paths {
         put?: never;
         /**
          * Send a message and receive a streamed agent response
-         * @description Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header — no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, message, done, error). Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.
+         * @description Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header — no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.
          */
         post: operations["create_turn_stream_v1__workspace_id__conversations__conversation_id__turns_stream_post"];
         delete?: never;
@@ -2124,7 +2124,7 @@ export interface paths {
         };
         /**
          * Event Stream
-         * @description Server-Sent Events stream for real-time workspace updates. Pass `conversation_id` to receive only the events that carry that conversation_id.
+         * @description Server-Sent Events stream for real-time workspace updates. Workspace events carry ids and metadata, never message text. Pass `conversation_id` to stream that conversation's own events instead, including its agent messages and tool results.
          */
         get: operations["get-event-stream"];
         put?: never;
@@ -3479,7 +3479,7 @@ export interface paths {
         head?: never;
         /**
          * Update an endpoint
-         * @description Patch an endpoint on a REST integration. The endpoint `name` is immutable. Pass `response_template: null` to clear the Jinja template (the only DB-nullable column). Every other field rejects explicit null at validation time. Requires `Integration.update` permission.
+         * @description Patch an endpoint on a REST integration. The endpoint `name` is immutable. Pass `null` for `response_template` or `client_output` to clear it. `declarations` changes only the declarations it names; pass one as `null` to undeclare it. Every other field rejects explicit null at validation time. Requires `Integration.update` permission.
          */
         patch: operations["update-integration-endpoint"];
         trace?: never;
@@ -4677,7 +4677,7 @@ export interface paths {
         };
         /**
          * List runs (framework + conversation)
-         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/text/sms/email/web — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
+         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
          */
         get: operations["list_runs_v1__workspace_id__runs_get"];
         put?: never;
@@ -4739,7 +4739,7 @@ export interface paths {
         put?: never;
         /**
          * Author the next turn on a non-voice run under takeover
-         * @description Stage an operator-authored reply for a NON-voice run (text/sms/email/web) the caller has taken over. The agent-engine send-gate substitutes it for the agent's next outbound (exactly-once), so the caller receives the operator's words while the agent stays suspended. Repeatable — each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
+         * @description Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. The agent-engine send-gate substitutes it for the agent's next outbound (exactly-once), so the caller receives the operator's words while the agent stays suspended. Repeatable — each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
          */
         post: operations["author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post"];
         delete?: never;
@@ -5239,40 +5239,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/{workspace_id}/settings/gap-scanner": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get gap scanner settings
-         * @description Get the workspace gap scanner settings.
-         *
-         *     Returns defaults when not configured. Gap scanner is disabled by default.
-         *
-         *     Permissions: authenticated (any role).
-         */
-        get: operations["get-gap-scanner-settings"];
-        /**
-         * Update gap scanner settings
-         * @description Update the workspace gap scanner settings.
-         *
-         *     Partial updates supported — only provided fields are changed.
-         *     Requirements list is replaced entirely when provided (not merged).
-         *
-         *     Permissions: admin, owner (enforced via ``Workspace.update``, matching
-         *     the outreach-settings sibling).
-         */
-        put: operations["update-gap-scanner-settings"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/{workspace_id}/settings/metrics": {
         parameters: {
             query?: never;
@@ -5295,6 +5261,11 @@ export interface paths {
          *
          *     Partial updates supported — only provided fields are changed.
          *     The definitions list is replaced entirely when provided.
+         *
+         *     A custom ai_query metric needs an output set whenever the save adds it or
+         *     changes its type, prompt, labels or range: categorical requires a
+         *     non-empty ai_labels list, numerical requires valid_range_min <
+         *     valid_range_max. A missing or inverted bound returns 422 naming the field.
          *
          *     Permissions: admin, owner.
          */
@@ -11459,6 +11430,12 @@ export interface components {
              * @default false
              */
             use_structured_output?: boolean;
+            /**
+             * @description What this skill's writes do, for its sub-tool calls to an endpoint whose kind ``varies``
+             *     (one generic GraphQL endpoint that books, cancels and reads). Sub-tool endpoints with their
+             *     own kind write that kind whatever the skill says. Leave unset when unknown.
+             */
+            write_kind?: components["schemas"]["WriteKind"] | null;
         };
         /**
          * CreateSurfaceRequest
@@ -12835,6 +12812,30 @@ export interface components {
             session_id: string;
         };
         /**
+         * EndpointDeclarations
+         * @description What an endpoint's author declares about its calls. Each declaration is optional, and one
+         *     left out is unknown, never a default the platform guesses.
+         */
+        "EndpointDeclarations-Input": {
+            /**
+             * @description What a successful call writes and how its response reports it. Null when undeclared: the
+             *     voice agent then never treats the endpoint's calls as a booking or cancellation.
+             */
+            writes?: components["schemas"]["EndpointWrites-Input"] | null;
+        };
+        /**
+         * EndpointDeclarations
+         * @description What an endpoint's author declares about its calls. Each declaration is optional, and one
+         *     left out is unknown, never a default the platform guesses.
+         */
+        "EndpointDeclarations-Output": {
+            /**
+             * @description What a successful call writes and how its response reports it. Null when undeclared: the
+             *     voice agent then never treats the endpoint's calls as a booking or cancellation.
+             */
+            writes?: components["schemas"]["EndpointWrites-Output"] | null;
+        };
+        /**
          * EndpointResponse
          * @description Per-endpoint response (V186 flat shape).
          */
@@ -12848,6 +12849,11 @@ export interface components {
             body_format?: "json" | "form";
             /** @description Opt-in typed artifact contract for external-user conversation delivery. */
             client_output?: components["schemas"]["ClientOutputConfig"] | null;
+            /**
+             * @description What the endpoint's author declares about its calls. A declaration left out is unknown:
+             *     with no `writes`, the voice agent never treats the endpoint's calls as a booking or cancellation.
+             */
+            declarations: components["schemas"]["EndpointDeclarations-Output"];
             /**
              * Description
              * @description LLM-facing description.
@@ -12925,6 +12931,33 @@ export interface components {
              * @default 30
              */
             timeout_seconds?: number;
+        };
+        EndpointWriteKind: components["schemas"]["WriteKind"] | ("none" | "varies");
+        /**
+         * EndpointWrites
+         * @description What a successful call to an endpoint writes, and how its response reports the write.
+         */
+        "EndpointWrites-Input": {
+            /**
+             * @description What the write does, ``none`` when the endpoint never writes, or ``varies`` when the
+             *     companion skill that calls it says.
+             */
+            kind: components["schemas"]["EndpointWriteKind"];
+            /** @description How the response says the write happened. Required unless ``kind`` is ``none``. */
+            success?: components["schemas"]["WriteSuccess"] | null;
+        };
+        /**
+         * EndpointWrites
+         * @description What a successful call to an endpoint writes, and how its response reports the write.
+         */
+        "EndpointWrites-Output": {
+            /**
+             * @description What the write does, ``none`` when the endpoint never writes, or ``varies`` when the
+             *     companion skill that calls it says.
+             */
+            kind: components["schemas"]["EndpointWriteKind"];
+            /** @description How the response says the write happened. Required unless ``kind`` is ``none``. */
+            success?: components["schemas"]["WriteSuccess"] | null;
         };
         /** EnrichmentHistoryEntry */
         EnrichmentHistoryEntry: {
@@ -15014,6 +15047,28 @@ export interface components {
             value: unknown;
         };
         /**
+         * FieldSuccess
+         * @description A field of the JSON response holds the value that means the write happened.
+         */
+        FieldSuccess: {
+            /**
+             * Equals
+             * @description The value at ``pointer`` when the write happened. Compared as JSON: ``"0"`` is not ``0``,
+             *     and ``true`` is not ``1``. A form-encoded response holds only strings.
+             */
+            equals: string | number | boolean | null;
+            /**
+             * Pointer
+             * @description RFC 6901 JSON Pointer into the parsed response body, such as ``/code``.
+             */
+            pointer: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reported_by: "field";
+        };
+        /**
          * FieldType
          * @description Input field types for surface data collection.
          * @enum {string}
@@ -15473,144 +15528,22 @@ export interface components {
             /** Output */
             output: unknown;
         };
-        /**
-         * GapRequiredField
-         * @description A field that must be present in entity state.
-         */
-        GapRequiredField: {
-            /** @default text */
-            field_type?: components["schemas"]["FieldType"];
-            label: components["schemas"]["NameString"];
-            /**
-             * Min Items
-             * @description For list fields, minimum items required
-             */
-            min_items?: number | null;
-            /**
-             * Path
-             * @description Dot-notation path into entity state
-             */
-            path: string;
-        };
-        /**
-         * GapRequirement
-         * @description A named gap detection rule.
-         */
-        "GapRequirement-Input": {
-            /** @default email */
-            channel?: components["schemas"]["ChannelType"];
-            /**
-             * Entity Type
-             * @default person
-             * @constant
-             */
-            entity_type?: "person";
-            name: components["schemas"]["NameString"];
-            /**
-             * Priority
-             * @default normal
-             * @enum {string}
-             */
-            priority?: "low" | "normal" | "high";
-            /** Required Fields */
-            required_fields: components["schemas"]["GapRequiredField"][];
-            surface_description?: components["schemas"]["DescriptionString"] | null;
-            /** @description Title for generated surfaces. Defaults to requirement name. */
-            surface_title?: components["schemas"]["NameString"] | null;
-            /**
-             * Trigger
-             * @default upcoming_appointment
-             * @enum {string}
-             */
-            trigger?: "upcoming_appointment" | "recent_interaction";
-        };
-        /**
-         * GapRequirement
-         * @description A named gap detection rule.
-         */
-        "GapRequirement-Output": {
-            /** @default email */
-            channel?: components["schemas"]["ChannelType"];
-            /**
-             * Entity Type
-             * @default person
-             * @constant
-             */
-            entity_type?: "person";
-            name: components["schemas"]["NameString"];
-            /**
-             * Priority
-             * @default normal
-             * @enum {string}
-             */
-            priority?: "low" | "normal" | "high";
-            /** Required Fields */
-            required_fields: components["schemas"]["GapRequiredField"][];
-            surface_description?: components["schemas"]["DescriptionString"] | null;
-            /** @description Title for generated surfaces. Defaults to requirement name. */
-            surface_title?: components["schemas"]["NameString"] | null;
-            /**
-             * Trigger
-             * @default upcoming_appointment
-             * @enum {string}
-             */
-            trigger?: "upcoming_appointment" | "recent_interaction";
-        };
-        /** GapScannerSettingsRequest */
-        GapScannerSettingsRequest: {
-            /** Appointment Lookahead Hours */
-            appointment_lookahead_hours?: number | null;
-            /**
-             * Channel Optimization
-             * @description Use entity preferred channel over static requirement channel
-             */
-            channel_optimization?: boolean | null;
-            /** Cooldown Hours */
-            cooldown_hours?: number | null;
-            /** Enabled */
-            enabled?: boolean | null;
-            /**
-             * Max Pending Surfaces
-             * @description Max non-terminal surfaces per entity (0 = disabled)
-             */
-            max_pending_surfaces?: number | null;
-            /** Max Surfaces Per Tick */
-            max_surfaces_per_tick?: number | null;
-            /**
-             * Min Completion Rate
-             * @description Min historical completion rate to create new surfaces (0.0 = disabled)
-             */
-            min_completion_rate?: number | null;
-            /** Requirements */
-            requirements?: components["schemas"]["GapRequirement-Input"][] | null;
-            /** Scan Interval Seconds */
-            scan_interval_seconds?: number | null;
-        };
-        /** GapScannerSettingsResponse */
-        GapScannerSettingsResponse: {
-            /** Appointment Lookahead Hours */
-            appointment_lookahead_hours: number;
-            /** Channel Optimization */
-            channel_optimization: boolean;
-            /** Cooldown Hours */
-            cooldown_hours: number;
-            /** Enabled */
-            enabled: boolean;
-            /** Max Pending Surfaces */
-            max_pending_surfaces: number;
-            /** Max Surfaces Per Tick */
-            max_surfaces_per_tick: number;
-            /** Min Completion Rate */
-            min_completion_rate: number;
-            /** Requirements */
-            requirements: components["schemas"]["GapRequirement-Output"][];
-            /** Scan Interval Seconds */
-            scan_interval_seconds: number;
-        };
         /** GetSimulationBenchmarkResultsRequest */
         GetSimulationBenchmarkResultsRequest: {
             /** Run Ids */
             run_ids: string[];
+        };
+        /**
+         * GraphQLSuccess
+         * @description The request is a GraphQL mutation, the response has no top-level ``errors``, and every
+         *     mutation payload holds something other than null past its user errors.
+         */
+        GraphQLSuccess: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reported_by: "graphql";
         };
         /**
          * Guardrail
@@ -16155,6 +16088,7 @@ export interface components {
              * Format: uuid
              */
             workspace_id: string;
+            write_kind?: components["schemas"]["WriteKind"] | null;
         };
         /** InternalSkillsListResponse */
         InternalSkillsListResponse: {
@@ -16724,7 +16658,7 @@ export interface components {
             aggregation?: "count" | "sum" | "avg" | "min" | "max" | "count_distinct" | "ratio" | "rate";
             /**
              * Ai Labels
-             * @description Labels for ai_classify (categories) or ai_extract (field names). Required when extraction_mode='ai_classify' or 'ai_extract'. Examples: ['positive', 'negative', 'neutral'] or ['diagnosis', 'medication'].
+             * @description Labels for ai_classify, the allowed answers of a categorical ai_query metric, or field names for ai_extract. Required when extraction_mode='ai_classify' or 'ai_extract'. Examples: ['positive', 'negative', 'neutral'] or ['diagnosis', 'medication'].
              */
             ai_labels?: string[] | null;
             /**
@@ -16757,7 +16691,7 @@ export interface components {
             builtin?: boolean;
             /**
              * Categories
-             * @description Allowed values for categorical metrics. Pipeline drops values not in this list when set.
+             * @description Allowed values for categorical metrics. Pipeline drops values not in this list when set. An ai_query metric reads ai_labels instead, and falls back to categories only when ai_labels is empty.
              */
             categories?: string[] | null;
             /**
@@ -19988,7 +19922,7 @@ export interface components {
             /** Caller Id */
             caller_id?: string | null;
             /** Channel */
-            channel?: ("voice" | "text" | "sms" | "email" | "web") | null;
+            channel?: ("voice" | "sms" | "whatsapp" | "email" | "web" | "imessage") | null;
             /** Completion Reason */
             completion_reason?: string | null;
             /** Direction */
@@ -20469,6 +20403,15 @@ export interface components {
         SchemaResponse: {
             /** Ai Functions */
             ai_functions: string[];
+            /**
+             * Customer Data Tables
+             * @description This workspace's customer-data tables and views, by the name to query them by, each mapped to its column types.
+             */
+            customer_data_tables: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
             /** Databricks Catalogs */
             databricks_catalogs: string[];
             /** Lakebase Tables */
@@ -22546,6 +22489,8 @@ export interface components {
              * Format: uuid
              */
             workspace_id: string;
+            /** @description What this skill's writes do through an endpoint whose kind ``varies``. Null when undeclared. */
+            write_kind: components["schemas"]["WriteKind"] | null;
         };
         /** SkillStateReference */
         SkillStateReference: {
@@ -22945,6 +22890,17 @@ export interface components {
         Status: {
             /** Code */
             code: number;
+        };
+        /**
+         * StatusSuccess
+         * @description Any 2xx response is the write. For a vendor that turns a write down with an error status.
+         */
+        StatusSuccess: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reported_by: "http_status";
         };
         /**
          * StatusWriteBackRequest
@@ -23926,14 +23882,14 @@ export interface components {
         };
         /**
          * TextAgentMessageEvent
-         * @description An agent text turn pushed live over workspace SSE — the outbox of the
+         * @description An agent text turn pushed live to the conversation's stream — the outbox of the
          *     durable text-conversation actor (text-conversation-actor Stage A).
          *
          *     Where ``TextBackgroundResultEvent`` surfaces the raw tool card,
          *     this carries the agent's *narrated* response (the turn the actor produces after
          *     re-entering on a background completion or other off-request signal), so a
-         *     subscribed web client renders it as a normal agent message with no polling and
-         *     no user turn. ``conversation_id`` is the durable conversation UUID (web-only).
+         *     client watching the conversation renders it as a normal agent message with no polling
+         *     and no user turn. ``conversation_id`` is the durable conversation UUID (web-only).
          */
         TextAgentMessageEvent: {
             /**
@@ -23957,8 +23913,8 @@ export interface components {
         /**
          * TextBackgroundResultEvent
          * @description A background (``execution="background"``) tool finished for a web text
-         *     conversation. Pushed live the instant the completion lands so a subscribed
-         *     client renders the result without polling or sending another message.
+         *     conversation. Pushed live the instant the completion lands so a client watching
+         *     the conversation renders the result without polling or sending another message.
          *
          *     ``call_id`` is ``bg:<task_id>`` to match the card identity the next-turn drain
          *     surfaces (``build_background_completion_effect``), so a client that receives
@@ -25601,12 +25557,12 @@ export interface components {
              *     ``POST …/turns`` with ``poll=true`` (a no-message, receipt-backed claim), render or
              *     durably persist the returned answer, then acknowledge its exact delivery receipt.
              *     This is the per-conversation delivery contract — see
-             *     the web-integration paved path. (The workspace observer bus,
-             *     ``GET /v1/{workspace_id}/events/stream``, mirrors this activity as ``text.agent_message``
-             *     / ``text.tool_started`` / ``text.background_result`` for *dashboards* watching many
-             *     conversations, but is not the per-chat delivery path.) A client that treats a
-             *     ``background_pending=true`` turn as complete without polling and acknowledging will
-             *     miss the final answer.
+             *     the web-integration paved path. (``GET /v1/{workspace_id}/events/stream?conversation_id=``
+             *     mirrors this activity as ``text.tool_started`` / ``text.background_result`` /
+             *     ``text.agent_message`` for a view watching this one conversation, but is not the
+             *     per-chat delivery path. The stream without ``conversation_id`` carries none of it.) A
+             *     client that treats a ``background_pending=true`` turn as complete without polling and
+             *     acknowledging will miss the final answer.
              * @default false
              */
             background_pending?: boolean;
@@ -25632,7 +25588,46 @@ export interface components {
              */
             turn_id: string | null;
         };
-        TurnStreamEvent: components["schemas"]["TurnTokenEvent"] | components["schemas"]["TurnArtifactEvent"] | components["schemas"]["TurnToolCallStartedEvent"] | components["schemas"]["TurnToolCallCompletedEvent"] | components["schemas"]["TurnThinkingEvent"] | components["schemas"]["TurnMessageEvent"] | components["schemas"]["TurnDoneEvent"] | components["schemas"]["TurnErrorEvent"];
+        /**
+         * TurnStateEvent
+         * @description The conversation's context-graph state after the turn.
+         *
+         *     Sent on every turn, after any ``state_transition`` frames and before ``done``. It is
+         *     the state ``POST /turns`` returns on ``conversation.context_graph_state``.
+         */
+        TurnStateEvent: {
+            context_graph_state: components["schemas"]["ContextGraphState-Output"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "state";
+        };
+        /**
+         * TurnStateTransitionEvent
+         * @description One context-graph hop the turn took.
+         *
+         *     One frame per hop, in the order the turn took them, after the turn's ``message``
+         *     frames. These are the hops ``POST /turns`` returns on ``output[0].state_transitions``.
+         */
+        TurnStateTransitionEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "state_transition";
+            /**
+             * Exit Condition
+             * @description The exit condition the agent took out of ``from_state``, as the context graph words it. Null on a hop out of an annotation state, which has no exit conditions.
+             * @default null
+             */
+            exit_condition?: string | null;
+            /** From State */
+            from_state: string;
+            /** To State */
+            to_state: string;
+        };
+        TurnStreamEvent: components["schemas"]["TurnTokenEvent"] | components["schemas"]["TurnArtifactEvent"] | components["schemas"]["TurnToolCallStartedEvent"] | components["schemas"]["TurnToolCallCompletedEvent"] | components["schemas"]["TurnThinkingEvent"] | components["schemas"]["TurnMessageEvent"] | components["schemas"]["TurnStateTransitionEvent"] | components["schemas"]["TurnStateEvent"] | components["schemas"]["TurnDoneEvent"] | components["schemas"]["TurnErrorEvent"];
         /** TurnThinkingEvent */
         TurnThinkingEvent: {
             /**
@@ -25931,6 +25926,8 @@ export interface components {
             top_p?: number | null;
             /** Use Structured Output */
             use_structured_output?: boolean | null;
+            /** @description What this skill's writes do; see CreateSkillRequest. null/absent leaves it unchanged. */
+            write_kind?: components["schemas"]["WriteKind"] | null;
         };
         /**
          * UpdateSurfaceRequest
@@ -27338,6 +27335,9 @@ export interface components {
             unanchored_or_api_key_writes?: string;
         };
         /** @enum {string} */
+        WriteKind: "booking" | "cancellation" | "reschedule" | "other";
+        WriteSuccess: components["schemas"]["StatusSuccess"] | components["schemas"]["GraphQLSuccess"] | components["schemas"]["FieldSuccess"];
+        /** @enum {string} */
         _Access: "read" | "write";
         /** @enum {string} */
         _AgentSortField: "name" | "created_at" | "updated_at";
@@ -27595,6 +27595,11 @@ export interface components {
             /** @description Optional external-user-safe output contract. Uses response_template as its projection. */
             client_output?: components["schemas"]["ClientOutputConfig"] | null;
             /**
+             * @description What the endpoint's author declares about its calls. Leave a declaration out when unknown:
+             *     with no `writes`, the voice agent never treats the endpoint's calls as a booking or cancellation.
+             */
+            declarations?: components["schemas"]["EndpointDeclarations-Input"];
+            /**
              * Description
              * @description LLM-facing description shown in the tool definition.
              */
@@ -27838,6 +27843,12 @@ export interface components {
              * @description HTTP status code from the upstream call.
              */
             status_code?: number | null;
+            /**
+             * Wrote
+             * @description Whether the endpoint's declared write happened, as its `declarations.writes.success` reads
+             *     this response. Null when the endpoint declares no write, or the call failed.
+             */
+            wrote?: boolean | null;
         };
         /**
          * Request
@@ -27854,6 +27865,12 @@ export interface components {
              * @description Client output contract; pass `null` to disable external artifact delivery.
              */
             client_output?: components["schemas"]["ClientOutputConfig"] | null;
+            /**
+             * Declarations
+             * @description The declarations to change. Each one named replaces the stored one (`null` undeclares it),
+             *     and each one left out stays as stored.
+             */
+            declarations?: components["schemas"]["EndpointDeclarations-Input"];
             /** Description */
             description?: string;
             /** Headers */
@@ -33984,7 +34001,7 @@ export interface operations {
     "get-event-stream": {
         parameters: {
             query?: {
-                /** @description Only stream events whose payload carries this conversation_id, such as a text conversation's agent messages and background tool results. Events keyed by session_id or call_sid are not included. Omit for the whole workspace. */
+                /** @description Stream this web text conversation's own events instead of the workspace's: text.tool_started, text.background_result and text.agent_message, with their text. These go out on no other stream. Omit for the workspace's events. */
                 conversation_id?: string | null;
             };
             header?: never;
@@ -40030,7 +40047,7 @@ export interface operations {
                 continuation_token?: unknown;
                 status?: ("live" | "running" | "paused" | "dormant" | "completed" | "failed" | "timed_out")[];
                 kind?: ("conversation" | "framework")[];
-                channel?: ("voice" | "text" | "sms" | "email" | "web")[];
+                channel?: ("voice" | "sms" | "whatsapp" | "email" | "web" | "imessage")[];
                 /** @description Filter conversation and live voice runs by up to 100 service IDs. Historical framework runs have no stored service attribution and are excluded. Repeated values are ORed; combines with other filters using AND. */
                 service_id?: string[];
                 /** @description Case-insensitive substring match on a conversation run's entity name, caller ID or phone number, applied before pagination. Framework runs carry none of these and are excluded when search is set. Combines with other filters using AND. */
@@ -40068,7 +40085,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: ("conversation" | "framework")[];
-                channel?: ("voice" | "text" | "sms" | "email" | "web")[];
+                channel?: ("voice" | "sms" | "whatsapp" | "email" | "web" | "imessage")[];
             };
             header?: never;
             path: {
@@ -41528,82 +41545,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-        };
-    };
-    "get-gap-scanner-settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GapScannerSettingsResponse"];
-                };
-            };
-            /** @description Rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "update-gap-scanner-settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GapScannerSettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GapScannerSettingsResponse"];
-                };
-            };
-            /** @description Workspace not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
