@@ -222,7 +222,7 @@ const response = await client.conversations.createTurn(conversationId, {
 ```
 
 ```bash
-curl -X POST "https://api.platform.amigo.ai/v1/$WS/conversations/$CONV/turns?include_tool_calls=true" \
+curl -X POST "https://platform.api-us.concurrence.com/v1/$WS/conversations/$CONV/turns?include_tool_calls=true" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message": "What appointments are available?"}'
@@ -402,7 +402,7 @@ Copy this HTML file, fill in your credentials, and open it in a browser. It demo
   </head>
   <body>
     <div class="config">
-      <label>API URL <input id="apiUrl" value="wss://api.platform.amigo.ai" /></label>
+      <label>API URL <input id="apiUrl" value="wss://agent-engine.api-us.concurrence.com" /></label>
       <label>Token <input id="token" type="password" /></label>
       <label>Workspace <input id="workspace" /></label>
       <label>Service <input id="service" /></label>

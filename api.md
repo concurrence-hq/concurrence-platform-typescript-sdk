@@ -13,6 +13,7 @@ Configuration fields:
 - `apiKey: string`
 - `workspaceId: string`
 - `baseUrl?: string`
+- `identityBaseUrl?: string`
 - `retry?: RetryOptions`
 - `maxRetries?: number`
 - `timeout?: number`

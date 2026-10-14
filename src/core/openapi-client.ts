@@ -52,6 +52,8 @@ export interface ClientHooks {
 export interface ClientConfig {
   apiKey: string
   baseUrl: string
+  /** Identity service base URL. `client.tokens` sends `POST /token` here. */
+  identityBaseUrl: string
   retry?: RetryOptions
   maxRetries?: number
   timeout?: number
@@ -67,6 +69,7 @@ interface PlatformClientContext {
   transport: RequestTransport
   defaults: RequestControlOptions
   baseUrl: string
+  identityBaseUrl: string
 }
 
 const platformClientContext = new WeakMap<PlatformFetch, PlatformClientContext>()
@@ -85,7 +88,12 @@ export function createPlatformClient(config: ClientConfig): PlatformFetch {
     headers: config.headers,
   })
 
-  platformClientContext.set(client, { transport, defaults, baseUrl: config.baseUrl })
+  platformClientContext.set(client, {
+    transport,
+    defaults,
+    baseUrl: config.baseUrl,
+    identityBaseUrl: config.identityBaseUrl,
+  })
 
   // Error middleware — convert HTTP errors to typed AmigoError subclasses
   const errorMiddleware: Middleware = {
@@ -180,6 +188,15 @@ export function getPlatformClientBaseUrl(client: PlatformFetch): string {
     throw new ConfigurationError('Platform client baseUrl is unavailable')
   }
   return context.baseUrl
+}
+
+/** @internal */
+export function getPlatformClientIdentityBaseUrl(client: PlatformFetch): string {
+  const context = platformClientContext.get(client)
+  if (!context) {
+    throw new ConfigurationError('Platform client identityBaseUrl is unavailable')
+  }
+  return context.identityBaseUrl
 }
 
 function createRetryingFetch(

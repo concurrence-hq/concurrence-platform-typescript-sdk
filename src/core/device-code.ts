@@ -54,7 +54,7 @@ export type DeviceCodeStatus =
   | 'slow_down'
 
 export interface DeviceCodeLoginOptions {
-  /** Identity service base URL. Default: https://api.platform.amigo.ai */
+  /** Identity service base URL. Default: https://identity.api-us.concurrence.com */
   identityBaseUrl?: string
   /**
    * Workspace this device login targets. Required: the device code is pinned
@@ -134,7 +134,8 @@ export class LoginCancelledError extends AmigoError {
 
 // --- Identity Client ---
 
-const DEFAULT_IDENTITY_URL = 'https://api.platform.amigo.ai'
+// Identity has its own host; platform.api-us.concurrence.com does not route /device or /token.
+export const DEFAULT_IDENTITY_URL = 'https://identity.api-us.concurrence.com'
 
 async function identityPost(
   baseUrl: string,

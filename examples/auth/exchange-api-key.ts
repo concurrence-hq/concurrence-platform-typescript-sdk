@@ -26,6 +26,8 @@ async function main() {
     apiKey,
     workspaceId,
     baseUrl: process.env.AMIGO_BASE_URL,
+    // Set with AMIGO_BASE_URL outside US production; see README "Hosts".
+    identityBaseUrl: process.env.AMIGO_IDENTITY_URL,
   })
 
   // Exchange the API key for a JWT. Optional `scope` requests a narrower
@@ -45,9 +47,8 @@ async function main() {
   const scopedClient = new AmigoClient({
     apiKey: tokenResponse.access_token,
     workspaceId,
-    // Reuse the same base URL so the JWT (minted against `baseUrl`) is
-    // sent back to the same host. Otherwise a staging-issued token would
-    // be sent to production.
+    // Reuse the same base URL so the JWT goes back to the environment that
+    // issued it. Otherwise a staging-issued token would be sent to production.
     baseUrl: process.env.AMIGO_BASE_URL,
   })
 
