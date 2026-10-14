@@ -121,6 +121,67 @@ describe('TokensResource', () => {
     expect(captured.traceId).toBe('trace-token-exchange')
   })
 
+  it('sends POST /token to the identity host by default, and REST calls to the platform host', async () => {
+    const urls: string[] = []
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input, init) => {
+        const url = (input instanceof Request ? input : new Request(input, init)).url
+        urls.push(url)
+        return url.endsWith('/token')
+          ? Response.json(TOKEN_RESPONSE)
+          : Response.json({ items: [], has_more: false, continuation_token: null })
+      },
+    })
+
+    await client.tokens.exchangeApiKey({ apiKey: EXCHANGE_API_KEY })
+    await client.agents.list()
+
+    expect(urls).toEqual([
+      'https://identity.api-us.concurrence.com/token',
+      `https://platform.api-us.concurrence.com/v1/${TEST_WORKSPACE_ID}/agents`,
+    ])
+  })
+
+  it('sends POST /token to identityBaseUrl over baseUrl', async () => {
+    const captured = createCapturedRequest()
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      baseUrl: 'https://platform.api-eu.concurrence.com',
+      identityBaseUrl: 'https://identity.api-eu.concurrence.com/',
+      fetch: recordingFetchWithResponse(captured, REFRESH_TOKEN_RESPONSE),
+    })
+
+    await client.tokens.refresh({ refreshToken: 'rt_old' })
+
+    expect(captured.href).toBe('https://identity.api-eu.concurrence.com/token')
+  })
+
+  it('keeps identityBaseUrl through client and resource withOptions', async () => {
+    const captured = createCapturedRequest()
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      baseUrl: BASE_URL,
+      identityBaseUrl: 'https://identity.example',
+      fetch: recordingFetch(captured),
+    })
+
+    await client
+      .withOptions({ headers: { 'X-Trace-Id': 'client-scope' } })
+      .tokens.exchangeApiKey({ apiKey: EXCHANGE_API_KEY })
+    expect(captured.href).toBe('https://identity.example/token')
+    expect(captured.traceId).toBe('client-scope')
+
+    await client.tokens
+      .withOptions({ headers: { 'X-Trace-Id': 'resource-scope' } })
+      .exchangeApiKey({ apiKey: EXCHANGE_API_KEY })
+    expect(captured.href).toBe('https://identity.example/token')
+    expect(captured.traceId).toBe('resource-scope')
+  })
+
   it('exchanges client credentials without forwarding configured Authorization', async () => {
     const captured = createCapturedRequest()
     const client = new AmigoClient({

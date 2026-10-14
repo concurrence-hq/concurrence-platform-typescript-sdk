@@ -20,6 +20,7 @@
 import type { FetchResponse, HeadersOptions } from 'openapi-fetch'
 import type { MediaType, PathsWithMethod } from 'openapi-typescript-helpers'
 import { ConfigurationError } from './core/errors.js'
+import { DEFAULT_IDENTITY_URL } from './core/device-code.js'
 import {
   applyPlatformRequestOptions,
   createPlatformClient,
@@ -87,7 +88,7 @@ import type { components, paths } from './generated/api.js'
 import type { MetricValue as MetricValueAlias } from './resources/metrics.js'
 import { withResponse, type AmigoResponse } from './core/utils.js'
 
-export const DEFAULT_BASE_URL = 'https://api.platform.amigo.ai'
+export const DEFAULT_BASE_URL = 'https://platform.api-us.concurrence.com'
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 // The generated client exposes TRACE, but the SDK only publishes helpers for
@@ -128,7 +129,10 @@ export interface AmigoClientConfig {
   workspaceId: string
 
   /**
-   * Override the base URL. Defaults to https://api.platform.amigo.ai
+   * Override the base URL. Defaults to https://platform.api-us.concurrence.com
+   *
+   * Other regions use `https://platform.api-eu.concurrence.com` (also `-au`,
+   * `-ca`); staging is `https://platform.api-staging.concurrence.com`.
    *
    * For BFF proxy patterns (e.g., Next.js), point this at your proxy:
    * ```ts
@@ -136,6 +140,23 @@ export interface AmigoClientConfig {
    * ```
    */
   baseUrl?: string
+
+  /**
+   * Base URL for the identity service, which `client.tokens` calls for
+   * `POST /token`. Defaults to `baseUrl` when you set one, otherwise
+   * https://identity.api-us.concurrence.com.
+   *
+   * The hosted platform serves identity on its own host, so set both when you
+   * point `baseUrl` at another region or staging:
+   * ```ts
+   * new AmigoClient({
+   *   baseUrl: 'https://platform.api-eu.concurrence.com',
+   *   identityBaseUrl: 'https://identity.api-eu.concurrence.com',
+   *   ...
+   * })
+   * ```
+   */
+  identityBaseUrl?: string
 
   /** Retry configuration for failed requests */
   retry?: RetryOptions
@@ -177,7 +198,7 @@ export interface AmigoClientConfig {
    * ```ts
    * new AmigoClient({
    *   baseUrl: '/api/platform',  // BFF proxy for REST
-   *   agentBaseUrl: 'wss://api.platform.amigo.ai',  // direct for WS
+   *   agentBaseUrl: 'wss://agent-engine.api-us.concurrence.com',  // direct for WS
    *   ...
    * })
    * ```
@@ -269,10 +290,17 @@ export class AmigoClient {
     }
 
     const baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '')
+    // A custom baseUrl (BFF proxy, gateway) also carries /token unless identityBaseUrl is set.
+    const identityBaseUrl = (
+      config.identityBaseUrl ??
+      config.baseUrl ??
+      DEFAULT_IDENTITY_URL
+    ).replace(/\/$/, '')
 
     const client = createPlatformClient({
       apiKey: config.apiKey,
       baseUrl,
+      identityBaseUrl,
       retry: config.retry,
       maxRetries: config.maxRetries,
       timeout: config.timeout,

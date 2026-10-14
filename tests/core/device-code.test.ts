@@ -124,6 +124,20 @@ describe('loginWithDeviceCode', () => {
     expect(result.workspaceId).toBe('ws1')
   })
 
+  it('defaults to the identity host', async () => {
+    const fetch = createFetchSequence([
+      { status: 200, body: ISSUANCE },
+      { status: 200, body: TOKEN },
+    ])
+    await loginWithDeviceCode({ onCode: vi.fn(), workspaceId: 'ws1', fetch })
+
+    const urls = (fetch as ReturnType<typeof vi.fn>).mock.calls.map(([url]) => url)
+    expect(urls).toEqual([
+      'https://identity.api-us.concurrence.com/device/code',
+      'https://identity.api-us.concurrence.com/token',
+    ])
+  })
+
   it('handles multi-workspace', async () => {
     const multi = {
       error: 'workspace_selection_required',
@@ -278,6 +292,16 @@ describe('TokenManager', () => {
     await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 30 })
     const auth = await mgr.getAccessToken()
     expect(auth?.token).toBe(newToken)
+  })
+
+  it('refreshes against the identity host by default', async () => {
+    const fetch = mockFetch(200, TOKEN)
+    const mgr = new TokenManager({ storage, fetch })
+    await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 30 })
+    await mgr.getAccessToken()
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    expect(url).toBe('https://identity.api-us.concurrence.com/token')
   })
 
   it('throws RefreshTokenExpiredError on 401', async () => {

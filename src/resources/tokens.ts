@@ -94,10 +94,10 @@ function formBody(fields: Record<string, string | undefined>): URLSearchParams {
 }
 
 /**
- * Identity token operations exposed through the platform API base URL.
+ * Identity token operations.
  *
- * The identity service's token endpoint is mounted at `POST /token` on the
- * same base URL used for the platform API.
+ * Every call is `POST /token` on the client's `identityBaseUrl`, not on the
+ * platform API host: the hosted platform serves identity on its own host.
  */
 export class TokensResource extends WorkspaceScopedResource {
   /** Exchange an API key for an identity-issued JWT access token. */
@@ -112,6 +112,7 @@ export class TokensResource extends WorkspaceScopedResource {
       await this.client.POST(
         '/token' as never,
         {
+          baseUrl: this.identityBaseUrl,
           body,
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           middleware: [omitAuthorizationHeader],
@@ -142,6 +143,7 @@ export class TokensResource extends WorkspaceScopedResource {
       await this.client.POST(
         '/token' as never,
         {
+          baseUrl: this.identityBaseUrl,
           body,
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           middleware: [omitAuthorizationHeader],
@@ -172,6 +174,7 @@ export class TokensResource extends WorkspaceScopedResource {
       await this.client.POST(
         '/token' as never,
         {
+          baseUrl: this.identityBaseUrl,
           body,
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           ...(request.parentAccessToken && {
@@ -195,6 +198,7 @@ export class TokensResource extends WorkspaceScopedResource {
       await this.client.POST(
         '/token' as never,
         {
+          baseUrl: this.identityBaseUrl,
           body,
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           middleware: [omitAuthorizationHeader],

@@ -4,7 +4,7 @@
 
 <h1 align="center">@amigo-ai/platform-sdk</h1>
 
-<p align="center">Official TypeScript SDK for the <a href="https://api.platform.amigo.ai/v1/docs">Amigo Platform API</a>.</p>
+<p align="center">Official TypeScript SDK for the <a href="https://platform.api-us.concurrence.com/v1/docs">Amigo Platform API</a>.</p>
 
 <p align="center">
   <a href="https://docs.amigo.ai">Product Docs</a>
@@ -134,7 +134,8 @@ narrowly scoped, time-bound token from a privileged server (for example to
 forward to a browser via a BFF proxy, or to call the platform from a runtime
 that can't safely hold the raw API key).
 
-The call posts to `POST /token` on the configured `baseUrl` and is **not**
+The call posts to `POST /token` on the identity host (`identityBaseUrl`, see
+[Hosts](#hosts)) and is **not**
 workspace-scoped — `workspaceId` is still required on the client because it
 governs every other resource call on the same instance, but `POST /token`
 itself ignores it. The SDK also unconditionally strips the configured
@@ -268,17 +269,34 @@ credential.
 
 ## Configuration
 
-| Option        | Type           | Required | Description                                                          |
-| ------------- | -------------- | -------- | -------------------------------------------------------------------- |
-| `apiKey`      | `string`       | Yes      | API key or JWT from device code flow (Bearer auth)                   |
-| `workspaceId` | `string`       | Yes      | Your workspace ID — all resource operations are scoped to this       |
-| `baseUrl`     | `string`       | No       | Override the API base URL (default: `https://api.platform.amigo.ai`) |
-| `retry`       | `RetryOptions` | No       | Retry configuration for transient failures                           |
-| `maxRetries`  | `number`       | No       | Convenience alias for retry count                                    |
-| `timeout`     | `number`       | No       | Default request timeout in milliseconds                              |
-| `headers`     | `HeadersInit`  | No       | Default headers added to every request                               |
-| `hooks`       | `ClientHooks`  | No       | Request/response lifecycle hooks for tracing or logging              |
-| `fetch`       | `typeof fetch` | No       | Custom fetch for BFF proxy, cookie forwarding, or test mocking       |
+| Option            | Type           | Required | Description                                                                                                   |
+| ----------------- | -------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `apiKey`          | `string`       | Yes      | API key or JWT from device code flow (Bearer auth)                                                            |
+| `workspaceId`     | `string`       | Yes      | Your workspace ID — all resource operations are scoped to this                                                |
+| `baseUrl`         | `string`       | No       | Override the API base URL (default: `https://platform.api-us.concurrence.com`)                                |
+| `identityBaseUrl` | `string`       | No       | Identity host for `client.tokens` (default: `baseUrl` if set, else `https://identity.api-us.concurrence.com`) |
+| `retry`           | `RetryOptions` | No       | Retry configuration for transient failures                                                                    |
+| `maxRetries`      | `number`       | No       | Convenience alias for retry count                                                                             |
+| `timeout`         | `number`       | No       | Default request timeout in milliseconds                                                                       |
+| `headers`         | `HeadersInit`  | No       | Default headers added to every request                                                                        |
+| `hooks`           | `ClientHooks`  | No       | Request/response lifecycle hooks for tracing or logging                                                       |
+| `fetch`           | `typeof fetch` | No       | Custom fetch for BFF proxy, cookie forwarding, or test mocking                                                |
+
+### Hosts
+
+The defaults are US production. In another region, or on staging, set both
+base URLs: identity has its own host, and `client.tokens` calls it.
+
+| Environment | `baseUrl`                                      | `identityBaseUrl`                              |
+| ----------- | ---------------------------------------------- | ---------------------------------------------- |
+| US          | `https://platform.api-us.concurrence.com`      | `https://identity.api-us.concurrence.com`      |
+| EU          | `https://platform.api-eu.concurrence.com`      | `https://identity.api-eu.concurrence.com`      |
+| AU          | `https://platform.api-au.concurrence.com`      | `https://identity.api-au.concurrence.com`      |
+| CA          | `https://platform.api-ca.concurrence.com`      | `https://identity.api-ca.concurrence.com`      |
+| Staging     | `https://platform.api-staging.concurrence.com` | `https://identity.api-staging.concurrence.com` |
+
+Device-code login (`loginWithDeviceCode`, `TokenManager`) takes the same
+identity host as its own `identityBaseUrl` option.
 
 ### Retry options
 

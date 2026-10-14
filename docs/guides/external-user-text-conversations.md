@@ -25,6 +25,9 @@ AMIGO_EXTERNAL_INTEGRATION_CLIENT_ID=...
 AMIGO_EXTERNAL_INTEGRATION_CLIENT_SECRET=...
 AMIGO_EXTERNAL_SUBJECT_KEY=customer-user-123
 AMIGO_CONSUMER_ENTITY_ID=... # optional existing world entity UUID
+# Outside US production, set both hosts (README "Hosts" table). EU, for example:
+# AMIGO_BASE_URL=https://platform.api-eu.concurrence.com
+# AMIGO_IDENTITY_URL=https://identity.api-eu.concurrence.com
 ```
 
 ## 2. Create the parent integration credential
@@ -81,6 +84,7 @@ const backend = new AmigoClient({
   apiKey: process.env.AMIGO_API_KEY!,
   workspaceId,
   baseUrl: process.env.AMIGO_BASE_URL,
+  identityBaseUrl: process.env.AMIGO_IDENTITY_URL,
 })
 
 const parent = await backend.tokens.exchangeClientCredentials({
