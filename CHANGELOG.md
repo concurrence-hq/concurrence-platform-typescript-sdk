@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.113.1] - 2026-10-14
+
+### Bug Fixes
+
+- default to the concurrence hosts; api.platform.amigo.ai no longer resolves (#475)
+
 ## [0.113.0] - 2026-10-13
 
 ### Features
