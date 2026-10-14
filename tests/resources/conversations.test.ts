@@ -18,6 +18,8 @@ import type {
   TurnConversationSnapshot,
   TurnRequest,
   TurnResponse,
+  TurnStateEvent,
+  TurnStateTransitionEvent,
 } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -1086,9 +1088,12 @@ describe('ConversationsResource', () => {
       'event: token\ndata: {"text":" "}\n\n',
       'event: token\ndata: {"text":"world"}\n\n',
       'event: thinking\ndata: {"tier":1,"tier_name":"fast"}\n\n',
+      'event: artifact\ndata: {"type":"surface.link","schema_version":"1","payload":{"url":"https://example.test/s/abc"}}\n\n',
       'event: tool_call_started\ndata: {"tool_name":"lookup","call_id":"call-1","input":"{}"}\n\n',
       'event: tool_call_completed\ndata: {"tool_name":"lookup","call_id":"call-1","result":"ok","succeeded":true}\n\n',
       'event: message\ndata: {"role":"agent","text":"Hello world"}\n\n',
+      'event: state_transition\ndata: {"from_state":"greet","to_state":"triage","exit_condition":"The caller says hello"}\n\n',
+      'event: state\ndata: {"context_graph_state":{"type":"action","name":"triage"}}\n\n',
       'event: done\ndata: {"conversation_id":"00000000-0000-4000-8000-000000000001","status":"active","turn_count":2}\n\n',
     ])
     const client = new AmigoClient({
@@ -1114,11 +1119,21 @@ describe('ConversationsResource', () => {
       'token',
       'token',
       'thinking',
+      'artifact',
       'tool_call_started',
       'tool_call_completed',
       'message',
+      'state_transition',
+      'state',
       'done',
     ])
+    const artifact = events.find((e) => e.event === 'artifact')
+    expect(artifact).toEqual({
+      event: 'artifact',
+      type: 'surface.link',
+      schema_version: '1',
+      payload: { url: 'https://example.test/s/abc' },
+    })
     // Spot-check payloads to confirm the JSON body's fields land on the
     // typed union member alongside the discriminator.
     const tokens = events.filter((e) => e.event === 'token')
@@ -1127,6 +1142,72 @@ describe('ConversationsResource', () => {
       ' ',
       'world',
     ])
+  })
+
+  it('streamTurn yields each state_transition, then state, then done', async () => {
+    // The end of a turn that went greet -> triage -> echo_lookup, as
+    // platform-api sends it: one state_transition per hop, then the state the
+    // turn ended in, then done. The data line repeats the discriminator, as
+    // platform-api's format_sse writes it.
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    const contextGraphState: TurnStateEvent['context_graph_state'] = {
+      type: 'action',
+      name: 'echo_lookup',
+      objective: 'Look up the echo code the caller gave',
+      actions: [{ description: 'Read the echo code back' }],
+      intra_state_navigation_guidelines: [],
+      action_guidelines: [],
+      boundary_constraints: [],
+      exit_conditions: [{ description: 'The caller is done', next_state: 'wrap_up' }],
+    }
+    const stream = sseStream([
+      'event: message\ndata: {"event":"message","role":"agent","text":"Looking up PARITY-42."}\n\n',
+      'event: state_transition\ndata: {"event":"state_transition","from_state":"greet","to_state":"triage","exit_condition":"The caller says what they need"}\n\n',
+      'event: state_transition\ndata: {"event":"state_transition","from_state":"triage","to_state":"echo_lookup","exit_condition":null}\n\n',
+      `event: state\ndata: ${JSON.stringify({ event: 'state', context_graph_state: contextGraphState })}\n\n`,
+      `event: done\ndata: {"event":"done","conversation_id":"${conversationId}","status":"active","turn_count":1}\n\n`,
+    ])
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/conversations/${conversationId}/turns/stream`]: () =>
+          new Response(stream, {
+            headers: { 'content-type': 'text/event-stream' },
+          }),
+      }),
+    })
+
+    const events = []
+    for await (const event of client.conversations.streamTurn(conversationId, {
+      message: 'PARITY-42',
+    })) {
+      events.push(event)
+    }
+
+    expect(events.map((e) => e.event)).toEqual([
+      'message',
+      'state_transition',
+      'state_transition',
+      'state',
+      'done',
+    ])
+    const hops: TurnStateTransitionEvent[] = [
+      {
+        event: 'state_transition',
+        from_state: 'greet',
+        to_state: 'triage',
+        exit_condition: 'The caller says what they need',
+      },
+      {
+        event: 'state_transition',
+        from_state: 'triage',
+        to_state: 'echo_lookup',
+        exit_condition: null,
+      },
+    ]
+    const state: TurnStateEvent = { event: 'state', context_graph_state: contextGraphState }
+    expect(events.slice(1, 4)).toEqual([...hops, state])
   })
 
   it('streamTurn forwards include_tool_calls=true on the stream URL', async () => {
@@ -1170,6 +1251,8 @@ describe('ConversationsResource', () => {
     const stream = sseStream([
       // Unknown event discriminator — drift-tolerant skip.
       'event: future_variant\ndata: {"foo":"bar"}\n\n',
+      // Object.prototype keys are not event names.
+      'event: constructor\ndata: {"foo":"bar"}\n\n',
       // Bad JSON — drop, do not throw.
       'event: token\ndata: not-json\n\n',
       // No `data:` field — drop.

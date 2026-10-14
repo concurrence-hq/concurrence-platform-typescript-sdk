@@ -17,10 +17,13 @@ export type TurnResponse = components['schemas']['TurnResponse']
 export type TurnConversationSnapshot = components['schemas']['TurnConversationSnapshot']
 export type TurnStreamEvent = components['schemas']['TurnStreamEvent']
 export type TurnTokenEvent = components['schemas']['TurnTokenEvent']
+export type TurnArtifactEvent = components['schemas']['TurnArtifactEvent']
 export type TurnToolCallStartedEvent = components['schemas']['TurnToolCallStartedEvent']
 export type TurnToolCallCompletedEvent = components['schemas']['TurnToolCallCompletedEvent']
 export type TurnThinkingEvent = components['schemas']['TurnThinkingEvent']
 export type TurnMessageEvent = components['schemas']['TurnMessageEvent']
+export type TurnStateTransitionEvent = components['schemas']['TurnStateTransitionEvent']
+export type TurnStateEvent = components['schemas']['TurnStateEvent']
 export type TurnDoneEvent = components['schemas']['TurnDoneEvent']
 export type TurnErrorEvent = components['schemas']['TurnErrorEvent']
 
@@ -282,12 +285,19 @@ export class ConversationsResource extends WorkspaceScopedResource {
    * The bytes-and-parser dance from `createTurnStream` is now hidden inside
    * the SDK — consumers iterate strongly typed events directly. Each yielded
    * value is a member of the `TurnStreamEvent` discriminated union (`token`,
-   * `thinking`, `tool_call_started`, `tool_call_completed`, `message`,
-   * `done`, `error`), validated as a record with a known `event`
-   * discriminator. Unknown / malformed frames are dropped silently — this
-   * matches the wire-format-drift behavior of the lower-level
-   * `createTurnStream` while keeping the strict `TurnStreamEvent` static
-   * contract intact for consumers.
+   * `thinking`, `tool_call_started`, `tool_call_completed`, `artifact`,
+   * `message`, `state_transition`, `state`, `done`, `error`), validated as a
+   * record with a known `event` discriminator. Unknown / malformed frames are
+   * dropped silently — this matches the wire-format-drift behavior of the
+   * lower-level `createTurnStream` while keeping the strict `TurnStreamEvent`
+   * static contract intact for consumers.
+   *
+   * Events arrive in the order the server sends them. Right before `done`, a
+   * turn sends one `state_transition` per context-graph hop it took
+   * (`from_state`, `to_state`, `exit_condition`), then a `state` event with
+   * the `context_graph_state` it ended in. These are the hops and state
+   * {@link createTurn} returns on `output[0].state_transitions` (as `from`
+   * and `to`) and `conversation.context_graph_state`.
    *
    * @example
    * ```ts
@@ -648,18 +658,24 @@ function parseSSEBlock(block: string): SSEFrame | null {
 // known union members.
 // ---------------------------------------------------------------------------
 
-const KNOWN_TURN_STREAM_EVENTS: ReadonlySet<TurnStreamEvent['event']> = new Set([
-  'token',
-  'thinking',
-  'tool_call_started',
-  'tool_call_completed',
-  'message',
-  'done',
-  'error',
-])
+// Keyed by the generated union, so a spec regen that adds or removes a
+// `TurnStreamEvent` member fails typecheck here instead of silently dropping
+// the new frame.
+const KNOWN_TURN_STREAM_EVENTS = {
+  token: true,
+  artifact: true,
+  thinking: true,
+  tool_call_started: true,
+  tool_call_completed: true,
+  message: true,
+  state_transition: true,
+  state: true,
+  done: true,
+  error: true,
+} as const satisfies Record<TurnStreamEvent['event'], true>
 
 function parseTurnStreamFrame(eventName: string, dataJson: string): TurnStreamEvent | null {
-  if (!(KNOWN_TURN_STREAM_EVENTS as ReadonlySet<string>).has(eventName)) return null
+  if (!Object.hasOwn(KNOWN_TURN_STREAM_EVENTS, eventName)) return null
   let payload: unknown
   try {
     payload = JSON.parse(dataJson)
