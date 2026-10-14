@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.114.1] - 2026-10-14
+
+### Bug Fixes
+
+- yield artifact, state_transition and state events from streamTurn (#465)
+
 ## [0.114.0] - 2026-10-14
 
 ### Maintenance
