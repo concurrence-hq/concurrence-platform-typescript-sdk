@@ -845,10 +845,18 @@ const result = await client.integrations.testEndpoint('integration-id', 'geocode
 
 ### Data Sources
 
+Data sources are stored records. Nothing polls or syncs them since the
+[connector runner](https://docs.concurrence.com/developer-guide/platform-api/data-world-model/connector-runner)
+was retired, so send source records with `client.fhir.import()` or `client.intake`.
+
 ```typescript
 const { items: sources } = await client.dataSources.list()
 const source = await client.dataSources.get('source-id')
-console.log(source.source_type, source.health_status, source.last_sync_at)
+console.log(source.source_type, source.is_active, source.updated_at)
+
+// Events recorded for the source in the last 90 days
+const status = await client.dataSources.getStatus('source-id')
+console.log(status.event_count)
 ```
 
 ### Settings
