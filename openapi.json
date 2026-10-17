@@ -2950,12 +2950,17 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "tool_execution": {
+            "$ref": "#/components/schemas/SimulationToolExecution",
+            "description": "The tool settings the run executes with. A `/bridge` run simulates every tool."
           }
         },
         "required": [
           "run_id",
           "status",
-          "scenarios"
+          "scenarios",
+          "tool_execution"
         ],
         "title": "BridgeResponse",
         "type": "object"
@@ -3261,7 +3266,8 @@
                   "terminal_state",
                   "warm_transfer_completed",
                   "no_inbound_audio",
-                  "cancelled"
+                  "cancelled",
+                  "closed"
                 ],
                 "type": "string"
               },
@@ -3652,7 +3658,8 @@
               "terminal_state",
               "warm_transfer_completed",
               "no_inbound_audio",
-              "cancelled"
+              "cancelled",
+              "closed"
             ],
             "title": "Completion Reason",
             "type": "string"
@@ -3970,7 +3977,8 @@
                   "terminal_state",
                   "warm_transfer_completed",
                   "no_inbound_audio",
-                  "cancelled"
+                  "cancelled",
+                  "closed"
                 ],
                 "type": "string"
               },
@@ -4680,7 +4688,8 @@
                   "terminal_state",
                   "warm_transfer_completed",
                   "no_inbound_audio",
-                  "cancelled"
+                  "cancelled",
+                  "closed"
                 ],
                 "type": "string"
               },
@@ -7181,6 +7190,50 @@
         "title": "ConversationApprovalRequest",
         "type": "object"
       },
+      "ConversationCompletion": {
+        "description": "How the session that ended a text conversation finished.",
+        "properties": {
+          "completion_reason": {
+            "description": "Canonical completion reason of the session that ended the conversation.",
+            "enum": [
+              "completed",
+              "abandoned",
+              "escalated",
+              "transferred",
+              "timeout",
+              "error",
+              "voicemail",
+              "no_answer",
+              "caller_hangup",
+              "forwarded",
+              "terminal_state",
+              "warm_transfer_completed",
+              "no_inbound_audio",
+              "cancelled",
+              "closed"
+            ],
+            "title": "Completion Reason",
+            "type": "string"
+          },
+          "ended_at": {
+            "description": "When that session ended: the ended_at its session.ended world event carries.",
+            "format": "date-time",
+            "title": "Ended At",
+            "type": "string"
+          },
+          "final_state": {
+            "$ref": "#/components/schemas/NameString",
+            "description": "Context-graph state the session ended in."
+          }
+        },
+        "required": [
+          "completion_reason",
+          "final_state",
+          "ended_at"
+        ],
+        "title": "ConversationCompletion",
+        "type": "object"
+      },
       "ConversationConfig": {
         "properties": {
           "agent_id": {
@@ -7515,6 +7568,17 @@
       },
       "ConversationStatusTransitionRequest": {
         "properties": {
+          "completion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationCompletion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the session that ended the conversation finished, written on the row with the status. Omitted when no session ended it (a use-case rebind retirement)."
+          },
           "reason": {
             "description": "Low-cardinality transition tag (e.g. hsm_terminal, use_case_rebind) recorded on the audit event and the conversation world event.",
             "maxLength": 64,
@@ -9343,7 +9407,7 @@
                 "type": "null"
               }
             ],
-            "description": "Client-provided idempotency key. Auto-generated if omitted.",
+            "description": "Client-provided idempotency key, scoped to the workspace. Once a call is placed with a key, a retry with it gets that call for an hour instead of placing a second one. If omitted, every request is a new call.",
             "title": "Idempotency Key"
           },
           "metadata": {
@@ -9688,6 +9752,12 @@
             "title": "Context Graph Id",
             "type": "string"
           },
+          "demo_mode": {
+            "default": false,
+            "description": "Internal. Only a platform admin can set this.",
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
           "description": {
             "$ref": "#/components/schemas/DescriptionString",
             "default": ""
@@ -9834,14 +9904,7 @@
           },
           "evals": {
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/SimulationCaseMetricEval"
-                },
-                {
-                  "$ref": "#/components/schemas/SimulationCaseAssertionEval"
-                }
-              ]
+              "$ref": "#/components/schemas/SimulationCaseEval"
             },
             "maxItems": 100,
             "title": "Evals",
@@ -10112,6 +10175,7 @@
           },
           "model": {
             "default": "claude-sonnet-5-5",
+            "description": "Anthropic model id the skill runs on. A retired Claude id is a 422 that names its successor.",
             "maxLength": 128,
             "minLength": 1,
             "title": "Model",
@@ -10286,6 +10350,19 @@
             "default": {},
             "title": "Context",
             "type": "object"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The text conversation the surface is for. Its submission is delivered to that\nconversation's agent, which answers it even when the conversation has gone idle.",
+            "title": "Conversation Id"
           },
           "description": {
             "anyOf": [
@@ -13155,6 +13232,17 @@
       "EndpointDeclarations-Input": {
         "description": "What an endpoint's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses.",
         "properties": {
+          "reads": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointReads"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whose patient record a call returns, and how the call names that patient: the one its\nrequest names (``params``), the ones its response holds (``response``), or none (``none``).\nNull when undeclared."
+          },
           "writes": {
             "anyOf": [
               {
@@ -13173,6 +13261,17 @@
       "EndpointDeclarations-Output": {
         "description": "What an endpoint's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses.",
         "properties": {
+          "reads": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointReads"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whose patient record a call returns, and how the call names that patient: the one its\nrequest names (``params``), the ones its response holds (``response``), or none (``none``).\nNull when undeclared."
+          },
           "writes": {
             "anyOf": [
               {
@@ -13187,6 +13286,27 @@
         },
         "title": "EndpointDeclarations",
         "type": "object"
+      },
+      "EndpointReads": {
+        "discriminator": {
+          "mapping": {
+            "none": "#/components/schemas/NoPatient",
+            "params": "#/components/schemas/PatientInParams",
+            "response": "#/components/schemas/PatientsInResponse"
+          },
+          "propertyName": "patient_in"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PatientInParams"
+          },
+          {
+            "$ref": "#/components/schemas/PatientsInResponse"
+          },
+          {
+            "$ref": "#/components/schemas/NoPatient"
+          }
+        ]
       },
       "EndpointResponse": {
         "description": "Per-endpoint response (V186 flat shape).",
@@ -13249,7 +13369,7 @@
           },
           "max_retries": {
             "default": 2,
-            "description": "Retry attempts on transient failures.",
+            "description": "How many times a failed call goes out again. A read goes again after a status in `retry_on_status`,\na timeout or a connection that failed. A write goes again only after a 429 or 503 that\n`retry_on_status` lists, or a connection that never opened. Integration writes carry no idempotency key, so a write\nthat timed out, lost its connection or got any other status may already have been made, and isn't\nsent again. A write is a call to an endpoint that declares `declarations.writes` of any kind but\n`none`, or declares nothing and uses POST, PUT, PATCH or DELETE. An endpoint that only reads over\nPOST can declare `declarations.writes.kind` `none` to retry like a read.",
             "title": "Max Retries",
             "type": "integer"
           },
@@ -13288,7 +13408,7 @@
             "title": "Response Template"
           },
           "retry_on_status": {
-            "description": "HTTP status codes that trigger a retry.",
+            "description": "HTTP statuses after which a failed call goes out again, up to `max_retries` times. A write goes\nagain only after a 429 or 503 listed here: any other status, 502 and 504 included, can follow a\nwrite the vendor made, so a write that gets one isn't sent again. An endpoint that only reads over\nPOST can declare `declarations.writes.kind` `none` to retry on every status listed here.",
             "items": {
               "type": "integer"
             },
@@ -13352,7 +13472,7 @@
                 "type": "null"
               }
             ],
-            "description": "How the response says the write happened. Required unless ``kind`` is ``none``."
+            "description": "How the response says the write happened. Required unless ``kind`` is ``none``. A ``field`` or\n``graphql`` rule reads the write from the body: the member the pointer names, in a JSON object or\narray or a form-encoded body, or a GraphQL response's ``errors`` or ``data``. A 2xx whose body\ndoesn't hold it, such as an HTML page, plain text, an empty 204, JSON that doesn't parse, JSON\nwithout the field, or JSON that isn't a GraphQL response, such as a gateway's own, leaves the\nwrite's outcome unknown: the vendor may have made it. So does a GraphQL answer with errors\nthat neither says the mutation was refused or never ran nor holds its result, such as a payload\nnulled by an error below the mutation's field, which came after the write, or an error with no\npath beside ``data``. A field with another value, or a GraphQL error at the mutation's own field,\nwith that field null, or in an answer with no ``data``, is a write that didn't happen."
           }
         },
         "required": [
@@ -13377,7 +13497,7 @@
                 "type": "null"
               }
             ],
-            "description": "How the response says the write happened. Required unless ``kind`` is ``none``."
+            "description": "How the response says the write happened. Required unless ``kind`` is ``none``. A ``field`` or\n``graphql`` rule reads the write from the body: the member the pointer names, in a JSON object or\narray or a form-encoded body, or a GraphQL response's ``errors`` or ``data``. A 2xx whose body\ndoesn't hold it, such as an HTML page, plain text, an empty 204, JSON that doesn't parse, JSON\nwithout the field, or JSON that isn't a GraphQL response, such as a gateway's own, leaves the\nwrite's outcome unknown: the vendor may have made it. So does a GraphQL answer with errors\nthat neither says the mutation was refused or never ran nor holds its result, such as a payload\nnulled by an error below the mutation's field, which came after the write, or an error with no\npath beside ``data``. A field with another value, or a GraphQL error at the mutation's own field,\nwith that field null, or in an answer with no ``data``, is a write that didn't happen."
           }
         },
         "required": [
@@ -15870,6 +15990,35 @@
               }
             ],
             "title": "Expected Display"
+          },
+          "grading": {
+            "anyOf": [
+              {
+                "enum": [
+                  "observed_vs_expected",
+                  "legacy_verdict"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an LLM-judged assertion: observed_vs_expected (actual is what the judge observed, and the verdict compares it with expected) or legacy_verdict (the judge returned the verdict and observed nothing, so actual is empty). Null otherwise.",
+            "title": "Grading"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An llm_boolean assertion's question, with what makes it true or false.",
+            "title": "Instructions"
           },
           "key": {
             "maxLength": 128,
@@ -20310,7 +20459,7 @@
         "type": "object"
       },
       "GraphQLSuccess": {
-        "description": "The request is a GraphQL mutation, the response has no top-level ``errors``, and every\nmutation payload holds something other than null past its user errors.",
+        "description": "The request is a GraphQL mutation, and every mutation payload holds something other than null\npast its user errors. Top-level ``errors`` in an answer with no ``data`` are a request that never\nran. Beside ``data`` they're read by their ``path``: one at the mutation's own field, with that\nfield null, is its resolver refusing, and one below it came after the write, so a payload that\nstill holds its result wrote. A request that never ran, or a resolver that refused, is a write\nthat didn't happen. Any other answer with errors leaves the outcome unknown, such as a payload\nGraphQL nulled on the way up, or an error with no path beside ``data``.",
         "properties": {
           "reported_by": {
             "const": "graphql",
@@ -23739,6 +23888,21 @@
         "title": "NinetyDayRollingParams",
         "type": "object"
       },
+      "NoPatient": {
+        "description": "A call returns no patient's record: practice data, such as open slots, providers or articles.",
+        "properties": {
+          "patient_in": {
+            "const": "none",
+            "title": "Patient In",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient_in"
+        ],
+        "title": "NoPatient",
+        "type": "object"
+      },
       "NonDesiredState": {
         "properties": {
           "mode": {
@@ -24437,7 +24601,7 @@
       "OcrRequest": {
         "properties": {
           "image": {
-            "description": "Base64-encoded image data",
+            "description": "A PNG, JPEG, WebP or HEIC photo of at most 7 MB, base64-encoded or as a base64 data URL.",
             "maxLength": 10000000,
             "minLength": 1,
             "title": "Image",
@@ -24447,16 +24611,23 @@
             "anyOf": [
               {
                 "items": {
+                  "enum": [
+                    "carrier_name",
+                    "group_number",
+                    "member_id",
+                    "plan_name"
+                  ],
                   "type": "string"
                 },
                 "maxItems": 50,
+                "minItems": 1,
                 "type": "array"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Optional list of field keys to extract",
+            "description": "The card fields to read. Omitted, all four.",
             "title": "Target Fields"
           }
         },
@@ -24470,6 +24641,7 @@
         "description": "Structured field extraction result for an uploaded image.",
         "properties": {
           "confidence": {
+            "description": "The model's lowest per-field confidence over extracted_fields; 0 when it read no field.",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Confidence",
@@ -24477,6 +24649,7 @@
           },
           "extracted_fields": {
             "additionalProperties": true,
+            "description": "Each requested field the photo shows, by key, as the card prints it.",
             "title": "Extracted Fields",
             "type": "object"
           }
@@ -26032,6 +26205,34 @@
         "title": "ParticipantLeftEvent",
         "type": "object"
       },
+      "PatientInParams": {
+        "description": "A call returns the record of the patient its request names.",
+        "properties": {
+          "params": {
+            "description": "The input parameters that name the patient, by an identifier their record on file carries:\nits entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's\n``input_schema``.",
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Params",
+            "type": "array"
+          },
+          "patient_in": {
+            "const": "params",
+            "title": "Patient In",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient_in",
+          "params"
+        ],
+        "title": "PatientInParams",
+        "type": "object"
+      },
       "PatientLabRow": {
         "properties": {
           "loinc_code": {
@@ -26970,6 +27171,36 @@
           "cluster_name"
         ],
         "title": "PatientTopologyRow",
+        "type": "object"
+      },
+      "PatientsInResponse": {
+        "description": "A call's response holds the patient records it found: a search, or a read by some other key.",
+        "properties": {
+          "patient": {
+            "description": "RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one\ntheir record on file carries, such as ``/patient_id``.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Patient",
+            "type": "string"
+          },
+          "patient_in": {
+            "const": "response",
+            "title": "Patient In",
+            "type": "string"
+          },
+          "records": {
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:\na list of records, or one record. ``/patients`` is the list under ``patients``, and the empty\npointer is the whole body.",
+            "maxLength": 512,
+            "title": "Records",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient_in",
+          "records",
+          "patient"
+        ],
+        "title": "PatientsInResponse",
         "type": "object"
       },
       "PerformanceSummaryResponse": {
@@ -28789,9 +29020,144 @@
           "language": {
             "anyOf": [
               {
-                "maxLength": 35,
-                "minLength": 2,
-                "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+                "enum": [
+                  "af",
+                  "ar",
+                  "az",
+                  "be",
+                  "bg",
+                  "bn",
+                  "bs",
+                  "ca",
+                  "cs",
+                  "cy",
+                  "da",
+                  "de",
+                  "el",
+                  "en",
+                  "es",
+                  "et",
+                  "fa",
+                  "fi",
+                  "fr",
+                  "gl",
+                  "gu",
+                  "he",
+                  "hi",
+                  "hr",
+                  "hu",
+                  "hy",
+                  "id",
+                  "is",
+                  "it",
+                  "iw",
+                  "ja",
+                  "ka",
+                  "kk",
+                  "kn",
+                  "ko",
+                  "lt",
+                  "lv",
+                  "mi",
+                  "mk",
+                  "ml",
+                  "mr",
+                  "ms",
+                  "nb",
+                  "ne",
+                  "nl",
+                  "no",
+                  "pl",
+                  "pt",
+                  "ro",
+                  "ru",
+                  "sk",
+                  "sl",
+                  "sr",
+                  "sv",
+                  "sw",
+                  "ta",
+                  "te",
+                  "th",
+                  "tl",
+                  "tr",
+                  "uk",
+                  "ur",
+                  "vi",
+                  "zh",
+                  "afr",
+                  "amh",
+                  "ara",
+                  "aze",
+                  "bel",
+                  "ben",
+                  "bos",
+                  "bul",
+                  "cat",
+                  "ces",
+                  "cmn",
+                  "cym",
+                  "dan",
+                  "deu",
+                  "ell",
+                  "eng",
+                  "est",
+                  "fas",
+                  "fil",
+                  "fin",
+                  "fra",
+                  "gle",
+                  "glg",
+                  "guj",
+                  "heb",
+                  "hin",
+                  "hrv",
+                  "hun",
+                  "hye",
+                  "ind",
+                  "isl",
+                  "ita",
+                  "jpn",
+                  "kan",
+                  "kat",
+                  "kaz",
+                  "kor",
+                  "lav",
+                  "lit",
+                  "mal",
+                  "mar",
+                  "mkd",
+                  "mon",
+                  "mri",
+                  "msa",
+                  "mya",
+                  "nep",
+                  "nld",
+                  "nor",
+                  "pol",
+                  "por",
+                  "ron",
+                  "rus",
+                  "slk",
+                  "slv",
+                  "som",
+                  "spa",
+                  "srp",
+                  "swa",
+                  "swe",
+                  "tam",
+                  "tel",
+                  "tgl",
+                  "tha",
+                  "tur",
+                  "ukr",
+                  "urd",
+                  "vie",
+                  "yue",
+                  "zh-cn",
+                  "zh-hk",
+                  "zh-tw"
+                ],
                 "type": "string"
               },
               {
@@ -29392,6 +29758,26 @@
         "title": "RenameColumnAction",
         "type": "object"
       },
+      "ReshapeSurfaceRequest": {
+        "description": "Request to replace an abandoned surface with one asking only for what is missing.",
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The text conversation asking for the replacement. Its submission is delivered to that\nconversation's agent. Without one, the replacement belongs to the original's conversation.",
+            "title": "Conversation Id"
+          }
+        },
+        "title": "ReshapeSurfaceRequest",
+        "type": "object"
+      },
       "ResolvePreviewRequest": {
         "additionalProperties": false,
         "properties": {
@@ -29484,6 +29870,18 @@
             "title": "Additional Instructions",
             "type": "object"
           },
+          "base_url_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an integration endpoint, the host its calls go to.",
+            "title": "Base Url Host"
+          },
           "description": {
             "default": "",
             "title": "Description",
@@ -29494,10 +29892,43 @@
             "title": "Input Schema",
             "type": "object"
           },
+          "integration_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an integration endpoint, its integration's display name.",
+            "title": "Integration Display Name"
+          },
           "is_write": {
             "default": false,
+            "description": "The tool can change something, so a simulation never runs it for real: a world write, an\nendpoint whose HTTP method mutates or that declares a write, or a data query whose stored\ntemplate is not a read-only query.",
             "title": "Is Write",
             "type": "boolean"
+          },
+          "live_read_eligible": {
+            "default": false,
+            "description": "A simulation launch can run this tool for real by naming it in `tool_execution.live_read_tools`.",
+            "title": "Live Read Eligible",
+            "type": "boolean"
+          },
+          "requires_approval": {
+            "default": false,
+            "description": "The integration's approval policy gates this tool, so a simulation never runs it for real.",
+            "title": "Requires Approval",
+            "type": "boolean"
+          },
+          "skills": {
+            "description": "The companion skills in this service's graph that can call this tool.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Skills",
+            "type": "array"
           },
           "states": {
             "items": {
@@ -29568,7 +29999,7 @@
         "properties": {
           "approval_policy": {
             "default": "none",
-            "description": "Human-in-the-loop approval gate. ``none`` = no approval required;\n``writes`` = approval required for write-classified endpoints;\n``all`` = approval required for every endpoint.",
+            "description": "Human-in-the-loop approval gate. ``none`` = no approval required;\n``writes`` = approval required for an endpoint that may write: one that uses\nPOST, PUT, PATCH or DELETE, or declares ``declarations.writes`` of any kind but\n``none``, whatever its method; ``all`` = approval required for every endpoint.",
             "enum": [
               "none",
               "writes",
@@ -30255,6 +30686,17 @@
             ],
             "title": "Direction"
           },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
           "ended_at": {
             "anyOf": [
               {
@@ -30289,6 +30731,17 @@
               }
             ],
             "title": "Entity Name"
+          },
+          "final_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final State"
           },
           "framework": {
             "anyOf": [
@@ -30659,6 +31112,10 @@
             "maxItems": 20,
             "title": "Tags",
             "type": "array"
+          },
+          "tool_execution": {
+            "$ref": "#/components/schemas/SimulationToolExecution",
+            "description": "Which tools run for real and which return a configured result, for every case in the\nbatch. A case whose service cannot honor them is skipped with the reason. The default\nsimulates every tool. The response echoes the settings the cases execute with."
           }
         },
         "title": "RunSimulationBenchmarkRequest",
@@ -30735,6 +31192,10 @@
             "maxItems": 20,
             "title": "Tags",
             "type": "array"
+          },
+          "tool_execution": {
+            "$ref": "#/components/schemas/SimulationToolExecution",
+            "description": "Which tools run for real and which return a configured result. The default simulates\nevery tool. The response echoes the settings the run executes with."
           }
         },
         "title": "RunSimulationCaseRequest",
@@ -31484,6 +31945,11 @@
             ],
             "title": "Created At"
           },
+          "demo_mode": {
+            "default": false,
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -31801,6 +32267,12 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "demo_mode": {
+            "default": false,
+            "description": "Internal. Only a platform admin can set this.",
+            "title": "Demo Mode",
+            "type": "boolean"
           },
           "description": {
             "title": "Description",
@@ -32944,7 +33416,7 @@
           },
           "error": {
             "default": 0,
-            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "description": "Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in the pass_rate denominator",
             "title": "Error",
             "type": "integer"
           },
@@ -32998,7 +33470,7 @@
           },
           "skipped": {
             "default": 0,
-            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "description": "Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in the pass_rate denominator",
             "title": "Skipped",
             "type": "integer"
           }
@@ -33039,7 +33511,7 @@
           },
           "error": {
             "default": 0,
-            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "description": "Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in the pass_rate denominator",
             "title": "Error",
             "type": "integer"
           },
@@ -33095,7 +33567,7 @@
           },
           "skipped": {
             "default": 0,
-            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "description": "Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in the pass_rate denominator",
             "title": "Skipped",
             "type": "integer"
           }
@@ -33195,7 +33667,7 @@
         "properties": {
           "error_count": {
             "default": 0,
-            "description": "Verdicts where grading broke; not in overall_pass_rate",
+            "description": "Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in overall_pass_rate",
             "title": "Error Count",
             "type": "integer"
           },
@@ -33235,7 +33707,7 @@
           },
           "skipped_count": {
             "default": 0,
-            "description": "Verdicts that did not apply; not in overall_pass_rate",
+            "description": "Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in overall_pass_rate",
             "title": "Skipped Count",
             "type": "integer"
           }
@@ -33254,7 +33726,7 @@
           },
           "error": {
             "default": 0,
-            "description": "Verdicts where grading broke; not in the pass_rate denominator",
+            "description": "Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in the pass_rate denominator",
             "title": "Error",
             "type": "integer"
           },
@@ -33305,7 +33777,7 @@
           },
           "skipped": {
             "default": 0,
-            "description": "Verdicts that did not apply; not in the pass_rate denominator",
+            "description": "Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in the pass_rate denominator",
             "title": "Skipped",
             "type": "integer"
           },
@@ -33572,6 +34044,12 @@
               }
             ],
             "title": "Error"
+          },
+          "error_session_count": {
+            "default": 0,
+            "description": "Sessions cut short by the simulator or the platform rather than the agent: the caller LLM,\na step outside the agent's own turn, a turn write or the run's time limit failed. Each has no\nscore and a `score_rationale` of `bridge:error:<end reason>`, so it stays out of `average_score`\nand the pass and fail counts. A session whose agent turn failed (it raised, or ran out of time)\nisn't one of them: it scores 0 with `score_rationale` `bridge:agent_error` or\n`bridge:agent_timeout`, and counts as failed.",
+            "title": "Error Session Count",
+            "type": "integer"
           },
           "fail_count": {
             "default": 0,
@@ -33910,6 +34388,10 @@
               }
             ],
             "title": "Suite Id"
+          },
+          "tool_execution": {
+            "$ref": "#/components/schemas/SimulationToolExecution",
+            "description": "The tool settings every started case executes with."
           }
         },
         "required": [
@@ -33920,16 +34402,24 @@
           "cases",
           "skipped_cases",
           "failed_to_start_cases",
-          "aggregate_summary"
+          "aggregate_summary",
+          "tool_execution"
         ],
         "title": "SimulationBenchmarkRunResponse",
         "type": "object"
       },
       "SimulationCaseAssertionEval": {
+        "description": "An assertion checked in code against the transcript, the tools called or the final state.",
         "properties": {
           "assertion_kind": {
-            "maxLength": 128,
-            "minLength": 1,
+            "enum": [
+              "transcript_contains",
+              "must_contain",
+              "transcript_not_contains",
+              "must_not_contain",
+              "tool_called",
+              "final_state"
+            ],
             "title": "Assertion Kind",
             "type": "string"
           },
@@ -33990,6 +34480,62 @@
         "title": "SimulationCaseAssertionEval",
         "type": "object"
       },
+      "SimulationCaseBooleanAssertionEval": {
+        "additionalProperties": false,
+        "description": "A yes-or-no question about the conversation, graded by comparing what a judge observed with ``expected``.\n\nThe judge sees the case and the transcript, never ``expected``, and answers true,\nfalse, or that the conversation does not show enough to tell. The check passes\nwhen the answer equals ``expected`` and fails when it doesn't. When the judge\ncan't tell, the check is skipped and stays out of pass rates.",
+        "properties": {
+          "assertion_kind": {
+            "const": "llm_boolean",
+            "title": "Assertion Kind",
+            "type": "string"
+          },
+          "expected": {
+            "description": "The answer that passes the check.",
+            "title": "Expected",
+            "type": "boolean"
+          },
+          "instructions": {
+            "description": "The question, and what makes its answer true or false.",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Instructions",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "type": {
+            "const": "assertion",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "key",
+          "assertion_kind",
+          "instructions",
+          "expected"
+        ],
+        "title": "SimulationCaseBooleanAssertionEval",
+        "type": "object"
+      },
+      "SimulationCaseEval": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SimulationCaseMetricEval"
+          },
+          {
+            "$ref": "#/components/schemas/SimulationCaseAssertionEval"
+          },
+          {
+            "$ref": "#/components/schemas/SimulationCaseBooleanAssertionEval"
+          }
+        ]
+      },
       "SimulationCaseGrounding": {
         "description": "Optional bindings that start the sim from existing workspace data.",
         "properties": {
@@ -34007,6 +34553,84 @@
           }
         },
         "title": "SimulationCaseGrounding",
+        "type": "object"
+      },
+      "SimulationCaseLegacyAssertionEval": {
+        "description": "An assertion saved before ``llm_boolean``: ``llm_judge`` or a free-text kind. Returned by reads only.\n\nThe legacy judge grades it with a pass or fail verdict and records no observed\nvalue. Case writes reject this shape, so rewrite it as an ``llm_boolean`` or a\ndeterministic assertion before saving the case's ``evals`` again.",
+        "properties": {
+          "assertion_kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Assertion Kind",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expected": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "grading": {
+            "const": "legacy_verdict",
+            "default": "legacy_verdict",
+            "description": "How this assertion is graded: a pass or fail verdict from the legacy judge, with no observed value.",
+            "title": "Grading",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "type": {
+            "const": "assertion",
+            "title": "Type",
+            "type": "string"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          }
+        },
+        "required": [
+          "type",
+          "key",
+          "assertion_kind",
+          "description",
+          "expected",
+          "params",
+          "weight",
+          "grading"
+        ],
+        "title": "SimulationCaseLegacyAssertionEval",
         "type": "object"
       },
       "SimulationCaseListResponse": {
@@ -34120,14 +34744,7 @@
           },
           "evals": {
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/SimulationCaseMetricEval"
-                },
-                {
-                  "$ref": "#/components/schemas/SimulationCaseAssertionEval"
-                }
-              ]
+              "$ref": "#/components/schemas/StoredSimulationCaseEval"
             },
             "title": "Evals",
             "type": "array"
@@ -35006,6 +35623,18 @@
             "title": "Tags",
             "type": "array"
           },
+          "tool_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationToolExecution"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The tool settings a saved-case run launched with, as recorded in its snapshot.\n\nNull for a run that recorded none: one that predates the settings, or a `/bridge`\nrun, which simulates every tool.",
+            "readOnly": true
+          },
           "total_scenarios_requested": {
             "anyOf": [
               {
@@ -35032,7 +35661,8 @@
           "id",
           "service_id",
           "status",
-          "checks"
+          "checks",
+          "tool_execution"
         ],
         "title": "SimulationRunResponse",
         "type": "object"
@@ -35656,6 +36286,44 @@
         ],
         "title": "SimulationSuiteRunSummary",
         "type": "object"
+      },
+      "SimulationToolExecution": {
+        "additionalProperties": false,
+        "description": "Which tools a simulation launch runs for real, and which return a configured result.\n\nEvery other tool is simulated and returns a dry-run placeholder. Writes never run\nfor real. The settings apply to every case, step and fork of the launch, and to a\nre-drive of an interrupted run. Empty, the default, simulates every tool.",
+        "properties": {
+          "live_read_tools": {
+            "description": "Read tools that run for real. Each must be a tool the service's simulations can call that `GET /services/{service_id}/tools/resolve` reports as `live_read_eligible`, with no entry in `tool_mocks`. Integration endpoints need `Integration:View`; platform functions and data queries need `Workspace:View`; world reads need `Service:Update`, which every launch requires. A case anchored to an external principal (an entity with an active external role assignment) runs its live reads as that principal, so it also needs `Conversation:CreateForPrincipal`.",
+            "items": {
+              "$ref": "#/components/schemas/SimulationToolName"
+            },
+            "maxItems": 64,
+            "title": "Live Read Tools",
+            "type": "array"
+          },
+          "tool_mocks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SimulationToolMockValue"
+            },
+            "description": "Tool name to the result it returns in place of a call. Each must be a tool the service's simulations can call; a companion skill is mocked through the tools it calls.",
+            "maxProperties": 64,
+            "propertyNames": {
+              "$ref": "#/components/schemas/SimulationToolName"
+            },
+            "title": "Tool Mocks",
+            "type": "object"
+          }
+        },
+        "title": "SimulationToolExecution",
+        "type": "object"
+      },
+      "SimulationToolMockValue": {
+        "maxLength": 16384,
+        "type": "string"
+      },
+      "SimulationToolName": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
       },
       "SimulationTurnPolicyResponse": {
         "properties": {
@@ -37297,6 +37965,22 @@
         "title": "StoredParameter",
         "type": "object"
       },
+      "StoredSimulationCaseEval": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SimulationCaseMetricEval"
+          },
+          {
+            "$ref": "#/components/schemas/SimulationCaseAssertionEval"
+          },
+          {
+            "$ref": "#/components/schemas/SimulationCaseBooleanAssertionEval"
+          },
+          {
+            "$ref": "#/components/schemas/SimulationCaseLegacyAssertionEval"
+          }
+        ]
+      },
       "StratifiedFitRow": {
         "properties": {
           "auroc": {
@@ -38678,6 +39362,20 @@
       },
       "SurfaceSubmittedEvent": {
         "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The text conversation the surface was made for, or null for a surface made outside\none.",
+            "title": "Conversation Id"
+          },
           "entity_id": {
             "format": "uuid",
             "title": "Entity Id",
@@ -39228,6 +39926,14 @@
         "title": "TestInvokeResponse",
         "type": "object"
       },
+      "TestSkillFailureClass": {
+        "enum": [
+          "model_rejected",
+          "rounds_exhausted",
+          "generic"
+        ],
+        "type": "string"
+      },
       "TestSkillRequest": {
         "properties": {
           "input": {
@@ -39276,8 +39982,19 @@
                 "type": "null"
               }
             ],
-            "description": "Error message if the skill execution failed",
+            "description": "Why the run failed, in the platform's own words; null when it succeeded.",
             "title": "Error"
+          },
+          "failure_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TestSkillFailureClass"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the run failed; null when it succeeded. model_rejected: the model provider refused a request the run sent (HTTP 400, 413 or 422), which points at the skill's tools, schemas, prompt or model settings. rounds_exhausted: the run spent its tool-round budget. generic: anything else, including a provider error on the platform's side (credentials, a missing endpoint, a rate limit, an outage) and a tool call the model narrated as text instead of making."
           },
           "input_tokens": {
             "description": "Number of input tokens consumed",
@@ -40343,6 +41060,34 @@
             "default": "",
             "title": "Call Id",
             "type": "string"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "live",
+                  "mocked",
+                  "dry_run"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the call ran: `live` for real, `mocked` against the run's `tool_mocks` entry, or `dry_run`\n(it returned a placeholder). A companion skill carries its most simulated tool's label, and none\nwhen no tool it can call was simulated: its output is its own text, never a system's response.\nNull then, on a record that predates the label, and for a name that was not a session tool.",
+            "title": "Execution"
           },
           "input": {
             "default": "",
@@ -43026,7 +43771,7 @@
                 "type": "null"
               }
             ],
-            "description": "Synchronous callers only: when a turn ends ``background_pending``, omit the filler/acknowledgement text from ``output`` so a batch caller never mistakes the ack for the answer (``output`` is empty; ``background_pending=true`` is the poll-later signal). ``null`` (default) inherits the channel policy. Ignored with ``poll=true`` (422).",
+            "description": "Synchronous callers only: when a turn ends ``background_pending``, omit the filler/acknowledgement text from ``output`` so a batch caller never mistakes the ack for the answer (``output`` is empty; ``background_pending=true`` is the poll-later signal). Answers a ``wait_for_final`` wait collected still come back. ``null`` (default) inherits the channel policy. Ignored with ``poll=true`` (422).",
             "title": "Suppress Filler"
           },
           "viewport_height": {
@@ -43064,7 +43809,7 @@
                 "type": "null"
               }
             ],
-            "description": "Synchronous callers only: when a turn hands work to a background tool (``background_pending``), await the real answer inline (bounded, ~30s) instead of returning the acknowledgement immediately. On completion the response carries the final answer with ``background_pending=false``; on timeout it returns ``background_pending=true`` \u2014 resolve it later with ``poll=true``. ``null`` (default) inherits the channel policy (web = do not wait). Ignored with ``poll=true`` (422).",
+            "description": "Synchronous callers only: when a turn hands work to a background tool (``background_pending``), await this turn's answer inline instead of returning the acknowledgement immediately. The turn and the wait share one budget of about 170 seconds, so give the request a client timeout of at least 180 seconds. The response carries the answers the turn's background work commits, in order, in place of the acknowledgement, so a tool that hands off to another returns both messages; ``background_pending=false`` means ``output`` is the turn's whole answer. Otherwise (time ran out, or an earlier turn's answer is still waiting to be collected) it returns what arrived, or the acknowledgement, with ``background_pending=true``; collect the rest with ``poll=true``, and poll before sending the next turn. Send an ``Idempotency-Key`` with every waiting turn: if your own timeout fires or the connection drops first, retry with the same key, and the retry returns the answers the turn already collected instead of running it again. ``null`` (default) inherits the channel policy (web = do not wait). Ignored with ``poll=true`` (422).",
             "title": "Wait For Final"
           }
         },
@@ -44000,6 +44745,18 @@
             ],
             "title": "Context Graph Id"
           },
+          "demo_mode": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Internal. Only a platform admin can set this.",
+            "title": "Demo Mode"
+          },
           "description": {
             "anyOf": [
               {
@@ -44140,14 +44897,7 @@
             "anyOf": [
               {
                 "items": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/SimulationCaseMetricEval"
-                    },
-                    {
-                      "$ref": "#/components/schemas/SimulationCaseAssertionEval"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/SimulationCaseEval"
                 },
                 "maxItems": 100,
                 "type": "array"
@@ -44483,6 +45233,7 @@
                 "type": "null"
               }
             ],
+            "description": "Anthropic model id; see CreateSkillRequest. null/absent leaves it unchanged.",
             "title": "Model"
           },
           "name": {
@@ -47178,6 +47929,7 @@
                 "type": "null"
               }
             ],
+            "description": "TTS provider for each call language. Keys must be one of ar, de, en, es, fr, ja, ko, multilingual, pt, zh, with at most 10 entries. An empty map is refused; send null to clear the map.",
             "title": "Language Providers"
           },
           "post_call_analysis_enabled": {
@@ -48246,6 +48998,7 @@
           "booking",
           "cancellation",
           "reschedule",
+          "message",
           "other"
         ],
         "type": "string"
@@ -48935,7 +49688,7 @@
           },
           "max_retries": {
             "default": 2,
-            "description": "Retry attempts on transient failures.",
+            "description": "How many times a failed call goes out again. A read goes again after a status in `retry_on_status`,\na timeout or a connection that failed. A write goes again only after a 429 or 503 that\n`retry_on_status` lists, or a connection that never opened. Integration writes carry no idempotency key, so a write\nthat timed out, lost its connection or got any other status may already have been made, and isn't\nsent again. A write is a call to an endpoint that declares `declarations.writes` of any kind but\n`none`, or declares nothing and uses POST, PUT, PATCH or DELETE. An endpoint that only reads over\nPOST can declare `declarations.writes.kind` `none` to retry like a read.",
             "maximum": 10.0,
             "minimum": 0.0,
             "title": "Max Retries",
@@ -48984,7 +49737,7 @@
             "title": "Response Template"
           },
           "retry_on_status": {
-            "description": "HTTP status codes that trigger a retry.",
+            "description": "HTTP statuses after which a failed call goes out again, up to `max_retries` times. A write goes\nagain only after a 429 or 503 listed here: any other status, 502 and 504 included, can follow a\nwrite the vendor made, so a write that gets one isn't sent again. An endpoint that only reads over\nPOST can declare `declarations.writes.kind` `none` to retry on every status listed here.",
             "items": {
               "type": "integer"
             },
@@ -49023,7 +49776,7 @@
         "properties": {
           "approval_policy": {
             "default": "none",
-            "description": "Human-in-the-loop approval gate. ``none`` (default) = no approval\nrequired; ``writes`` = approval required for write-classified endpoints;\n``all`` = approval required for every endpoint.",
+            "description": "Human-in-the-loop approval gate. ``none`` (default) = no approval\nrequired; ``writes`` = approval required for an endpoint that may write: one\nthat uses POST, PUT, PATCH or DELETE, or declares ``declarations.writes`` of any\nkind but ``none``, whatever its method; ``all`` = approval required for every\nendpoint.",
             "enum": [
               "none",
               "writes",
@@ -49237,7 +49990,7 @@
                 "type": "null"
               }
             ],
-            "description": "Error message if the request failed.",
+            "description": "Error message if the call failed or its `outcome` is `unknown`, and then it ends by saying the\nvendor may have made the write. A non-null `error` alone doesn't mean nothing was written: read\n`outcome`. Also set on a write the vendor answered with a 2xx whose `response_template` failed,\nor whose body didn't parse when no `field` or `graphql` success rule reads it: the write went\nthrough, `outcome` is `succeeded`, and `final_result` is the body unshaped.",
             "title": "Error"
           },
           "final_result": {
@@ -49251,6 +50004,21 @@
             ],
             "description": "Final processed result (rendered + truncated to max_response_length).",
             "title": "Final Result"
+          },
+          "outcome": {
+            "description": "How the call ended. `succeeded`: the vendor answered with a 2xx, and `wrote` says whether a\ndeclared write happened. A write that succeeded can still carry an `error` saying why its body\ncouldn't be shaped into the result. `failed`: the call failed, and nothing says the vendor acted\non it. `unknown`: a write went out and no answer says whether it went through: a timeout, a\ndropped connection, a gateway's 502, 504, 520 or 524, or a 2xx or 3xx that still failed, such as\na 2xx whose body a `field` or `graphql` success rule can't read. The vendor may have made the\nwrite, so check the vendor before sending it again.",
+            "enum": [
+              "succeeded",
+              "failed",
+              "unknown"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "over_text_budget": {
+            "description": "Whether this call took as long as a text turn waits on one, or longer: `duration_ms`, which counts retries and the waits between them, is `text_budget_ms` or more. The test waits as long as the endpoint's `timeout_seconds` and retries allow, but a text turn gives up on a call at 20 s, so a call this slow fails there as a timeout even when it succeeded here. A write the text turn cuts off mid-request has an unknown outcome. Voice calls, background calls and a companion skill's sub-tools keep the endpoint's timeout.",
+            "title": "Over Text Budget",
+            "type": "boolean"
           },
           "raw_response": {
             "description": "Raw response body from the upstream call.",
@@ -49286,6 +50054,11 @@
             "description": "HTTP status code from the upstream call.",
             "title": "Status Code"
           },
+          "text_budget_ms": {
+            "description": "How long a text turn waits on an integration call before it gives up: 20000 ms (20 s), retries and the waits between them included. Each attempt still stops at the endpoint's `timeout_seconds`, so an endpoint set lower keeps its own timeout. Voice calls, background calls and a companion skill's sub-tools aren't held to it: they keep the endpoint's timeout.",
+            "title": "Text Budget Ms",
+            "type": "integer"
+          },
           "wrote": {
             "anyOf": [
               {
@@ -49295,10 +50068,15 @@
                 "type": "null"
               }
             ],
-            "description": "Whether the endpoint's declared write happened, as its `declarations.writes.success` reads\nthis response. Null when the endpoint declares no write, or the call failed.",
+            "description": "Whether the endpoint's declared write happened, as its `declarations.writes.success` reads\nthis response. Null when the endpoint declares no write, or the call didn't succeed. After an\n`unknown` outcome null says nothing either way: the vendor may have made the write.",
             "title": "Wrote"
           }
         },
+        "required": [
+          "outcome",
+          "over_text_budget",
+          "text_budget_ms"
+        ],
         "title": "Response",
         "type": "object"
       },
@@ -49355,6 +50133,7 @@
             "type": "integer"
           },
           "max_retries": {
+            "description": "How many times a failed call goes out again. A read goes again after a status in `retry_on_status`,\na timeout or a connection that failed. A write goes again only after a 429 or 503 that\n`retry_on_status` lists, or a connection that never opened. Integration writes carry no idempotency key, so a write\nthat timed out, lost its connection or got any other status may already have been made, and isn't\nsent again. A write is a call to an endpoint that declares `declarations.writes` of any kind but\n`none`, or declares nothing and uses POST, PUT, PATCH or DELETE. An endpoint that only reads over\nPOST can declare `declarations.writes.kind` `none` to retry like a read.",
             "maximum": 10.0,
             "minimum": 0.0,
             "title": "Max Retries",
@@ -49393,6 +50172,7 @@
             "title": "Response Template"
           },
           "retry_on_status": {
+            "description": "HTTP statuses after which a failed call goes out again, up to `max_retries` times. A write goes\nagain only after a 429 or 503 listed here: any other status, 502 and 504 included, can follow a\nwrite the vendor made, so a write that gets one isn't sent again. An endpoint that only reads over\nPOST can declare `declarations.writes.kind` `none` to retry on every status listed here.",
             "items": {
               "type": "integer"
             },
@@ -49422,7 +50202,7 @@
         "description": "PATCH body \u2014 each field is sentinel-defaulted; absent \u2260 explicit-null.",
         "properties": {
           "approval_policy": {
-            "description": "Change the human-in-the-loop approval gate. ``none`` = no approval\nrequired; ``writes`` = approval required for write-classified endpoints;\n``all`` = approval required for every endpoint. Absent \u21d2 untouched.",
+            "description": "Change the human-in-the-loop approval gate. ``none`` = no approval\nrequired; ``writes`` = approval required for an endpoint that may write: one\nthat uses POST, PUT, PATCH or DELETE, or declares ``declarations.writes`` of any\nkind but ``none``, whatever its method; ``all`` = approval required for every\nendpoint. Absent \u21d2 untouched.",
             "enum": [
               "none",
               "writes",
@@ -51277,7 +52057,7 @@
     },
     "/s/{token}/ocr": {
       "post": {
-        "description": "Extract structured data from an image (e.g. insurance card) using Gemini Vision.\n\nReturns extracted field key-value pairs and a confidence score.\nToken-authenticated, no Bearer auth.",
+        "description": "Read insurance card fields off a photo with Gemini Vision.\n\nReturns the requested fields the photo shows, with the model's lowest\nconfidence over them. 422 when ``image`` isn't a PNG, JPEG, WebP or HEIC\nphoto of at most 7 MB, 502 when the model call fails.\nToken-authenticated, no Bearer auth.",
         "operationId": "ocr-surface-extract",
         "parameters": [
           {
@@ -51333,6 +52113,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurfaceErrorResponse"
+                }
+              }
+            },
+            "description": "The model call failed; try again"
           }
         },
         "summary": "Ocr Extract",
@@ -51429,7 +52219,7 @@
     },
     "/s/{token}/submit": {
       "post": {
-        "description": "Submit a patient-facing surface form.\n\nAccepts standard HTML form POST. Writes surface.submitted event\nwith confidence 0.5 (self-reported data).",
+        "description": "Submit a patient-facing surface form.\n\nAccepts standard HTML form POST. Writes surface.submitted event\nwith confidence 0.5 (self-reported data), then hands the submission to\nthe text conversation the surface was created in.",
         "operationId": "submit-surface",
         "parameters": [
           {
@@ -56218,7 +57008,7 @@
     },
     "/v1/{workspace_id}/calls/outbound": {
       "post": {
-        "description": "Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Supports idempotency via the idempotency_key field.",
+        "description": "Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 saying channel-manager refused the call, for example an invalid number, is final.",
         "operationId": "create-outbound-call",
         "parameters": [
           {
@@ -56257,7 +57047,7 @@
             "description": "Invalid phone number format"
           },
           "404": {
-            "description": "No phone number available for use case"
+            "description": "The patient, the use case's service, or a phone number for the use case was not found"
           },
           "409": {
             "description": "A call with this idempotency_key is still being placed (retry shortly), or the key was used for a different call"
@@ -56276,13 +57066,13 @@
             "description": "Rate limit exceeded"
           },
           "502": {
-            "description": "Upstream Twilio or voice agent error"
+            "description": "Placing the call failed upstream, or its result was lost on the way back; retry with the same idempotency_key"
           },
           "503": {
             "description": "The call could not be placed; retry with the same idempotency_key"
           },
           "504": {
-            "description": "Channel manager phone selection timed out"
+            "description": "The call was not confirmed within 60 seconds and may still be placed; retry with the same idempotency_key"
           }
         },
         "summary": "Create an outbound call",
@@ -57758,6 +58548,12 @@
           "204": {
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Conversation not found"
+          },
+          "409": {
+            "description": "Conversation is paused while an operator holds it, or changed state during the close"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -58103,13 +58899,13 @@
             }
           },
           {
-            "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation.",
+            "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409; one an operator holds can be polled again once it is handed back.",
             "in": "query",
             "name": "poll",
             "required": false,
             "schema": {
               "default": false,
-              "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation.",
+              "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409; one an operator holds can be polled again once it is handed back.",
               "title": "Poll",
               "type": "boolean"
             }
@@ -58160,6 +58956,15 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "description": "The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active"
+          },
+          "404": {
+            "description": "Conversation or service not found"
+          },
+          "409": {
+            "description": "Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -58168,7 +58973,19 @@
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "The request is invalid, an empty kickoff turn comes after the conversation started, or the conversation's service binding is missing or corrupt"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "502": {
+            "description": "Agent service failed the turn, its reply was lost or couldn't be read, or the conversation couldn't be read back after the turn"
+          },
+          "503": {
+            "description": "Agent service couldn't be reached, so the turn didn't start, or the turn can't be taken right now. Retry with the same Idempotency-Key"
+          },
+          "504": {
+            "description": "Agent service did not respond in time. The turn may still finish: retry with the same Idempotency-Key"
           }
         },
         "summary": "Send a message and get the agent's response",
@@ -58179,7 +58996,7 @@
     },
     "/v1/{workspace_id}/conversations/{conversation_id}/turns/stream": {
       "post": {
-        "description": "Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header \u2014 no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.",
+        "description": "Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header \u2014 no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. A turn refused before its first frame, such as a retry whose `Idempotency-Key` was used for a different turn, gets the same JSON error as `POST /turns` instead of a stream. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.",
         "operationId": "create_turn_stream_v1__workspace_id__conversations__conversation_id__turns_stream_post",
         "parameters": [
           {
@@ -58258,17 +59075,36 @@
             },
             "description": "SSE stream of TurnStreamEvent frames"
           },
+          "403": {
+            "description": "The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active"
+          },
           "404": {
             "description": "Conversation or service not found"
           },
           "409": {
-            "description": "Conversation is closed"
+            "description": "Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn"
           },
           "422": {
-            "description": "Conversation is missing or has corrupt service binding"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "The request is invalid, an empty kickoff turn comes after the conversation started, or the conversation's service binding is missing or corrupt"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "502": {
+            "description": "Agent service failed the turn, its reply was lost or couldn't be read, or the conversation couldn't be read back after the turn"
           },
           "503": {
-            "description": "Agent service unavailable"
+            "description": "Agent service couldn't be reached, so the turn didn't start, or the turn can't be taken right now. Retry with the same Idempotency-Key"
+          },
+          "504": {
+            "description": "Agent service did not respond in time. The turn may still finish: retry with the same Idempotency-Key"
           }
         },
         "summary": "Send a message and receive a streamed agent response",
@@ -66102,7 +66938,7 @@
             "description": "Managed integration endpoint mutation blocked."
           },
           "422": {
-            "description": "Invalid request body, NOT NULL field set to null, or no fields to update."
+            "description": "Invalid request body, NOT NULL field set to null, no fields to update, or a `declarations.reads` that names a parameter the endpoint's `input_schema` doesn't declare."
           }
         },
         "summary": "Update an endpoint",
@@ -66113,7 +66949,7 @@
     },
     "/v1/{workspace_id}/integrations/{integration_id}/endpoints/{endpoint_id}/test": {
       "post": {
-        "description": "Execute an integration endpoint with test parameters and return the full response pipeline breakdown. Requires `Integration.view` permission.",
+        "description": "Execute an integration endpoint with test parameters and return the full response pipeline breakdown. Requires `Integration.view` permission.\n\nThe test waits as long as the endpoint's `timeout_seconds` and retries allow. A text turn gives up on a call at 20 s, retries included, while voice calls, background calls and a companion skill's sub-tools keep the endpoint's timeout. So an endpoint can pass this test and still time out on a text turn: `over_text_budget` says when this call took `text_budget_ms` or longer.",
         "operationId": "test-integration-endpoint",
         "parameters": [
           {
@@ -70307,7 +71143,7 @@
         ]
       },
       "patch": {
-        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone.",
+        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:\nthat kind grades simulation case assertions only.",
         "operationId": "update-production-eval-definition",
         "parameters": [
           {
@@ -74036,7 +74872,7 @@
         ]
       },
       "post": {
-        "description": "Create durable simulation cases for an internal benchmark suite.",
+        "description": "Create durable simulation cases for an internal benchmark suite.\n\nAn LLM-graded assertion is ``llm_boolean``: ``instructions`` (the question and what\nmakes it true or false) and a boolean ``expected``. ``llm_judge`` and other\nfree-text assertion kinds return 422.",
         "operationId": "create-simulation-cases",
         "parameters": [
           {
@@ -74193,7 +75029,7 @@
         ]
       },
       "patch": {
-        "description": "Update editable fields on one durable simulation case.",
+        "description": "Update editable fields on one durable simulation case.\n\n``evals`` replaces the whole list and takes the same shapes as create, so an\nassertion read back with ``grading: legacy_verdict`` has to be rewritten before\nthe list is sent.",
         "operationId": "update-simulation-case",
         "parameters": [
           {
@@ -77180,7 +78016,7 @@
     },
     "/v1/{workspace_id}/skills/{skill_id}/test": {
       "post": {
-        "description": "Execute a skill in isolation with the given input.",
+        "description": "Execute a skill in isolation with the given input. A run that fails still answers 200, with `error` and `failure_class` set and the tool calls it made in `sub_tool_logs`.",
         "operationId": "test-skill",
         "parameters": [
           {
@@ -77961,6 +78797,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReshapeSurfaceRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
