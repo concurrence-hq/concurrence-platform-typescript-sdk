@@ -176,9 +176,11 @@ export interface paths {
         put?: never;
         /**
          * Ocr Extract
-         * @description Extract structured data from an image (e.g. insurance card) using Gemini Vision.
+         * @description Read insurance card fields off a photo with Gemini Vision.
          *
-         *     Returns extracted field key-value pairs and a confidence score.
+         *     Returns the requested fields the photo shows, with the model's lowest
+         *     confidence over them. 422 when ``image`` isn't a PNG, JPEG, WebP or HEIC
+         *     photo of at most 7 MB, 502 when the model call fails.
          *     Token-authenticated, no Bearer auth.
          */
         post: operations["ocr-surface-extract"];
@@ -226,7 +228,8 @@ export interface paths {
          * @description Submit a patient-facing surface form.
          *
          *     Accepts standard HTML form POST. Writes surface.submitted event
-         *     with confidence 0.5 (self-reported data).
+         *     with confidence 0.5 (self-reported data), then hands the submission to
+         *     the text conversation the surface was created in.
          */
         post: operations["submit-surface"];
         delete?: never;
@@ -1297,7 +1300,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Supports idempotency via the idempotency_key field.
+         * @description Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 saying channel-manager refused the call, for example an invalid number, is final.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -1813,7 +1816,7 @@ export interface paths {
         put?: never;
         /**
          * Send a message and receive a streamed agent response
-         * @description Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header — no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.
+         * @description Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header — no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. A turn refused before its first frame, such as a retry whose `Idempotency-Key` was used for a different turn, gets the same JSON error as `POST /turns` instead of a stream. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.
          */
         post: operations["create_turn_stream_v1__workspace_id__conversations__conversation_id__turns_stream_post"];
         delete?: never;
@@ -3496,6 +3499,8 @@ export interface paths {
         /**
          * Test an integration endpoint
          * @description Execute an integration endpoint with test parameters and return the full response pipeline breakdown. Requires `Integration.view` permission.
+         *
+         *     The test waits as long as the endpoint's `timeout_seconds` and retries allow. A text turn gives up on a call at 20 s, retries included, while voice calls, background calls and a companion skill's sub-tools keep the endpoint's timeout. So an endpoint can pass this test and still time out on a text turn: `over_text_budget` says when this call took `text_budget_ms` or longer.
          */
         post: operations["test-integration-endpoint"];
         delete?: never;
@@ -4539,7 +4544,8 @@ export interface paths {
          *     true, re-checks the metric: a metric eval must name an active ai_query
          *     metric on call_intelligence, else 422. Clearing ``metric_key`` on a metric
          *     eval also returns 422. Any other patch, including ``active: false``,
-         *     leaves the stored key alone.
+         *     leaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:
+         *     that kind grades simulation case assertions only.
          */
         patch: operations["update-production-eval-definition"];
         trace?: never;
@@ -4555,7 +4561,7 @@ export interface paths {
          * List prompt logs for a workspace
          * @description Lists ``prompt_log`` events emitted by agent-engine — full system prompt, conversation history, tool catalog, LLM model, and response — for auditing and debugging. Reads the Delta ``world_events`` ledger via Databricks SQL; typical latency is 1-5s with a 15s ceiling on cold-start.
          *
-         *     **Conversation filter**: pass ``conversation_id`` for the canonical mental model. Text conversations resolve from ``world.conversations``; voice/call IDs resolve through the projected conversation entity. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.
+         *     **Conversation filter**: pass ``conversation_id``, the id ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row; an older call with no such row answers 404, so filter it by ``call_sid``. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.
          *
          *     **Other filters**: ``prompt_type``, ``state_name``, ``from_ts``, ``to_ts``. When no selectivity-bearing filter (conversation_id / call_sid / time range) is supplied, the query is auto-capped to the last 7 days; the applied window is reported in ``applied_time_window_days``.
          *
@@ -5488,6 +5494,10 @@ export interface paths {
         /**
          * Create Simulation Cases
          * @description Create durable simulation cases for an internal benchmark suite.
+         *
+         *     An LLM-graded assertion is ``llm_boolean``: ``instructions`` (the question and what
+         *     makes it true or false) and a boolean ``expected``. ``llm_judge`` and other
+         *     free-text assertion kinds return 422.
          */
         post: operations["create-simulation-cases"];
         delete?: never;
@@ -5525,6 +5535,10 @@ export interface paths {
         /**
          * Update Simulation Case
          * @description Update editable fields on one durable simulation case.
+         *
+         *     ``evals`` replaces the whole list and takes the same shapes as create, so an
+         *     assertion read back with ``grading: legacy_verdict`` has to be rewritten before
+         *     the list is sent.
          */
         patch: operations["update-simulation-case"];
         trace?: never;
@@ -6181,7 +6195,7 @@ export interface paths {
         put?: never;
         /**
          * Test a skill
-         * @description Execute a skill in isolation with the given input.
+         * @description Execute a skill in isolation with the given input. A run that fails still answers 200, with `error` and `failure_class` set and the tool calls it made in `sub_tool_logs`.
          */
         post: operations["test-skill"];
         delete?: never;
@@ -8518,6 +8532,8 @@ export interface components {
              * @enum {string}
              */
             status: "running" | "completed" | "failed";
+            /** @description The tool settings the run executes with. A `/bridge` run simulates every tool. */
+            tool_execution: components["schemas"]["SimulationToolExecution"];
         };
         /**
          * BriefResponse
@@ -8635,7 +8651,7 @@ export interface components {
             /** Caller Id */
             caller_id?: string | null;
             /** Completion Reason */
-            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled") | null;
+            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
             /** Conference Sid */
             conference_sid?: string | null;
             config?: components["schemas"]["ConversationConfig"] | null;
@@ -8735,7 +8751,7 @@ export interface components {
              * Completion Reason
              * @enum {string}
              */
-            completion_reason: "completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled";
+            completion_reason: "completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed";
             /**
              * Direction
              * @enum {string}
@@ -8868,7 +8884,7 @@ export interface components {
              * Completion Reason
              * @description Why the call ended
              */
-            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled") | null;
+            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
             /** @description Conversation flow metrics */
             conversation_summary?: components["schemas"]["ConversationSummary"] | null;
             /**
@@ -9201,7 +9217,7 @@ export interface components {
              * Completion Reason
              * @description Why the call ended
              */
-            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled") | null;
+            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
             /**
              * Direction
              * @description Call direction
@@ -10219,6 +10235,26 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /**
+         * ConversationCompletion
+         * @description How the session that ended a text conversation finished.
+         */
+        ConversationCompletion: {
+            /**
+             * Completion Reason
+             * @description Canonical completion reason of the session that ended the conversation.
+             * @enum {string}
+             */
+            completion_reason: "completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed";
+            /**
+             * Ended At
+             * Format: date-time
+             * @description When that session ended: the ended_at its session.ended world event carries.
+             */
+            ended_at: string;
+            /** @description Context-graph state the session ended in. */
+            final_state: components["schemas"]["NameString"];
+        };
         /** ConversationConfig */
         ConversationConfig: {
             /** Agent Id */
@@ -10271,6 +10307,8 @@ export interface components {
              * @enum {string}
              */
             lifecycle: "active" | "dormant" | "closed";
+            /** @description What the conversation executed with, as its first session recorded it at start: the agent and context graph versions, the version set, the models and the config fingerprint. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models. */
+            manifest?: components["schemas"]["RunManifest"] | null;
             /** Phone Number */
             phone_number?: string | null;
             /** Plan */
@@ -10279,6 +10317,11 @@ export interface components {
             quality_score?: number | null;
             /** Service Id */
             service_id?: string | null;
+            /**
+             * Session Provider
+             * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
+             */
+            session_provider?: ("amigo" | "gpt_realtime") | null;
             /** Source */
             source?: string | null;
             /**
@@ -10308,6 +10351,8 @@ export interface components {
         };
         /** ConversationStatusTransitionRequest */
         ConversationStatusTransitionRequest: {
+            /** @description How the session that ended the conversation finished, written on the row with the status. Omitted when no session ended it (a use-case rebind retirement). */
+            completion?: components["schemas"]["ConversationCompletion"] | null;
             /**
              * Reason
              * @description Low-cardinality transition tag (e.g. hsm_terminal, use_case_rebind) recorded on the audit event and the conversation world event.
@@ -10425,6 +10470,37 @@ export interface components {
              */
             workspace_id: string;
         };
+        /**
+         * ConversationTimeline
+         * @description Where a voice call's lines sit in its recording, and the waits between them.
+         */
+        ConversationTimeline: {
+            /**
+             * Avg Perceived Latency Ms
+             * @description Mean of the placed gaps' ``e2e_ttfb_ms``. Null when there are none.
+             */
+            avg_perceived_latency_ms?: number | null;
+            /**
+             * Avg Processing Gap Ms
+             * @description Mean of the placed processing gaps, in ms. Null when there are none.
+             */
+            avg_processing_gap_ms?: number | null;
+            /**
+             * Max Processing Gap Ms
+             * @description Longest placed processing gap, in ms. Null when there are none.
+             */
+            max_processing_gap_ms?: number | null;
+            /**
+             * Segments
+             * @description Each placed line's speech (``caller_speech``, ``agent_speech``, ``filler``, or ``interrupted_speech`` for a reply the caller cut off; a filler stays ``filler`` when cut off, and its turn's ``filler_type`` and ``interrupted`` say both) and each ``processing_gap``: the wait from a user message's end to the first reply after it, when that reply started once the user had stopped. A line already playing when the user started answers an earlier message. Later lines start no wait: the caller had heard the agent, and an agent line's end is when its audio was sent, so the time after it isn't measured. A gap's ``e2e_ttfb_ms`` is the wait the caller heard, to the first filler that started after their line or to the reply. A wait is placed only where the user message, the reply and every line that played between them have a start and an end, so every gap ends at a line in ``turns``. Ordered by start, then end.
+             */
+            segments: components["schemas"]["TimelineSegment"][];
+            /**
+             * Turns
+             * @description One entry per message whose speech has a recorded start and end: ``seek_to`` and ``active_start`` are where it starts and ``active_end`` where it ends, in seconds from the start of the recording.
+             */
+            turns: components["schemas"]["TurnTimeline"][];
+        };
         /** ConversationToolCallDetail */
         ConversationToolCallDetail: {
             /** Call Id */
@@ -10450,9 +10526,10 @@ export interface components {
             result?: string;
             /**
              * Succeeded
+             * @description Whether the tool call succeeded. Null when no result was recorded, for example while it still runs.
              * @default true
              */
-            succeeded?: boolean;
+            succeeded?: boolean | null;
             /** Tool Name */
             tool_name: string;
         };
@@ -10478,6 +10555,21 @@ export interface components {
              */
             content?: components["schemas"]["ContentPartPayload"][];
             /**
+             * Engine Turn Id
+             * @description The agent engine's id for the turn this message opens (a user message) or answers (an agent message). One exchange can hold several engine turns, such as a tool call and the reply to its result. Null when no engine turn is recorded on the message: a filler line, a text reply, a channel event, or an older conversation that didn't record it.
+             */
+            engine_turn_id?: string | null;
+            /**
+             * Filler Type
+             * @description On an agent line the agent spoke while working on the reply, the kind of filler it was, such as ``receipt``, ``empathy`` or ``working``. Null on a reply and on user and system messages.
+             */
+            filler_type?: string | null;
+            /**
+             * Interrupted
+             * @description On an agent line in a call, whether the caller cut it off, before or while it played. Null on user, system and text messages, and where the record doesn't say.
+             */
+            interrupted?: boolean | null;
+            /**
              * Role
              * @enum {string}
              */
@@ -10488,8 +10580,23 @@ export interface components {
              */
             selected_action_description?: string | null;
             /**
+             * Speech End Ms
+             * @description Where this message's speech ends in the call's recording, in milliseconds from the start of the recording: when the caller stopped speaking, or when the agent line's last audio was sent. Null when no position was recorded, such as on a caller's line the call ended during.
+             */
+            speech_end_ms?: number | null;
+            /**
+             * Speech Start Ms
+             * @description Where this message's speech starts in the call's recording, in milliseconds from the start of the recording. A user message starts when the caller began speaking; an agent message when its first audio was sent, slightly before the caller heard it. Null when no position was recorded: text messages, agent lines that never played, and older calls that didn't record one.
+             */
+            speech_start_ms?: number | null;
+            /**
+             * State
+             * @description The context-graph state of the conversation at this message: for a user message, the state it arrived in; for an agent message, the state after the turn's transitions. Null when the record names no state.
+             */
+            state?: string | null;
+            /**
              * @deprecated
-             * @description Context-graph state transition that occurred during this turn. Null means no transition took place or no transition was recorded. Deprecated: use state_transitions instead. If multiple transitions were recorded, this field reports the first source state and final destination state.
+             * @description Context-graph state transition that occurred during this turn. Null means no transition took place or no transition was recorded. Deprecated: use state_transitions instead. If multiple transitions were recorded, this field reports the first source state and final destination state, with no exit condition.
              */
             state_transition?: components["schemas"]["ConversationTurnStateTransition"] | null;
             /**
@@ -10543,6 +10650,11 @@ export interface components {
         };
         /** ConversationTurnStateTransition */
         ConversationTurnStateTransition: {
+            /**
+             * Exit Condition
+             * @description The exit condition the agent took out of ``from``, as the context graph worded it when the hop was taken. Null on a hop out of an annotation state, which has no exit conditions, and on a hop recorded without one. Never read from the current graph.
+             */
+            exit_condition?: string | null;
             /**
              * From
              * @description Source context-graph state before the turn's state transition.
@@ -11063,7 +11175,7 @@ export interface components {
             goal?: components["schemas"]["DescriptionString"] | null;
             /**
              * Idempotency Key
-             * @description Client-provided idempotency key. Auto-generated if omitted.
+             * @description Client-provided idempotency key, scoped to the workspace. Once a call is placed with a key, a retry with it gets that call for an hour instead of placing a second one. If omitted, every request is a new call.
              */
             idempotency_key?: string | null;
             /**
@@ -11208,6 +11320,12 @@ export interface components {
              * Format: uuid
              */
             context_graph_id: string;
+            /**
+             * Demo Mode
+             * @description Internal. Only a platform admin can set this.
+             * @default false
+             */
+            demo_mode?: boolean;
             /** @default  */
             description?: components["schemas"]["DescriptionString"];
             /**
@@ -11270,7 +11388,7 @@ export interface components {
             /** Description */
             description: string;
             /** Evals */
-            evals?: (components["schemas"]["SimulationCaseMetricEval"] | components["schemas"]["SimulationCaseAssertionEval"])[];
+            evals?: components["schemas"]["SimulationCaseEval"][];
             grounding?: components["schemas"]["SimulationCaseGrounding"];
             /** Metadata */
             metadata?: {
@@ -11396,6 +11514,7 @@ export interface components {
             max_tokens?: number;
             /**
              * Model
+             * @description Anthropic model id the skill runs on. A retired Claude id is a 422 that names its successor.
              * @default claude-sonnet-5-5
              */
             model?: string;
@@ -11460,6 +11579,12 @@ export interface components {
             context?: {
                 [key: string]: unknown;
             };
+            /**
+             * Conversation Id
+             * @description The text conversation the surface is for. Its submission is delivered to that
+             *     conversation's agent, which answers it even when the conversation has gone idle.
+             */
+            conversation_id?: string | null;
             description?: components["schemas"]["DescriptionString"] | null;
             /**
              * Entity Id
@@ -12818,6 +12943,12 @@ export interface components {
          */
         "EndpointDeclarations-Input": {
             /**
+             * @description Whose patient record a call returns, and how the call names that patient: the one its
+             *     request names (``params``), the ones its response holds (``response``), or none (``none``).
+             *     Null when undeclared.
+             */
+            reads?: components["schemas"]["EndpointReads"] | null;
+            /**
              * @description What a successful call writes and how its response reports it. Null when undeclared: the
              *     voice agent then never treats the endpoint's calls as a booking or cancellation.
              */
@@ -12830,11 +12961,18 @@ export interface components {
          */
         "EndpointDeclarations-Output": {
             /**
+             * @description Whose patient record a call returns, and how the call names that patient: the one its
+             *     request names (``params``), the ones its response holds (``response``), or none (``none``).
+             *     Null when undeclared.
+             */
+            reads?: components["schemas"]["EndpointReads"] | null;
+            /**
              * @description What a successful call writes and how its response reports it. Null when undeclared: the
              *     voice agent then never treats the endpoint's calls as a booking or cancellation.
              */
             writes?: components["schemas"]["EndpointWrites-Output"] | null;
         };
+        EndpointReads: components["schemas"]["PatientInParams"] | components["schemas"]["PatientsInResponse"] | components["schemas"]["NoPatient"];
         /**
          * EndpointResponse
          * @description Per-endpoint response (V186 flat shape).
@@ -12887,7 +13025,13 @@ export interface components {
             max_response_length?: number;
             /**
              * Max Retries
-             * @description Retry attempts on transient failures.
+             * @description How many times a failed call goes out again. A read goes again after a status in `retry_on_status`,
+             *     a timeout or a connection that failed. A write goes again only after a 429 or 503 that
+             *     `retry_on_status` lists, or a connection that never opened. Integration writes carry no idempotency key, so a write
+             *     that timed out, lost its connection or got any other status may already have been made, and isn't
+             *     sent again. A write is a call to an endpoint that declares `declarations.writes` of any kind but
+             *     `none`, or declares nothing and uses POST, PUT, PATCH or DELETE. An endpoint that only reads over
+             *     POST can declare `declarations.writes.kind` `none` to retry like a read.
              * @default 2
              */
             max_retries?: number;
@@ -12914,7 +13058,10 @@ export interface components {
             response_template?: string | null;
             /**
              * Retry On Status
-             * @description HTTP status codes that trigger a retry.
+             * @description HTTP statuses after which a failed call goes out again, up to `max_retries` times. A write goes
+             *     again only after a 429 or 503 listed here: any other status, 502 and 504 included, can follow a
+             *     write the vendor made, so a write that gets one isn't sent again. An endpoint that only reads over
+             *     POST can declare `declarations.writes.kind` `none` to retry on every status listed here.
              */
             retry_on_status?: number[];
             /**
@@ -12943,7 +13090,18 @@ export interface components {
              *     companion skill that calls it says.
              */
             kind: components["schemas"]["EndpointWriteKind"];
-            /** @description How the response says the write happened. Required unless ``kind`` is ``none``. */
+            /**
+             * @description How the response says the write happened. Required unless ``kind`` is ``none``. A ``field`` or
+             *     ``graphql`` rule reads the write from the body: the member the pointer names, in a JSON object or
+             *     array or a form-encoded body, or a GraphQL response's ``errors`` or ``data``. A 2xx whose body
+             *     doesn't hold it, such as an HTML page, plain text, an empty 204, JSON that doesn't parse, JSON
+             *     without the field, or JSON that isn't a GraphQL response, such as a gateway's own, leaves the
+             *     write's outcome unknown: the vendor may have made it. So does a GraphQL answer with errors
+             *     that neither says the mutation was refused or never ran nor holds its result, such as a payload
+             *     nulled by an error below the mutation's field, which came after the write, or an error with no
+             *     path beside ``data``. A field with another value, or a GraphQL error at the mutation's own field,
+             *     with that field null, or in an answer with no ``data``, is a write that didn't happen.
+             */
             success?: components["schemas"]["WriteSuccess"] | null;
         };
         /**
@@ -12956,7 +13114,18 @@ export interface components {
              *     companion skill that calls it says.
              */
             kind: components["schemas"]["EndpointWriteKind"];
-            /** @description How the response says the write happened. Required unless ``kind`` is ``none``. */
+            /**
+             * @description How the response says the write happened. Required unless ``kind`` is ``none``. A ``field`` or
+             *     ``graphql`` rule reads the write from the body: the member the pointer names, in a JSON object or
+             *     array or a form-encoded body, or a GraphQL response's ``errors`` or ``data``. A 2xx whose body
+             *     doesn't hold it, such as an HTML page, plain text, an empty 204, JSON that doesn't parse, JSON
+             *     without the field, or JSON that isn't a GraphQL response, such as a gateway's own, leaves the
+             *     write's outcome unknown: the vendor may have made it. So does a GraphQL answer with errors
+             *     that neither says the mutation was refused or never ran nor holds its result, such as a payload
+             *     nulled by an error below the mutation's field, which came after the write, or an error with no
+             *     path beside ``data``. A field with another value, or a GraphQL error at the mutation's own field,
+             *     with that field null, or in an answer with no ``data``, is a write that didn't happen.
+             */
             success?: components["schemas"]["WriteSuccess"] | null;
         };
         /** EnrichmentHistoryEntry */
@@ -13931,6 +14100,16 @@ export interface components {
             expected?: unknown | null;
             /** Expected Display */
             expected_display?: string | null;
+            /**
+             * Grading
+             * @description For an LLM-judged assertion: observed_vs_expected (actual is what the judge observed, and the verdict compares it with expected) or legacy_verdict (the judge returned the verdict and observed nothing, so actual is empty). Null otherwise.
+             */
+            grading?: ("observed_vs_expected" | "legacy_verdict") | null;
+            /**
+             * Instructions
+             * @description An llm_boolean assertion's question, with what makes it true or false.
+             */
+            instructions?: string | null;
             /** Key */
             key: string;
             /** Label */
@@ -15535,8 +15714,13 @@ export interface components {
         };
         /**
          * GraphQLSuccess
-         * @description The request is a GraphQL mutation, the response has no top-level ``errors``, and every
-         *     mutation payload holds something other than null past its user errors.
+         * @description The request is a GraphQL mutation, and every mutation payload holds something other than null
+         *     past its user errors. Top-level ``errors`` in an answer with no ``data`` are a request that never
+         *     ran. Beside ``data`` they're read by their ``path``: one at the mutation's own field, with that
+         *     field null, is its resolver refusing, and one below it came after the write, so a payload that
+         *     still holds its result wrote. A request that never ran, or a resolver that refused, is a write
+         *     that didn't happen. Any other answer with errors leaves the outcome unknown, such as a payload
+         *     GraphQL nulled on the way up, or an error with no path beside ``data``.
          */
         GraphQLSuccess: {
             /**
@@ -16333,7 +16517,7 @@ export interface components {
             p95_engine_ms?: number | null;
             /**
              * Silence Ratio
-             * @description Fraction of call spent in silence
+             * @description Fraction of a voice call in which nobody spoke. Null when it wasn't measured.
              */
             silence_ratio?: number | null;
             /**
@@ -17112,6 +17296,17 @@ export interface components {
              */
             rule_kind: "ninety_day_rolling";
         };
+        /**
+         * NoPatient
+         * @description A call returns no patient's record: practice data, such as open slots, providers or articles.
+         */
+        NoPatient: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            patient_in: "none";
+        };
         /** NonDesiredState */
         NonDesiredState: {
             /**
@@ -17404,23 +17599,29 @@ export interface components {
         OcrRequest: {
             /**
              * Image
-             * @description Base64-encoded image data
+             * @description A PNG, JPEG, WebP or HEIC photo of at most 7 MB, base64-encoded or as a base64 data URL.
              */
             image: string;
             /**
              * Target Fields
-             * @description Optional list of field keys to extract
+             * @description The card fields to read. Omitted, all four.
              */
-            target_fields?: string[] | null;
+            target_fields?: ("carrier_name" | "group_number" | "member_id" | "plan_name")[] | null;
         };
         /**
          * OcrResponse
          * @description Structured field extraction result for an uploaded image.
          */
         OcrResponse: {
-            /** Confidence */
+            /**
+             * Confidence
+             * @description The model's lowest per-field confidence over extracted_fields; 0 when it read no field.
+             */
             confidence: number;
-            /** Extracted Fields */
+            /**
+             * Extracted Fields
+             * @description Each requested field the photo shows, by key, as the card prints it.
+             */
             extracted_fields?: {
                 [key: string]: unknown;
             };
@@ -18150,6 +18351,24 @@ export interface components {
              */
             type: "participant_left";
         };
+        /**
+         * PatientInParams
+         * @description A call returns the record of the patient its request names.
+         */
+        PatientInParams: {
+            /**
+             * Params
+             * @description The input parameters that name the patient, by an identifier their record on file carries:
+             *     its entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's
+             *     ``input_schema``.
+             */
+            params: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            patient_in: "params";
+        };
         /** PatientLabRow */
         PatientLabRow: {
             /** Loinc Code */
@@ -18454,6 +18673,30 @@ export interface components {
             y_hat_htn_1yr?: number | null;
             /** Y Hat T2D 1Yr */
             y_hat_t2d_1yr?: number | null;
+        };
+        /**
+         * PatientsInResponse
+         * @description A call's response holds the patient records it found: a search, or a read by some other key.
+         */
+        PatientsInResponse: {
+            /**
+             * Patient
+             * @description RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one
+             *     their record on file carries, such as ``/patient_id``.
+             */
+            patient: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            patient_in: "response";
+            /**
+             * Records
+             * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:
+             *     a list of records, or one record. ``/patients`` is the list under ``patients``, and the empty
+             *     pointer is the whole body.
+             */
+            records: string;
         };
         /** PerformanceSummaryResponse */
         PerformanceSummaryResponse: {
@@ -18908,6 +19151,11 @@ export interface components {
             /** Effective At */
             effective_at?: string | null;
             /**
+             * Engine Turn Id
+             * @description The agent-engine turn that rendered this prompt (32 hex characters): the user turn, or one tool round within it, so each tool round's prompt has its own. Null on logs written before this field.
+             */
+            engine_turn_id?: string | null;
+            /**
              * Event Id
              * Format: uuid
              */
@@ -18940,9 +19188,20 @@ export interface components {
             state_name?: string | null;
             /** System Prompt */
             system_prompt?: string | null;
-            /** Tool Names */
+            /**
+             * Tool Names
+             * @description The tools the agent's state offered when the prompt rendered.
+             */
             tool_names?: string[];
-            /** Turn Index */
+            /**
+             * Turn Id
+             * @description The user exchange this prompt was rendered for: the same ``turn_id`` the conversation's turns carry (``GET /conversations/{conversation_id}/turns``). Every render in one exchange, tool rounds included, shares it. Null before the conversation's first user message, for a session with no stored turns, and on logs written before this field.
+             */
+            turn_id?: string | null;
+            /**
+             * Turn Index
+             * @description Counts the prompts one agent-engine instance rendered: every engage render (a user turn, each tool round, a check-in) adds one, and it starts again at 0 when the engine is rebuilt, which on text is every request. It repeats within a conversation and names no turn: join on ``turn_id`` or ``engine_turn_id``.
+             */
             turn_index?: number | null;
             /**
              * Workspace Id
@@ -18970,12 +19229,12 @@ export interface components {
             next_offset?: number | null;
             /**
              * Resolved Call Sid
-             * @description When ``conversation_id`` was supplied, this is the underlying ``call_sid`` that the lookup resolved to. Useful for callers that want to drill into per-call surfaces afterward without re-querying ``world.entities_synced``. Null when the caller filtered by ``call_sid`` directly or did not filter by conversation.
+             * @description When ``conversation_id`` was supplied, the ``call_sid`` it resolved to: the call SID of a voice call, the conversation's id for a text conversation. Useful for callers that drill into per-call surfaces afterward. Null when the caller filtered by ``call_sid`` directly, did not filter by conversation, or named a voice call with no recorded call SID.
              */
             resolved_call_sid?: string | null;
             /**
              * Resolved Conversation Kind
-             * @description ``entity_type`` of the conversation entity when ``conversation_id`` was supplied (``call`` for voice/sim, ``conversation`` for text/sms/whatsapp/email). Null otherwise.
+             * @description What ``conversation_id`` named when it was supplied: ``call`` for a voice call, ``conversation`` for a text conversation (web, sms, whatsapp, email). Null otherwise.
              */
             resolved_conversation_kind?: ("call" | "conversation") | null;
         };
@@ -19217,7 +19476,7 @@ export interface components {
          */
         RealtimeTranscriptionConfig: {
             /** Language */
-            language?: string | null;
+            language?: ("af" | "ar" | "az" | "be" | "bg" | "bn" | "bs" | "ca" | "cs" | "cy" | "da" | "de" | "el" | "en" | "es" | "et" | "fa" | "fi" | "fr" | "gl" | "gu" | "he" | "hi" | "hr" | "hu" | "hy" | "id" | "is" | "it" | "iw" | "ja" | "ka" | "kk" | "kn" | "ko" | "lt" | "lv" | "mi" | "mk" | "ml" | "mr" | "ms" | "nb" | "ne" | "nl" | "no" | "pl" | "pt" | "ro" | "ru" | "sk" | "sl" | "sr" | "sv" | "sw" | "ta" | "te" | "th" | "tl" | "tr" | "uk" | "ur" | "vi" | "zh" | "afr" | "amh" | "ara" | "aze" | "bel" | "ben" | "bos" | "bul" | "cat" | "ces" | "cmn" | "cym" | "dan" | "deu" | "ell" | "eng" | "est" | "fas" | "fil" | "fin" | "fra" | "gle" | "glg" | "guj" | "heb" | "hin" | "hrv" | "hun" | "hye" | "ind" | "isl" | "ita" | "jpn" | "kan" | "kat" | "kaz" | "kor" | "lav" | "lit" | "mal" | "mar" | "mkd" | "mon" | "mri" | "msa" | "mya" | "nep" | "nld" | "nor" | "pol" | "por" | "ron" | "rus" | "slk" | "slv" | "som" | "spa" | "srp" | "swa" | "swe" | "tam" | "tel" | "tgl" | "tha" | "tur" | "ukr" | "urd" | "vie" | "yue" | "zh-cn" | "zh-hk" | "zh-tw") | null;
             /**
              * Model
              * @default gpt-transcribe
@@ -19493,6 +19752,18 @@ export interface components {
             op: "rename_column";
             to: components["schemas"]["IdentifierString"];
         };
+        /**
+         * ReshapeSurfaceRequest
+         * @description Request to replace an abandoned surface with one asking only for what is missing.
+         */
+        ReshapeSurfaceRequest: {
+            /**
+             * Conversation Id
+             * @description The text conversation asking for the replacement. Its submission is delivered to that
+             *     conversation's agent. Without one, the replacement belongs to the original's conversation.
+             */
+            conversation_id?: string | null;
+        };
         /** ResolvePreviewRequest */
         ResolvePreviewRequest: {
             /**
@@ -19539,6 +19810,11 @@ export interface components {
                 [key: string]: string;
             };
             /**
+             * Base Url Host
+             * @description For an integration endpoint, the host its calls go to.
+             */
+            base_url_host?: string | null;
+            /**
              * Description
              * @default
              */
@@ -19548,10 +19824,35 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * Integration Display Name
+             * @description For an integration endpoint, its integration's display name.
+             */
+            integration_display_name?: string | null;
+            /**
              * Is Write
+             * @description The tool can change something, so a simulation never runs it for real: a world write, an
+             *     endpoint whose HTTP method mutates or that declares a write, or a data query whose stored
+             *     template is not a read-only query.
              * @default false
              */
             is_write?: boolean;
+            /**
+             * Live Read Eligible
+             * @description A simulation launch can run this tool for real by naming it in `tool_execution.live_read_tools`.
+             * @default false
+             */
+            live_read_eligible?: boolean;
+            /**
+             * Requires Approval
+             * @description The integration's approval policy gates this tool, so a simulation never runs it for real.
+             * @default false
+             */
+            requires_approval?: boolean;
+            /**
+             * Skills
+             * @description The companion skills in this service's graph that can call this tool.
+             */
+            skills?: string[];
             /** States */
             states?: string[];
             /**
@@ -19583,8 +19884,9 @@ export interface components {
             /**
              * Approval Policy
              * @description Human-in-the-loop approval gate. ``none`` = no approval required;
-             *     ``writes`` = approval required for write-classified endpoints;
-             *     ``all`` = approval required for every endpoint.
+             *     ``writes`` = approval required for an endpoint that may write: one that uses
+             *     POST, PUT, PATCH or DELETE, or declares ``declarations.writes`` of any kind but
+             *     ``none``, whatever its method; ``all`` = approval required for every endpoint.
              * @default none
              * @enum {string}
              */
@@ -19927,12 +20229,16 @@ export interface components {
             completion_reason?: string | null;
             /** Direction */
             direction?: string | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
             /** Ended At */
             ended_at?: string | null;
             /** Entity Id */
             entity_id?: string | null;
             /** Entity Name */
             entity_name?: string | null;
+            /** Final State */
+            final_state?: string | null;
             /** Framework */
             framework?: ("claude-agent-sdk" | "openai-agents") | null;
             /**
@@ -19940,6 +20246,12 @@ export interface components {
              * @enum {string}
              */
             kind: "conversation" | "framework";
+            /**
+             * @description What the run executed with, as its session recorded it at start. Null on a run recorded
+             *     before the platform kept it, on a text conversation before its first session starts, on a
+             *     framework run, and on a live in-house call until it ends.
+             */
+            manifest?: components["schemas"]["RunManifest"] | null;
             /** Phone Number */
             phone_number?: string | null;
             /**
@@ -19951,6 +20263,14 @@ export interface components {
             service_id?: string | null;
             /** Service Name */
             service_name?: string | null;
+            /**
+             * Session Provider
+             * @description The voice runtime that handled the run, as its session recorded it at start: ``amigo``
+             *     (also every text run) or ``gpt_realtime``. Null on a run recorded before the platform kept
+             *     it, on a text conversation before its first session starts, and on a framework run. A live
+             *     in-house call reports it before its row exists.
+             */
+            session_provider?: ("amigo" | "gpt_realtime") | null;
             /** Source Call Sid */
             source_call_sid?: string | null;
             /** Source Conversation Id */
@@ -20051,6 +20371,44 @@ export interface components {
             /** Success */
             success: boolean;
         };
+        /**
+         * RunManifest
+         * @description The configuration a run executed with, as its session started.
+         *
+         *     A field is null when the session had nothing to record for it: a text run has no
+         *     speech models, and a gpt_realtime call whose engine failed to load has no agent or
+         *     graph version. Nothing here is read back from the service's current configuration.
+         */
+        RunManifest: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /**
+             * Agent Version
+             * @description The agent version number the session loaded.
+             */
+            agent_version?: number | null;
+            /** Context Graph Id */
+            context_graph_id?: string | null;
+            /**
+             * Context Graph Version
+             * @description The context graph version number the session loaded.
+             */
+            context_graph_version?: number | null;
+            /** @description The model that wrote the agent's replies: the engage model, or the realtime model on gpt_realtime. */
+            llm_model?: components["schemas"]["NameString"] | null;
+            /** @description The model that chose each context-graph transition. Null on gpt_realtime, which doesn't navigate. */
+            navigation_model?: components["schemas"]["NameString"] | null;
+            /** @description ``sha256:`` over the agent and graph version ids and the LLM model: one value per config generation. */
+            platform_config_fingerprint?: components["schemas"]["NameString"] | null;
+            stt_model?: components["schemas"]["NameString"] | null;
+            /** @description The speech-to-text vendor the call opened with. Null on a text run. */
+            stt_provider?: components["schemas"]["NameString"] | null;
+            tts_model?: components["schemas"]["NameString"] | null;
+            /** @description The vendor that voiced the call's replies. Null on a text run. */
+            tts_provider?: components["schemas"]["NameString"] | null;
+            /** @description The service version set the session resolved its versions and models through, e.g. ``release``. */
+            version_set?: components["schemas"]["NameString"] | null;
+        };
         /** RunSimulationBenchmarkRequest */
         RunSimulationBenchmarkRequest: {
             /** Branch Name */
@@ -20084,6 +20442,12 @@ export interface components {
             suite_id?: string | null;
             /** Tags */
             tags?: string[];
+            /**
+             * @description Which tools run for real and which return a configured result, for every case in the
+             *     batch. A case whose service cannot honor them is skipped with the reason. The default
+             *     simulates every tool. The response echoes the settings the cases execute with.
+             */
+            tool_execution?: components["schemas"]["SimulationToolExecution"];
         };
         /** RunSimulationCaseRequest */
         RunSimulationCaseRequest: {
@@ -20109,6 +20473,11 @@ export interface components {
             service_id?: string | null;
             /** Tags */
             tags?: string[];
+            /**
+             * @description Which tools run for real and which return a configured result. The default simulates
+             *     every tool. The response echoes the settings the run executes with.
+             */
+            tool_execution?: components["schemas"]["SimulationToolExecution"];
         };
         /** RunSwitchModeRequest */
         RunSwitchModeRequest: {
@@ -20485,6 +20854,11 @@ export interface components {
             context_graph_id: string;
             /** Created At */
             created_at?: string | null;
+            /**
+             * Demo Mode
+             * @default false
+             */
+            demo_mode?: boolean;
             /** Description */
             description: string;
             /**
@@ -20640,6 +21014,12 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Demo Mode
+             * @description Internal. Only a platform admin can set this.
+             * @default false
+             */
+            demo_mode?: boolean;
             /** Description */
             description: string;
             /**
@@ -21061,7 +21441,7 @@ export interface components {
             readonly checks: components["schemas"]["EvaluationResultView"][];
             /**
              * Error
-             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @description Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in the pass_rate denominator
              * @default 0
              */
             error?: number;
@@ -21097,7 +21477,7 @@ export interface components {
             results?: components["schemas"]["SimulationEvalResultResponse"][];
             /**
              * Skipped
-             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @description Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in the pass_rate denominator
              * @default 0
              */
             skipped?: number;
@@ -21112,7 +21492,7 @@ export interface components {
             case_name: string;
             /**
              * Error
-             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @description Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in the pass_rate denominator
              * @default 0
              */
             error?: number;
@@ -21152,7 +21532,7 @@ export interface components {
             pending?: number;
             /**
              * Skipped
-             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @description Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in the pass_rate denominator
              * @default 0
              */
             skipped?: number;
@@ -21200,7 +21580,7 @@ export interface components {
         SimPerformanceOverviewResponse: {
             /**
              * Error Count
-             * @description Verdicts where grading broke; not in overall_pass_rate
+             * @description Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in overall_pass_rate
              * @default 0
              */
             error_count?: number;
@@ -21233,7 +21613,7 @@ export interface components {
             runs_analyzed?: number;
             /**
              * Skipped Count
-             * @description Verdicts that did not apply; not in overall_pass_rate
+             * @description Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in overall_pass_rate
              * @default 0
              */
             skipped_count?: number;
@@ -21244,7 +21624,7 @@ export interface components {
             cases?: components["schemas"]["SimCasePerfResponse"][];
             /**
              * Error
-             * @description Verdicts where grading broke; not in the pass_rate denominator
+             * @description Verdicts where grading broke, or whose conversation the simulation cut short before the agent finished it; not in the pass_rate denominator
              * @default 0
              */
             error?: number;
@@ -21279,7 +21659,7 @@ export interface components {
             pending?: number;
             /**
              * Skipped
-             * @description Verdicts that did not apply; not in the pass_rate denominator
+             * @description Verdicts that did not apply, such as on a forked conversation graded through its branches, or that the judge could not answer from the conversation; not in the pass_rate denominator
              * @default 0
              */
             skipped?: number;
@@ -21386,6 +21766,17 @@ export interface components {
             created_at?: string | null;
             /** Error */
             error?: string | null;
+            /**
+             * Error Session Count
+             * @description Sessions cut short by the simulator or the platform rather than the agent: the caller LLM,
+             *     a step outside the agent's own turn, a turn write or the run's time limit failed. Each has no
+             *     score and a `score_rationale` of `bridge:error:<end reason>`, so it stays out of `average_score`
+             *     and the pass and fail counts. A session whose agent turn failed (it raised, or ran out of time)
+             *     isn't one of them: it scores 0 with `score_rationale` `bridge:agent_error` or
+             *     `bridge:agent_timeout`, and counts as failed.
+             * @default 0
+             */
+            error_session_count?: number;
             /**
              * Fail Count
              * @default 0
@@ -21552,11 +21943,19 @@ export interface components {
             skipped_cases: components["schemas"]["SimulationBenchmarkCaseResult"][];
             /** Suite Id */
             suite_id?: string | null;
+            /** @description The tool settings every started case executes with. */
+            tool_execution: components["schemas"]["SimulationToolExecution"];
         };
-        /** SimulationCaseAssertionEval */
+        /**
+         * SimulationCaseAssertionEval
+         * @description An assertion checked in code against the transcript, the tools called or the final state.
+         */
         SimulationCaseAssertionEval: {
-            /** Assertion Kind */
-            assertion_kind: string;
+            /**
+             * Assertion Kind
+             * @enum {string}
+             */
+            assertion_kind: "transcript_contains" | "must_contain" | "transcript_not_contains" | "must_not_contain" | "tool_called" | "final_state";
             /** Description */
             description?: string | null;
             /** Expected */
@@ -21576,12 +21975,82 @@ export interface components {
             weight?: number | null;
         };
         /**
+         * SimulationCaseBooleanAssertionEval
+         * @description A yes-or-no question about the conversation, graded by comparing what a judge observed with ``expected``.
+         *
+         *     The judge sees the case and the transcript, never ``expected``, and answers true,
+         *     false, or that the conversation does not show enough to tell. The check passes
+         *     when the answer equals ``expected`` and fails when it doesn't. When the judge
+         *     can't tell, the check is skipped and stays out of pass rates.
+         */
+        SimulationCaseBooleanAssertionEval: {
+            /**
+             * Assertion Kind
+             * @constant
+             */
+            assertion_kind: "llm_boolean";
+            /**
+             * Expected
+             * @description The answer that passes the check.
+             */
+            expected: boolean;
+            /**
+             * Instructions
+             * @description The question, and what makes its answer true or false.
+             */
+            instructions: string;
+            /** Key */
+            key: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "assertion";
+        };
+        SimulationCaseEval: components["schemas"]["SimulationCaseMetricEval"] | components["schemas"]["SimulationCaseAssertionEval"] | components["schemas"]["SimulationCaseBooleanAssertionEval"];
+        /**
          * SimulationCaseGrounding
          * @description Optional bindings that start the sim from existing workspace data.
          */
         SimulationCaseGrounding: {
             /** Patient Entity Id */
             patient_entity_id?: string | null;
+        };
+        /**
+         * SimulationCaseLegacyAssertionEval
+         * @description An assertion saved before ``llm_boolean``: ``llm_judge`` or a free-text kind. Returned by reads only.
+         *
+         *     The legacy judge grades it with a pass or fail verdict and records no observed
+         *     value. Case writes reject this shape, so rewrite it as an ``llm_boolean`` or a
+         *     deterministic assertion before saving the case's ``evals`` again.
+         */
+        SimulationCaseLegacyAssertionEval: {
+            /** Assertion Kind */
+            assertion_kind: string;
+            /** Description */
+            description: string | null;
+            /** Expected */
+            expected: unknown | null;
+            /**
+             * Grading
+             * @description How this assertion is graded: a pass or fail verdict from the legacy judge, with no observed value.
+             * @default legacy_verdict
+             * @constant
+             */
+            grading: "legacy_verdict";
+            /** Key */
+            key: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /**
+             * Type
+             * @constant
+             */
+            type: "assertion";
+            /** Weight */
+            weight: number | null;
         };
         /** SimulationCaseListResponse */
         SimulationCaseListResponse: {
@@ -21627,7 +22096,7 @@ export interface components {
             /** Description */
             description: string;
             /** Evals */
-            evals?: (components["schemas"]["SimulationCaseMetricEval"] | components["schemas"]["SimulationCaseAssertionEval"])[];
+            evals?: components["schemas"]["StoredSimulationCaseEval"][];
             grounding?: components["schemas"]["SimulationCaseGrounding"];
             /**
              * Id
@@ -21967,6 +22436,13 @@ export interface components {
             status: "running" | "completed" | "failed";
             /** Tags */
             tags?: string[];
+            /**
+             * @description The tool settings a saved-case run launched with, as recorded in its snapshot.
+             *
+             *     Null for a run that recorded none: one that predates the settings, or a `/bridge`
+             *     run, which simulates every tool.
+             */
+            readonly tool_execution: components["schemas"]["SimulationToolExecution"] | null;
             /** Total Scenarios Requested */
             total_scenarios_requested?: number | null;
             /**
@@ -22283,6 +22759,30 @@ export interface components {
              */
             total_turns?: number;
         };
+        /**
+         * SimulationToolExecution
+         * @description Which tools a simulation launch runs for real, and which return a configured result.
+         *
+         *     Every other tool is simulated and returns a dry-run placeholder. Writes never run
+         *     for real. The settings apply to every case, step and fork of the launch, and to a
+         *     re-drive of an interrupted run. Empty, the default, simulates every tool.
+         */
+        SimulationToolExecution: {
+            /**
+             * Live Read Tools
+             * @description Read tools that run for real. Each must be a tool the service's simulations can call that `GET /services/{service_id}/tools/resolve` reports as `live_read_eligible`, with no entry in `tool_mocks`. Integration endpoints need `Integration:View`; platform functions and data queries need `Workspace:View`; world reads need `Service:Update`, which every launch requires. A case anchored to an external principal (an entity with an active external role assignment) runs its live reads as that principal, so it also needs `Conversation:CreateForPrincipal`.
+             */
+            live_read_tools?: components["schemas"]["SimulationToolName"][];
+            /**
+             * Tool Mocks
+             * @description Tool name to the result it returns in place of a call. Each must be a tool the service's simulations can call; a companion skill is mocked through the tools it calls.
+             */
+            tool_mocks?: {
+                [key: string]: components["schemas"]["SimulationToolMockValue"];
+            };
+        };
+        SimulationToolMockValue: string;
+        SimulationToolName: string;
         /** SimulationTurnPolicyResponse */
         SimulationTurnPolicyResponse: {
             /**
@@ -22979,6 +23479,7 @@ export interface components {
              */
             type: "string" | "integer" | "number" | "boolean";
         };
+        StoredSimulationCaseEval: components["schemas"]["SimulationCaseMetricEval"] | components["schemas"]["SimulationCaseAssertionEval"] | components["schemas"]["SimulationCaseBooleanAssertionEval"] | components["schemas"]["SimulationCaseLegacyAssertionEval"];
         /** StratifiedFitRow */
         StratifiedFitRow: {
             /** Auroc */
@@ -23556,6 +24057,13 @@ export interface components {
         /** SurfaceSubmittedEvent */
         SurfaceSubmittedEvent: {
             /**
+             * Conversation Id
+             * @description The text conversation the surface was made for, or null for a surface made outside
+             *     one.
+             * @default null
+             */
+            conversation_id?: string | null;
+            /**
              * Entity Id
              * Format: uuid
              */
@@ -23820,6 +24328,8 @@ export interface components {
             /** Test Duration Ms */
             test_duration_ms?: number | null;
         };
+        /** @enum {string} */
+        TestSkillFailureClass: "model_rejected" | "rounds_exhausted" | "generic";
         /** TestSkillRequest */
         TestSkillRequest: {
             /**
@@ -23851,9 +24361,11 @@ export interface components {
             duration_ms: number;
             /**
              * Error
-             * @description Error message if the skill execution failed
+             * @description Why the run failed, in the platform's own words; null when it succeeded.
              */
             error?: string | null;
+            /** @description Why the run failed; null when it succeeded. model_rejected: the model provider refused a request the run sent (HTTP 400, 413 or 422), which points at the skill's tools, schemas, prompt or model settings. rounds_exhausted: the run spent its tool-round budget. generic: anything else, including a provider error on the platform's side (credentials, a missing endpoint, a rate limit, an outage) and a tool call the model narrated as text instead of making. */
+            failure_class?: components["schemas"]["TestSkillFailureClass"] | null;
             /**
              * Input Tokens
              * @description Number of input tokens consumed
@@ -24154,13 +24666,25 @@ export interface components {
              * @description Actor-semantic display track for the segment. Inferred for legacy producers.
              */
             track?: ("agent" | "caller" | "operator" | "system" | "tool") | null;
-            /** Turn Index */
+            /**
+             * Turn Id
+             * @description The conversation exchange the segment's turn belongs to, its ``turn_id``. Set on
+             *     ``GET /conversations/{conversation_id}``, null on ``GET /calls/{call_id}`` and on segments no
+             *     exchange owns.
+             */
+            turn_id?: string | null;
+            /**
+             * Turn Index
+             * @description The segment's turn: its index in the response's ``turns`` on
+             *     ``GET /conversations/{conversation_id}``, the call-detail row the timeline was built from on
+             *     ``GET /calls/{call_id}``, or -1 when no turn owns it (a silence, a barge-in).
+             */
             turn_index: number;
             /**
              * Type
              * @enum {string}
              */
-            type: "agent_speech" | "barge_in" | "caller_speech" | "filler_hesitation" | "filler_nav" | "greeting" | "interrupted_speech" | "processing_gap" | "silence" | "silence_check" | "state_transition" | "tool_call";
+            type: "agent_speech" | "barge_in" | "caller_speech" | "filler" | "filler_hesitation" | "filler_nav" | "greeting" | "interrupted_speech" | "processing_gap" | "silence" | "silence_check" | "state_transition" | "tool_call";
             /** Valence */
             valence?: number | null;
         };
@@ -24292,6 +24816,16 @@ export interface components {
              * @default
              */
             call_id?: string;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /**
+             * Execution
+             * @description How the call ran: `live` for real, `mocked` against the run's `tool_mocks` entry, or `dry_run`
+             *     (it returned a placeholder). A companion skill carries its most simulated tool's label, and none
+             *     when no tool it can call was simulated: its output is its own text, never a system's response.
+             *     Null then, on a record that predates the label, and for a name that was not a session tool.
+             */
+            execution?: ("live" | "mocked" | "dry_run") | null;
             /**
              * Input
              * @default
@@ -25199,6 +25733,16 @@ export interface components {
             empathy_tier?: number | null;
             /** Engine Ms */
             engine_ms?: number | null;
+            /**
+             * Engine Turn Id
+             * @description The engine turn whose trigger, state and timing this row carries: the turn its agent line
+             *     answers, or on a caller line nothing answered, the turn it opens. An agent line that names no
+             *     turn (a filler, the emergency floor's script, a correction) takes the turn the call was in:
+             *     the caller turn whose words came last, or the turn of the last reply. Null on rows recorded
+             *     before the id was stored, on calls no engine turn ran, and once the call's hot rows have
+             *     expired, about a day after it, when these rows are rebuilt from the saved transcript.
+             */
+            engine_turn_id?: string | null;
             /** Eot Confidence */
             eot_confidence?: number | null;
             /** Filler Type */
@@ -25524,7 +26068,7 @@ export interface components {
             message?: string;
             /**
              * Suppress Filler
-             * @description Synchronous callers only: when a turn ends ``background_pending``, omit the filler/acknowledgement text from ``output`` so a batch caller never mistakes the ack for the answer (``output`` is empty; ``background_pending=true`` is the poll-later signal). ``null`` (default) inherits the channel policy. Ignored with ``poll=true`` (422).
+             * @description Synchronous callers only: when a turn ends ``background_pending``, omit the filler/acknowledgement text from ``output`` so a batch caller never mistakes the ack for the answer (``output`` is empty; ``background_pending=true`` is the poll-later signal). Answers a ``wait_for_final`` wait collected still come back. ``null`` (default) inherits the channel policy. Ignored with ``poll=true`` (422).
              */
             suppress_filler?: boolean | null;
             /** Viewport Height */
@@ -25533,7 +26077,7 @@ export interface components {
             viewport_width?: number | null;
             /**
              * Wait For Final
-             * @description Synchronous callers only: when a turn hands work to a background tool (``background_pending``), await the real answer inline (bounded, ~30s) instead of returning the acknowledgement immediately. On completion the response carries the final answer with ``background_pending=false``; on timeout it returns ``background_pending=true`` — resolve it later with ``poll=true``. ``null`` (default) inherits the channel policy (web = do not wait). Ignored with ``poll=true`` (422).
+             * @description Synchronous callers only: when a turn hands work to a background tool (``background_pending``), await this turn's answer inline instead of returning the acknowledgement immediately. The turn and the wait share one budget of about 170 seconds, so give the request a client timeout of at least 180 seconds. The response carries the answers the turn's background work commits, in order, in place of the acknowledgement, so a tool that hands off to another returns both messages; ``background_pending=false`` means ``output`` is the turn's whole answer. Otherwise (time ran out, or an earlier turn's answer is still waiting to be collected) it returns what arrived, or the acknowledgement, with ``background_pending=true``; collect the rest with ``poll=true``, and poll before sending the next turn. Send an ``Idempotency-Key`` with every waiting turn: if your own timeout fires or the connection drops first, retry with the same key, and the retry returns the answers the turn already collected instead of running it again. ``null`` (default) inherits the channel policy (web = do not wait). Ignored with ``poll=true`` (422).
              */
             wait_for_final?: boolean | null;
         };
@@ -25648,7 +26192,18 @@ export interface components {
             active_start: number;
             /** Seek To */
             seek_to: number;
-            /** Turn Index */
+            /**
+             * Turn Id
+             * @description The conversation exchange the turn belongs to, its ``turn_id``. Set on
+             *     ``GET /conversations/{conversation_id}``, null on ``GET /calls/{call_id}`` and on a turn
+             *     before the first exchange.
+             */
+            turn_id?: string | null;
+            /**
+             * Turn Index
+             * @description The turn: its index in the response's ``turns`` on ``GET /conversations/{conversation_id}``,
+             *     the call-detail row the timeline was built from on ``GET /calls/{call_id}``.
+             */
             turn_index: number;
         };
         /** TurnTokenEvent */
@@ -25806,6 +26361,11 @@ export interface components {
             channel_type?: ("voice" | "text") | null;
             /** Context Graph Id */
             context_graph_id?: string | null;
+            /**
+             * Demo Mode
+             * @description Internal. Only a platform admin can set this.
+             */
+            demo_mode?: boolean | null;
             description?: components["schemas"]["DescriptionString"] | null;
             /** Environment */
             environment?: ("sandbox" | "production") | null;
@@ -25841,7 +26401,7 @@ export interface components {
             /** Description */
             description?: string | null;
             /** Evals */
-            evals?: (components["schemas"]["SimulationCaseMetricEval"] | components["schemas"]["SimulationCaseAssertionEval"])[] | null;
+            evals?: components["schemas"]["SimulationCaseEval"][] | null;
             grounding?: components["schemas"]["SimulationCaseGrounding"] | null;
             /** Metadata */
             metadata?: {
@@ -25901,7 +26461,10 @@ export interface components {
             max_result_chars?: number | null;
             /** Max Tokens */
             max_tokens?: number | null;
-            /** Model */
+            /**
+             * Model
+             * @description Anthropic model id; see CreateSkillRequest. null/absent leaves it unchanged.
+             */
             model?: string | null;
             name?: components["schemas"]["NameString"] | null;
             /** Result Schema */
@@ -26852,6 +27415,8 @@ export interface components {
              * @default []
              */
             states_visited?: string[];
+            /** @description Where the call's lines sit in its recording, from the positions its turns carry, with the wait from each user message to the first reply. ``turn_index`` on its turns and segments is a position in this response's ``turns``, not a turn's own ``turn_index``, which counts exchanges. ``turn_id`` names that turn's exchange. A truncated read's timeline stops where its turns do. An agent line's span is from when its first audio was sent to when its last was, ahead of when the caller finished hearing it, so the timeline places no silence. Tool calls and state transitions record no position, so they stay on the turns. Null when no line has a recorded start and end. */
+            timeline?: components["schemas"]["ConversationTimeline"] | null;
             /** Tool Summary */
             tool_summary?: {
                 [key: string]: unknown;
@@ -26958,7 +27523,10 @@ export interface components {
             keyterms?: string[] | null;
             /** Language */
             language?: string | null;
-            /** Language Providers */
+            /**
+             * Language Providers
+             * @description TTS provider for each call language. Keys must be one of ar, de, en, es, fr, ja, ko, multilingual, pt, zh, with at most 10 entries. An empty map is refused; send null to clear the map.
+             */
             language_providers?: {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
@@ -27335,7 +27903,7 @@ export interface components {
             unanchored_or_api_key_writes?: string;
         };
         /** @enum {string} */
-        WriteKind: "booking" | "cancellation" | "reschedule" | "other";
+        WriteKind: "booking" | "cancellation" | "reschedule" | "message" | "other";
         WriteSuccess: components["schemas"]["StatusSuccess"] | components["schemas"]["GraphQLSuccess"] | components["schemas"]["FieldSuccess"];
         /** @enum {string} */
         _Access: "read" | "write";
@@ -27626,7 +28194,13 @@ export interface components {
             max_response_length?: number;
             /**
              * Max Retries
-             * @description Retry attempts on transient failures.
+             * @description How many times a failed call goes out again. A read goes again after a status in `retry_on_status`,
+             *     a timeout or a connection that failed. A write goes again only after a 429 or 503 that
+             *     `retry_on_status` lists, or a connection that never opened. Integration writes carry no idempotency key, so a write
+             *     that timed out, lost its connection or got any other status may already have been made, and isn't
+             *     sent again. A write is a call to an endpoint that declares `declarations.writes` of any kind but
+             *     `none`, or declares nothing and uses POST, PUT, PATCH or DELETE. An endpoint that only reads over
+             *     POST can declare `declarations.writes.kind` `none` to retry like a read.
              * @default 2
              */
             max_retries?: number;
@@ -27655,7 +28229,10 @@ export interface components {
             response_template?: string | null;
             /**
              * Retry On Status
-             * @description HTTP status codes that trigger a retry.
+             * @description HTTP statuses after which a failed call goes out again, up to `max_retries` times. A write goes
+             *     again only after a 429 or 503 listed here: any other status, 502 and 504 included, can follow a
+             *     write the vendor made, so a write that gets one isn't sent again. An endpoint that only reads over
+             *     POST can declare `declarations.writes.kind` `none` to retry on every status listed here.
              */
             retry_on_status?: number[];
             /**
@@ -27681,8 +28258,10 @@ export interface components {
             /**
              * Approval Policy
              * @description Human-in-the-loop approval gate. ``none`` (default) = no approval
-             *     required; ``writes`` = approval required for write-classified endpoints;
-             *     ``all`` = approval required for every endpoint.
+             *     required; ``writes`` = approval required for an endpoint that may write: one
+             *     that uses POST, PUT, PATCH or DELETE, or declares ``declarations.writes`` of any
+             *     kind but ``none``, whatever its method; ``all`` = approval required for every
+             *     endpoint.
              * @default none
              * @enum {string}
              */
@@ -27814,7 +28393,11 @@ export interface components {
             duration_ms?: number;
             /**
              * Error
-             * @description Error message if the request failed.
+             * @description Error message if the call failed or its `outcome` is `unknown`, and then it ends by saying the
+             *     vendor may have made the write. A non-null `error` alone doesn't mean nothing was written: read
+             *     `outcome`. Also set on a write the vendor answered with a 2xx whose `response_template` failed,
+             *     or whose body didn't parse when no `field` or `graphql` success rule reads it: the write went
+             *     through, `outcome` is `succeeded`, and `final_result` is the body unshaped.
              */
             error?: string | null;
             /**
@@ -27822,6 +28405,23 @@ export interface components {
              * @description Final processed result (rendered + truncated to max_response_length).
              */
             final_result?: string | null;
+            /**
+             * Outcome
+             * @description How the call ended. `succeeded`: the vendor answered with a 2xx, and `wrote` says whether a
+             *     declared write happened. A write that succeeded can still carry an `error` saying why its body
+             *     couldn't be shaped into the result. `failed`: the call failed, and nothing says the vendor acted
+             *     on it. `unknown`: a write went out and no answer says whether it went through: a timeout, a
+             *     dropped connection, a gateway's 502, 504, 520 or 524, or a 2xx or 3xx that still failed, such as
+             *     a 2xx whose body a `field` or `graphql` success rule can't read. The vendor may have made the
+             *     write, so check the vendor before sending it again.
+             * @enum {string}
+             */
+            outcome: "succeeded" | "failed" | "unknown";
+            /**
+             * Over Text Budget
+             * @description Whether this call took as long as a text turn waits on one, or longer: `duration_ms`, which counts retries and the waits between them, is `text_budget_ms` or more. The test waits as long as the endpoint's `timeout_seconds` and retries allow, but a text turn gives up on a call at 20 s, so a call this slow fails there as a timeout even when it succeeded here. A write the text turn cuts off mid-request has an unknown outcome. Voice calls, background calls and a companion skill's sub-tools keep the endpoint's timeout.
+             */
+            over_text_budget: boolean;
             /**
              * Raw Response
              * @description Raw response body from the upstream call.
@@ -27844,9 +28444,15 @@ export interface components {
              */
             status_code?: number | null;
             /**
+             * Text Budget Ms
+             * @description How long a text turn waits on an integration call before it gives up: 20000 ms (20 s), retries and the waits between them included. Each attempt still stops at the endpoint's `timeout_seconds`, so an endpoint set lower keeps its own timeout. Voice calls, background calls and a companion skill's sub-tools aren't held to it: they keep the endpoint's timeout.
+             */
+            text_budget_ms: number;
+            /**
              * Wrote
              * @description Whether the endpoint's declared write happened, as its `declarations.writes.success` reads
-             *     this response. Null when the endpoint declares no write, or the call failed.
+             *     this response. Null when the endpoint declares no write, or the call didn't succeed. After an
+             *     `unknown` outcome null says nothing either way: the vendor may have made the write.
              */
             wrote?: boolean | null;
         };
@@ -27883,7 +28489,16 @@ export interface components {
             };
             /** Max Response Length */
             max_response_length?: number;
-            /** Max Retries */
+            /**
+             * Max Retries
+             * @description How many times a failed call goes out again. A read goes again after a status in `retry_on_status`,
+             *     a timeout or a connection that failed. A write goes again only after a 429 or 503 that
+             *     `retry_on_status` lists, or a connection that never opened. Integration writes carry no idempotency key, so a write
+             *     that timed out, lost its connection or got any other status may already have been made, and isn't
+             *     sent again. A write is a call to an endpoint that declares `declarations.writes` of any kind but
+             *     `none`, or declares nothing and uses POST, PUT, PATCH or DELETE. An endpoint that only reads over
+             *     POST can declare `declarations.writes.kind` `none` to retry like a read.
+             */
             max_retries?: number;
             /**
              * Method
@@ -27900,7 +28515,13 @@ export interface components {
              * @description Jinja template; pass `null` to clear (the only DB-nullable column on this row).
              */
             response_template?: string | null;
-            /** Retry On Status */
+            /**
+             * Retry On Status
+             * @description HTTP statuses after which a failed call goes out again, up to `max_retries` times. A write goes
+             *     again only after a 429 or 503 listed here: any other status, 502 and 504 included, can follow a
+             *     write the vendor made, so a write that gets one isn't sent again. An endpoint that only reads over
+             *     POST can declare `declarations.writes.kind` `none` to retry on every status listed here.
+             */
             retry_on_status?: number[];
             /** Static Body Fields */
             static_body_fields?: {
@@ -27917,8 +28538,10 @@ export interface components {
             /**
              * Approval Policy
              * @description Change the human-in-the-loop approval gate. ``none`` = no approval
-             *     required; ``writes`` = approval required for write-classified endpoints;
-             *     ``all`` = approval required for every endpoint. Absent ⇒ untouched.
+             *     required; ``writes`` = approval required for an endpoint that may write: one
+             *     that uses POST, PUT, PATCH or DELETE, or declares ``declarations.writes`` of any
+             *     kind but ``none``, whatever its method; ``all`` = approval required for every
+             *     endpoint. Absent ⇒ untouched.
              * @enum {string}
              */
             approval_policy?: "none" | "writes" | "all";
@@ -28906,6 +29529,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description The model call failed; try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurfaceErrorResponse"];
+                };
             };
         };
     };
@@ -31630,7 +32262,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No phone number available for use case */
+            /** @description The patient, the use case's service, or a phone number for the use case was not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -31660,7 +32292,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Upstream Twilio or voice agent error */
+            /** @description Placing the call failed upstream, or its result was lost on the way back; retry with the same idempotency_key */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -31674,7 +32306,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Channel manager phone selection timed out */
+            /** @description The call was not confirmed within 60 seconds and may still be placed; retry with the same idempotency_key */
             504: {
                 headers: {
                     [name: string]: unknown;
@@ -32734,6 +33366,20 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Conversation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conversation is paused while an operator holds it, or changed state during the close */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -32879,7 +33525,7 @@ export interface operations {
             query?: {
                 /** @description Include tool call details in response */
                 include_tool_calls?: boolean;
-                /** @description Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. */
+                /** @description Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409; one an operator holds can be polled again once it is handed back. */
                 poll?: boolean;
             };
             header?: {
@@ -32908,7 +33554,28 @@ export interface operations {
                     "text/event-stream": components["schemas"]["TurnStreamEvent"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conversation or service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is invalid, an empty kickoff turn comes after the conversation started, or the conversation's service binding is missing or corrupt */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -32916,6 +33583,34 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Agent service failed the turn, its reply was lost or couldn't be read, or the conversation couldn't be read back after the turn */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Agent service couldn't be reached, so the turn didn't start, or the turn can't be taken right now. Retry with the same Idempotency-Key */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Agent service did not respond in time. The turn may still finish: retry with the same Idempotency-Key */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -32951,6 +33646,13 @@ export interface operations {
                     "text/event-stream": components["schemas"]["TurnStreamEvent"];
                 };
             };
+            /** @description The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Conversation or service not found */
             404: {
                 headers: {
@@ -32958,22 +33660,45 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Conversation is closed */
+            /** @description Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Conversation is missing or has corrupt service binding */
+            /** @description The request is invalid, an empty kickoff turn comes after the conversation started, or the conversation's service binding is missing or corrupt */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Agent service unavailable */
+            /** @description Agent service failed the turn, its reply was lost or couldn't be read, or the conversation couldn't be read back after the turn */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Agent service couldn't be reached, so the turn didn't start, or the turn can't be taken right now. Retry with the same Idempotency-Key */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Agent service did not respond in time. The turn may still finish: retry with the same Idempotency-Key */
+            504: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -34480,6 +35205,13 @@ export interface operations {
                     "application/json": components["schemas"]["ExternalIntegrationResponse"];
                 };
             };
+            /** @description The caller can't make this change, for example because it isn't an admin or owner with the permission, or has no person entity, such as an API key that isn't linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -34542,6 +35274,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The caller can't make this change, for example because it isn't an admin or owner with the permission, or has no person entity, such as an API key that isn't linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -34577,6 +35316,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ExternalIntegrationResponse"];
                 };
+            };
+            /** @description The caller can't make this change, for example because it isn't an admin or owner with the permission, or has no person entity, such as an API key that isn't linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -34646,6 +35392,13 @@ export interface operations {
                     "application/json": components["schemas"]["ExternalIntegrationCredentialSecretResponse"];
                 };
             };
+            /** @description The caller can't make this change, for example because it isn't an admin or owner with the permission, or has no person entity, such as an API key that isn't linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -34672,6 +35425,13 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller can't make this change, for example because it isn't an admin or owner with the permission, or has no person entity, such as an API key that isn't linked to a user. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -34709,6 +35469,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ExternalIntegrationCredentialSecretResponse"];
                 };
+            };
+            /** @description The caller can't make this change, for example because it isn't an admin or owner with the permission, or has no person entity, such as an API key that isn't linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -37598,7 +38365,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid request body, NOT NULL field set to null, or no fields to update. */
+            /** @description Invalid request body, NOT NULL field set to null, no fields to update, or a `declarations.reads` that names a parameter the endpoint's `input_schema` doesn't declare. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -39707,7 +40474,7 @@ export interface operations {
     "list-prompt-logs": {
         parameters: {
             query?: {
-                /** @description Conversation entity UUID (canonical identifier across all modalities — voice, text/web, sms, sim). Resolves text conversations through the durable ``world.conversations`` row, then falls back to the voice/call entity projection. Mutually exclusive with the ``call_sid`` query parameter. */
+                /** @description The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its row. An older call with no such row answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter. */
                 conversation_id?: string | null;
                 /** @description Direct conversation identifier as stored on the prompt-log event: Twilio CA-SID for voice calls, session_id UUID for text/sim sessions. Most callers should use ``conversation_id`` instead — this is kept for legacy callers and external systems that hold the SID directly. Mutually exclusive with ``conversation_id``. */
                 call_sid?: string | null;
@@ -44520,7 +45287,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReshapeSurfaceRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
