@@ -825,6 +825,261 @@
         "title": "AddUniqueAction",
         "type": "object"
       },
+      "AdvancedCallStatsResponse": {
+        "description": "Percentile call metrics with a trend and by-service and by-direction breakdowns.",
+        "properties": {
+          "by_direction": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DirectionCalls"
+            },
+            "description": "Calls per direction (inbound, outbound); calls without a direction are left out",
+            "title": "By Direction",
+            "type": "object"
+          },
+          "by_service": {
+            "description": "Calls per service, busiest first, ties by service_id; calls without a service are left out",
+            "items": {
+              "$ref": "#/components/schemas/ServiceCalls"
+            },
+            "title": "By Service",
+            "type": "array"
+          },
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServiceCallStats"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.",
+            "title": "Groups"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AdvancedCallStatsSummary",
+            "description": "Calls in the window"
+          },
+          "trend": {
+            "description": "One point per bucket with calls",
+            "items": {
+              "$ref": "#/components/schemas/AdvancedCallStatsTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "summary",
+          "trend",
+          "by_service",
+          "by_direction"
+        ],
+        "title": "AdvancedCallStatsResponse",
+        "type": "object"
+      },
+      "AdvancedCallStatsSummary": {
+        "description": "Production calls in the window: counts, durations and quality scores.",
+        "properties": {
+          "avg_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean call duration in seconds",
+            "title": "Avg Duration Seconds"
+          },
+          "avg_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality Score"
+          },
+          "completed": {
+            "description": "Calls not escalated to an operator (total_calls minus escalated)",
+            "title": "Completed",
+            "type": "integer"
+          },
+          "escalated": {
+            "description": "Calls escalated to an operator",
+            "title": "Escalated",
+            "type": "integer"
+          },
+          "p50_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median call duration in seconds",
+            "title": "P50 Duration Seconds"
+          },
+          "p50_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median quality score (0-100)",
+            "title": "P50 Quality Score"
+          },
+          "p5_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "5th-percentile quality score (0-100)",
+            "title": "P5 Quality Score"
+          },
+          "p95_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th-percentile call duration in seconds",
+            "title": "P95 Duration Seconds"
+          },
+          "p95_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th-percentile quality score (0-100)",
+            "title": "P95 Quality Score"
+          },
+          "p99_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "99th-percentile call duration in seconds",
+            "title": "P99 Duration Seconds"
+          },
+          "total_calls": {
+            "description": "Production calls in the window",
+            "title": "Total Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_calls",
+          "completed",
+          "escalated"
+        ],
+        "title": "AdvancedCallStatsSummary",
+        "type": "object"
+      },
+      "AdvancedCallStatsTrendPoint": {
+        "description": "One interval bucket of the advanced call stats.",
+        "properties": {
+          "avg_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean call duration in seconds",
+            "title": "Avg Duration Seconds"
+          },
+          "avg_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality"
+          },
+          "calls": {
+            "description": "Production calls in the bucket",
+            "title": "Calls",
+            "type": "integer"
+          },
+          "date": {
+            "description": "Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)",
+            "title": "Date",
+            "type": "string"
+          },
+          "escalation_rate": {
+            "description": "Escalated calls over calls in the bucket (0.0-1.0)",
+            "title": "Escalation Rate",
+            "type": "number"
+          },
+          "p50_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median quality score (0-100)",
+            "title": "P50 Quality"
+          },
+          "p95_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th percentile of each call's average audio time-to-first-byte, in ms",
+            "title": "P95 Latency Ms"
+          }
+        },
+        "required": [
+          "date",
+          "calls",
+          "escalation_rate"
+        ],
+        "title": "AdvancedCallStatsTrendPoint",
+        "type": "object"
+      },
       "AgentAnalyticsEntry": {
         "properties": {
           "agent_id": {
@@ -1440,6 +1695,21 @@
           }
         },
         "title": "AnalyticsKpi",
+        "type": "object"
+      },
+      "AnalyticsUnavailableResponse": {
+        "description": "The 503 body when an analytics route can't read its store: the warehouse isn't configured\nhere, its source isn't published in this region, or the warehouse or Lakebase failed the read.",
+        "properties": {
+          "detail": {
+            "const": "Analytics unavailable",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "AnalyticsUnavailableResponse",
         "type": "object"
       },
       "AnnotationState": {
@@ -12603,6 +12873,33 @@
         "title": "DestroySessionResponse",
         "type": "object"
       },
+      "DirectionCalls": {
+        "description": "One direction's calls in ``by_direction``.",
+        "properties": {
+          "avg_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality"
+          },
+          "calls": {
+            "description": "Production calls",
+            "title": "Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calls"
+        ],
+        "title": "DirectionCalls",
+        "type": "object"
+      },
       "DocumentProcessingSpec": {
         "description": "Processing config for a document dataset (``ingestion_mode=document``).\n\nDocuments have no schema/primary-key/CDC; this is what the contract carries\ninstead (docs/plans/intake_file_processing_pipeline.md \u00a75.9). Page-split /\noutput-metadata rules are stored in the same jsonb and may be added later\nwithout a migration.",
         "properties": {
@@ -15964,6 +16261,21 @@
             "maxItems": 200,
             "title": "By Eval Key",
             "type": "array"
+          },
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServiceEvalQuality"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by.",
+            "title": "Groups"
           },
           "summary": {
             "$ref": "#/components/schemas/EvalQualitySummary",
@@ -32481,6 +32793,77 @@
         "title": "ServiceBindingResponse",
         "type": "object"
       },
+      "ServiceCallStats": {
+        "description": "One service's summary and trend: what the route returns for ``service_id`` set to it.",
+        "properties": {
+          "service_id": {
+            "description": "The service",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AdvancedCallStatsSummary",
+            "description": "The service's calls in the window"
+          },
+          "trend": {
+            "description": "The service's trend",
+            "items": {
+              "$ref": "#/components/schemas/AdvancedCallStatsTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "summary",
+          "trend"
+        ],
+        "title": "ServiceCallStats",
+        "type": "object"
+      },
+      "ServiceCalls": {
+        "description": "One service's calls in ``by_service``.",
+        "properties": {
+          "avg_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality"
+          },
+          "calls": {
+            "description": "Production calls",
+            "title": "Calls",
+            "type": "integer"
+          },
+          "escalation_rate": {
+            "description": "Escalated calls over calls (0.0-1.0)",
+            "title": "Escalation Rate",
+            "type": "number"
+          },
+          "service_id": {
+            "description": "The service",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "calls",
+          "escalation_rate"
+        ],
+        "title": "ServiceCalls",
+        "type": "object"
+      },
       "ServiceCost": {
         "description": "Cost attributed to one service.",
         "properties": {
@@ -32528,6 +32911,47 @@
           "cost_share"
         ],
         "title": "ServiceCost",
+        "type": "object"
+      },
+      "ServiceEvalQuality": {
+        "description": "One service's verdicts: what the route returns for ``service_id`` set to it.",
+        "properties": {
+          "by_eval_key": {
+            "description": "The service's per-eval-key aggregates, most-evaluated first",
+            "items": {
+              "$ref": "#/components/schemas/EvalQualitySummary"
+            },
+            "maxItems": 200,
+            "title": "By Eval Key",
+            "type": "array"
+          },
+          "service_id": {
+            "description": "The service the verdicts are attributed to",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/EvalQualitySummary",
+            "description": "The service's aggregate for the period"
+          },
+          "trend": {
+            "description": "The service's trend",
+            "items": {
+              "$ref": "#/components/schemas/EvalQualityTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "summary",
+          "by_eval_key",
+          "trend"
+        ],
+        "title": "ServiceEvalQuality",
         "type": "object"
       },
       "ServiceForwardingConfig": {
@@ -32768,6 +33192,37 @@
           "key"
         ],
         "title": "ServiceTag",
+        "type": "object"
+      },
+      "ServiceToolPerformance": {
+        "description": "One service's summary and trend: what the route returns for ``service_id`` set to it.",
+        "properties": {
+          "service_id": {
+            "description": "The service",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ToolPerformanceSummary",
+            "description": "The service's tool executions in the window"
+          },
+          "trend": {
+            "description": "The service's trend",
+            "items": {
+              "$ref": "#/components/schemas/ToolPerformanceTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "summary",
+          "trend"
+        ],
+        "title": "ServiceToolPerformance",
         "type": "object"
       },
       "ServiceUsage": {
@@ -41907,6 +42362,123 @@
           }
         },
         "title": "ToolExecuteResponse",
+        "type": "object"
+      },
+      "ToolPerformanceResponse": {
+        "description": "Tool execution totals and a trend, over the calls that carry a tool summary.",
+        "properties": {
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServiceToolPerformance"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.",
+            "title": "Groups"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ToolPerformanceSummary",
+            "description": "Tool executions in the window"
+          },
+          "trend": {
+            "description": "One point per bucket with a tool summary",
+            "items": {
+              "$ref": "#/components/schemas/ToolPerformanceTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "summary",
+          "trend"
+        ],
+        "title": "ToolPerformanceResponse",
+        "type": "object"
+      },
+      "ToolPerformanceSummary": {
+        "description": "Tool executions in the window, over the calls that carry a tool summary.",
+        "properties": {
+          "avg_failure_rate_per_call": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean of each call's tool failure rate; null with no tool summaries",
+            "title": "Avg Failure Rate Per Call"
+          },
+          "overall_failure_rate": {
+            "description": "total_failed over total_tool_calls; 0.0 with no executions",
+            "title": "Overall Failure Rate",
+            "type": "number"
+          },
+          "total_failed": {
+            "description": "Tool executions that failed",
+            "title": "Total Failed",
+            "type": "integer"
+          },
+          "total_succeeded": {
+            "description": "Tool executions that succeeded",
+            "title": "Total Succeeded",
+            "type": "integer"
+          },
+          "total_tool_calls": {
+            "description": "Tool executions",
+            "title": "Total Tool Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_tool_calls",
+          "total_succeeded",
+          "total_failed",
+          "overall_failure_rate"
+        ],
+        "title": "ToolPerformanceSummary",
+        "type": "object"
+      },
+      "ToolPerformanceTrendPoint": {
+        "description": "One interval bucket of tool performance.",
+        "properties": {
+          "call_count": {
+            "description": "Calls in the bucket with a tool summary",
+            "title": "Call Count",
+            "type": "integer"
+          },
+          "date": {
+            "description": "Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)",
+            "title": "Date",
+            "type": "string"
+          },
+          "total_failed": {
+            "description": "Tool executions in the bucket that failed",
+            "title": "Total Failed",
+            "type": "integer"
+          },
+          "total_tool_calls": {
+            "description": "Tool executions in the bucket",
+            "title": "Total Tool Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "call_count",
+          "total_tool_calls",
+          "total_failed"
+        ],
+        "title": "ToolPerformanceTrendPoint",
         "type": "object"
       },
       "ToolResolveResponse": {
@@ -54400,6 +54972,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Get Agent Analytics",
@@ -54485,19 +55067,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -54525,6 +55109,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Call Quality Analytics",
@@ -54581,6 +55175,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Call Stats",
@@ -54666,19 +55270,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           },
@@ -54703,6 +55309,25 @@
               "description": "Filter by call direction: inbound or outbound",
               "title": "Direction"
             }
+          },
+          {
+            "description": "service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "service_id",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "title": "Group By"
+            }
           }
         ],
         "responses": {
@@ -54710,9 +55335,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Advanced-Call-Stats",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AdvancedCallStatsResponse"
                 }
               }
             },
@@ -54730,6 +55353,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Advanced Call Stats",
@@ -54802,19 +55435,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -54844,6 +55479,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Call Comparison",
@@ -54905,6 +55550,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Analytics Dashboard",
@@ -55046,19 +55701,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -55088,6 +55745,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Emotion Trends",
@@ -55139,20 +55806,41 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
+            }
+          },
+          {
+            "description": "service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "service_id",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "title": "Group By"
             }
           }
         ],
@@ -55179,6 +55867,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: Lakebase couldn't answer the read right now (a dropped connection, a statement timeout, no free connection). The same body on every analytics route."
           }
         },
         "summary": "Eval Quality Analytics",
@@ -55320,19 +56018,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -55362,6 +56062,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Latency Analytics",
@@ -55447,19 +56157,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -55487,6 +56199,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Operator Performance Analytics",
@@ -55961,20 +56683,41 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
+            }
+          },
+          {
+            "description": "service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "service_id",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "title": "Group By"
             }
           }
         ],
@@ -55983,9 +56726,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Tool-Performance",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ToolPerformanceResponse"
                 }
               }
             },
@@ -56003,6 +56744,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Tool Performance Analytics",
@@ -57427,6 +58178,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route."
           }
         },
         "summary": "Workspace call quality benchmarks",
@@ -57437,7 +58198,7 @@
     },
     "/v1/{workspace_id}/calls/outbound": {
       "post": {
-        "description": "Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 saying channel-manager refused the call, for example an invalid number, is final.",
+        "description": "Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 is final: channel-manager refused the call, for example an invalid number, or the use case's service runs on gpt_realtime, which doesn't honor system_prompt or goal yet, so place the call without them.",
         "operationId": "create-outbound-call",
         "parameters": [
           {
@@ -57489,7 +58250,7 @@
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Final: the request is invalid, channel-manager refused the call (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't honor system_prompt or goal yet"
           },
           "429": {
             "description": "Rate limit exceeded"

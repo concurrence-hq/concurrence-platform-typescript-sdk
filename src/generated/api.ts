@@ -1300,7 +1300,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 saying channel-manager refused the call, for example an invalid number, is final.
+         * @description Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 is final: channel-manager refused the call, for example an invalid number, or the use case's service runs on gpt_realtime, which doesn't honor system_prompt or goal yet, so place the call without them.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -7593,6 +7593,138 @@ export interface components {
              */
             op: "add_unique";
         };
+        /**
+         * AdvancedCallStatsResponse
+         * @description Percentile call metrics with a trend and by-service and by-direction breakdowns.
+         */
+        AdvancedCallStatsResponse: {
+            /**
+             * By Direction
+             * @description Calls per direction (inbound, outbound); calls without a direction are left out
+             */
+            by_direction: {
+                [key: string]: components["schemas"]["DirectionCalls"];
+            };
+            /**
+             * By Service
+             * @description Calls per service, busiest first, ties by service_id; calls without a service are left out
+             */
+            by_service: components["schemas"]["ServiceCalls"][];
+            /**
+             * Groups
+             * @description With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.
+             */
+            groups?: components["schemas"]["ServiceCallStats"][] | null;
+            /** @description Calls in the window */
+            summary: components["schemas"]["AdvancedCallStatsSummary"];
+            /**
+             * Trend
+             * @description One point per bucket with calls
+             */
+            trend: components["schemas"]["AdvancedCallStatsTrendPoint"][];
+        };
+        /**
+         * AdvancedCallStatsSummary
+         * @description Production calls in the window: counts, durations and quality scores.
+         */
+        AdvancedCallStatsSummary: {
+            /**
+             * Avg Duration Seconds
+             * @description Mean call duration in seconds
+             */
+            avg_duration_seconds?: number | null;
+            /**
+             * Avg Quality Score
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality_score?: number | null;
+            /**
+             * Completed
+             * @description Calls not escalated to an operator (total_calls minus escalated)
+             */
+            completed: number;
+            /**
+             * Escalated
+             * @description Calls escalated to an operator
+             */
+            escalated: number;
+            /**
+             * P50 Duration Seconds
+             * @description Median call duration in seconds
+             */
+            p50_duration_seconds?: number | null;
+            /**
+             * P50 Quality Score
+             * @description Median quality score (0-100)
+             */
+            p50_quality_score?: number | null;
+            /**
+             * P5 Quality Score
+             * @description 5th-percentile quality score (0-100)
+             */
+            p5_quality_score?: number | null;
+            /**
+             * P95 Duration Seconds
+             * @description 95th-percentile call duration in seconds
+             */
+            p95_duration_seconds?: number | null;
+            /**
+             * P95 Quality Score
+             * @description 95th-percentile quality score (0-100)
+             */
+            p95_quality_score?: number | null;
+            /**
+             * P99 Duration Seconds
+             * @description 99th-percentile call duration in seconds
+             */
+            p99_duration_seconds?: number | null;
+            /**
+             * Total Calls
+             * @description Production calls in the window
+             */
+            total_calls: number;
+        };
+        /**
+         * AdvancedCallStatsTrendPoint
+         * @description One interval bucket of the advanced call stats.
+         */
+        AdvancedCallStatsTrendPoint: {
+            /**
+             * Avg Duration Seconds
+             * @description Mean call duration in seconds
+             */
+            avg_duration_seconds?: number | null;
+            /**
+             * Avg Quality
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality?: number | null;
+            /**
+             * Calls
+             * @description Production calls in the bucket
+             */
+            calls: number;
+            /**
+             * Date
+             * @description Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)
+             */
+            date: string;
+            /**
+             * Escalation Rate
+             * @description Escalated calls over calls in the bucket (0.0-1.0)
+             */
+            escalation_rate: number;
+            /**
+             * P50 Quality
+             * @description Median quality score (0-100)
+             */
+            p50_quality?: number | null;
+            /**
+             * P95 Latency Ms
+             * @description 95th percentile of each call's average audio time-to-first-byte, in ms
+             */
+            p95_latency_ms?: number | null;
+        };
         /** AgentAnalyticsEntry */
         AgentAnalyticsEntry: {
             /**
@@ -7882,6 +8014,18 @@ export interface components {
              * @description Current-period value (None when no data)
              */
             value?: number | null;
+        };
+        /**
+         * AnalyticsUnavailableResponse
+         * @description The 503 body when an analytics route can't read its store: the warehouse isn't configured
+         *     here, its source isn't published in this region, or the warehouse or Lakebase failed the read.
+         */
+        AnalyticsUnavailableResponse: {
+            /**
+             * Detail
+             * @constant
+             */
+            detail: "Analytics unavailable";
         };
         /**
          * AnnotationState
@@ -12585,6 +12729,22 @@ export interface components {
             status: "destroyed";
         };
         /**
+         * DirectionCalls
+         * @description One direction's calls in ``by_direction``.
+         */
+        DirectionCalls: {
+            /**
+             * Avg Quality
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality?: number | null;
+            /**
+             * Calls
+             * @description Production calls
+             */
+            calls: number;
+        };
+        /**
          * DocumentProcessingSpec
          * @description Processing config for a document dataset (``ingestion_mode=document``).
          *
@@ -14005,6 +14165,11 @@ export interface components {
              * @description Per-eval-key aggregates, most-evaluated first
              */
             by_eval_key: components["schemas"]["EvalQualitySummary"][];
+            /**
+             * Groups
+             * @description With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by.
+             */
+            groups?: components["schemas"]["ServiceEvalQuality"][] | null;
             /** @description Workspace-wide aggregate for the period */
             summary: components["schemas"]["EvalQualitySummary"];
             /**
@@ -20935,6 +21100,52 @@ export interface components {
             workspace_id: string;
         };
         /**
+         * ServiceCallStats
+         * @description One service's summary and trend: what the route returns for ``service_id`` set to it.
+         */
+        ServiceCallStats: {
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service
+             */
+            service_id: string;
+            /** @description The service's calls in the window */
+            summary: components["schemas"]["AdvancedCallStatsSummary"];
+            /**
+             * Trend
+             * @description The service's trend
+             */
+            trend: components["schemas"]["AdvancedCallStatsTrendPoint"][];
+        };
+        /**
+         * ServiceCalls
+         * @description One service's calls in ``by_service``.
+         */
+        ServiceCalls: {
+            /**
+             * Avg Quality
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality?: number | null;
+            /**
+             * Calls
+             * @description Production calls
+             */
+            calls: number;
+            /**
+             * Escalation Rate
+             * @description Escalated calls over calls (0.0-1.0)
+             */
+            escalation_rate: number;
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service
+             */
+            service_id: string;
+        };
+        /**
          * ServiceCost
          * @description Cost attributed to one service.
          */
@@ -20955,6 +21166,30 @@ export interface components {
              * @description Service identifier, or null for cost that could not be attributed.
              */
             service_id: string | null;
+        };
+        /**
+         * ServiceEvalQuality
+         * @description One service's verdicts: what the route returns for ``service_id`` set to it.
+         */
+        ServiceEvalQuality: {
+            /**
+             * By Eval Key
+             * @description The service's per-eval-key aggregates, most-evaluated first
+             */
+            by_eval_key: components["schemas"]["EvalQualitySummary"][];
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service the verdicts are attributed to
+             */
+            service_id: string;
+            /** @description The service's aggregate for the period */
+            summary: components["schemas"]["EvalQualitySummary"];
+            /**
+             * Trend
+             * @description The service's trend
+             */
+            trend: components["schemas"]["EvalQualityTrendPoint"][];
         };
         /**
          * ServiceForwardingConfig
@@ -21070,6 +21305,25 @@ export interface components {
             key: string;
             /** Value */
             value?: string | null;
+        };
+        /**
+         * ServiceToolPerformance
+         * @description One service's summary and trend: what the route returns for ``service_id`` set to it.
+         */
+        ServiceToolPerformance: {
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service
+             */
+            service_id: string;
+            /** @description The service's tool executions in the window */
+            summary: components["schemas"]["ToolPerformanceSummary"];
+            /**
+             * Trend
+             * @description The service's trend
+             */
+            trend: components["schemas"]["ToolPerformanceTrendPoint"][];
         };
         /**
          * ServiceUsage
@@ -25039,6 +25293,81 @@ export interface components {
              * @default
              */
             tool_type?: string;
+        };
+        /**
+         * ToolPerformanceResponse
+         * @description Tool execution totals and a trend, over the calls that carry a tool summary.
+         */
+        ToolPerformanceResponse: {
+            /**
+             * Groups
+             * @description With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.
+             */
+            groups?: components["schemas"]["ServiceToolPerformance"][] | null;
+            /** @description Tool executions in the window */
+            summary: components["schemas"]["ToolPerformanceSummary"];
+            /**
+             * Trend
+             * @description One point per bucket with a tool summary
+             */
+            trend: components["schemas"]["ToolPerformanceTrendPoint"][];
+        };
+        /**
+         * ToolPerformanceSummary
+         * @description Tool executions in the window, over the calls that carry a tool summary.
+         */
+        ToolPerformanceSummary: {
+            /**
+             * Avg Failure Rate Per Call
+             * @description Mean of each call's tool failure rate; null with no tool summaries
+             */
+            avg_failure_rate_per_call?: number | null;
+            /**
+             * Overall Failure Rate
+             * @description total_failed over total_tool_calls; 0.0 with no executions
+             */
+            overall_failure_rate: number;
+            /**
+             * Total Failed
+             * @description Tool executions that failed
+             */
+            total_failed: number;
+            /**
+             * Total Succeeded
+             * @description Tool executions that succeeded
+             */
+            total_succeeded: number;
+            /**
+             * Total Tool Calls
+             * @description Tool executions
+             */
+            total_tool_calls: number;
+        };
+        /**
+         * ToolPerformanceTrendPoint
+         * @description One interval bucket of tool performance.
+         */
+        ToolPerformanceTrendPoint: {
+            /**
+             * Call Count
+             * @description Calls in the bucket with a tool summary
+             */
+            call_count: number;
+            /**
+             * Date
+             * @description Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)
+             */
+            date: string;
+            /**
+             * Total Failed
+             * @description Tool executions in the bucket that failed
+             */
+            total_failed: number;
+            /**
+             * Total Tool Calls
+             * @description Tool executions in the bucket
+             */
+            total_tool_calls: number;
         };
         /** ToolResolveResponse */
         ToolResolveResponse: {
@@ -30838,6 +31167,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-call-quality-analytics": {
@@ -30847,6 +31185,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -30882,6 +31221,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     call_stats_v1__workspace_id__analytics_calls_get: {
@@ -30915,6 +31263,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-advanced-call-stats": {
@@ -30924,9 +31281,12 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
                 /** @description Filter by call direction: inbound or outbound */
                 direction?: ("inbound" | "outbound") | null;
+                /** @description service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
+                group_by?: "service_id" | null;
             };
             header?: never;
             path: {
@@ -30942,9 +31302,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AdvancedCallStatsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -30962,6 +31320,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -30976,6 +31343,7 @@ export interface operations {
                 previous_from: string;
                 /** @description End of previous period */
                 previous_to: string;
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31012,6 +31380,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31053,6 +31430,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31096,6 +31482,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31133,6 +31520,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-eval-quality-analytics": {
@@ -31140,7 +31536,10 @@ export interface operations {
             query?: {
                 days?: number;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
+                /** @description service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
+                group_by?: "service_id" | null;
             };
             header?: never;
             path: {
@@ -31174,6 +31573,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: Lakebase couldn't answer the read right now (a dropped connection, a statement timeout, no free connection). The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31217,6 +31625,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31254,6 +31663,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-operator-performance": {
@@ -31263,6 +31681,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31297,6 +31716,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31485,7 +31913,10 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
+                /** @description service_id adds `groups`: each service's results, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
+                group_by?: "service_id" | null;
             };
             header?: never;
             path: {
@@ -31501,9 +31932,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ToolPerformanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -31521,6 +31950,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -32229,6 +32667,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Analytics unavailable: no warehouse is configured here, the warehouse couldn't answer the read, or its source isn't published in this region. The same body on every analytics route. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "create-outbound-call": {
@@ -32276,7 +32723,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Final: the request is invalid, channel-manager refused the call (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't honor system_prompt or goal yet */
             422: {
                 headers: {
                     [name: string]: unknown;
