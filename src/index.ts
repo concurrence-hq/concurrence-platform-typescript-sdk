@@ -761,12 +761,16 @@ export type {
 } from './resources/production-evals.js'
 
 export type {
+  AdvancedCallStatsParams,
+  AdvancedCallStatsResponse,
   EntitySurfaceHistoryParams,
   EvalQualityParams,
   EvalQualityResponse,
   SurfaceChannelEffectivenessParams,
   SurfaceCompletionRatesParams,
   SurfaceFieldAbandonmentParams,
+  ToolPerformanceParams,
+  ToolPerformanceResponse,
 } from './resources/analytics.js'
 
 export type {

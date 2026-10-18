@@ -776,11 +776,18 @@ console.log(dashboard.call_volume.value, dashboard.call_volume.delta_pct)
 console.log(dashboard.avg_quality.value)
 
 // Call volume time series
-const calls = await client.analytics.getCalls({ days: 30, interval: '1d' })
+const calls = await client.analytics.getCalls({ days: 30 })
 console.log(calls.total_calls, calls.calls_by_date)
 
 // Per-agent performance
-const { agents } = await client.analytics.getAgents({ period: '7d' })
+const { agents } = await client.analytics.getAgents({ days: 7 })
+
+// Every service's numbers in one request: group_by adds one entry per service to `groups`
+const callStats = await client.analytics.getAdvancedCallStats({ days: 30, group_by: 'service_id' })
+for (const group of callStats.groups ?? []) {
+  console.log(group.service_id, group.summary.total_calls, group.summary.escalated)
+}
+const toolStats = await client.analytics.getToolPerformance({ days: 30, group_by: 'service_id' })
 
 // Compare two periods
 const comparison = await client.analytics.compareCallPeriods({

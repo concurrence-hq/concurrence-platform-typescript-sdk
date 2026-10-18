@@ -1,8 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { AmigoClient, type EvalQualityResponse } from '../../src/index.js'
+import {
+  AmigoClient,
+  type AdvancedCallStatsResponse,
+  type components,
+  type EvalQualityResponse,
+  type ToolPerformanceResponse,
+} from '../../src/index.js'
+
+type Schemas = components['schemas']
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
+const SERVICE_A = '00000000-0000-0000-0000-0000000000a1'
+const SERVICE_B = '00000000-0000-0000-0000-0000000000b2'
 
 const DASHBOARD_FIXTURE = {
   call_volume: { value: 150, delta_pct: 12.5 },
@@ -12,7 +22,7 @@ const DASHBOARD_FIXTURE = {
   escalation_rate: { value: 0.04, delta_pct: -1.0 },
   tool_success_rate: { value: 0.96, delta_pct: 0.5 },
   period_days: 7,
-}
+} satisfies Schemas['AnalyticsDashboardResponse']
 
 const CALLS_FIXTURE = {
   workspace_id: TEST_WORKSPACE_ID,
@@ -22,10 +32,9 @@ const CALLS_FIXTURE = {
   period_start: '2026-01-01',
   period_end: '2026-01-07',
   calls_by_date: [{ date: '2026-01-01', count: 20, avg_duration_seconds: 240 }],
-}
+} satisfies Schemas['CallStatsResponse']
 
 const AGENTS_FIXTURE = {
-  workspace_id: TEST_WORKSPACE_ID,
   agents: [
     {
       agent_id: 'agent-001',
@@ -36,7 +45,8 @@ const AGENTS_FIXTURE = {
       completion_rate: 0.94,
     },
   ],
-}
+  period: null,
+} satisfies Schemas['AgentAnalyticsResponse']
 
 const CALL_QUALITY_FIXTURE = {
   summary: {
@@ -49,7 +59,7 @@ const CALL_QUALITY_FIXTURE = {
   },
   trend: [{ date: '2026-01-01T00:00:00Z', avg_quality: 80, call_count: 50, escalation_count: 5 }],
   quality_distribution: { excellent_90_100: 60, good_70_89: 70, fair_50_69: 15, poor_0_49: 5 },
-}
+} satisfies Schemas['CallQualityAnalyticsResponse']
 
 const EMOTION_TRENDS_FIXTURE = {
   workspace_id: TEST_WORKSPACE_ID,
@@ -63,20 +73,35 @@ const LATENCY_FIXTURE = {
 }
 
 const TOOL_PERFORMANCE_FIXTURE = {
-  workspace_id: TEST_WORKSPACE_ID,
-  tools: [{ name: 'book_appointment', success_rate: 0.95, avg_latency_ms: 450 }],
-}
+  summary: {
+    total_tool_calls: 200,
+    total_succeeded: 190,
+    total_failed: 10,
+    overall_failure_rate: 0.05,
+    avg_failure_rate_per_call: 0.04,
+  },
+  trend: [{ date: '2026-01-01T00:00:00Z', call_count: 40, total_tool_calls: 60, total_failed: 3 }],
+  groups: null,
+} satisfies ToolPerformanceResponse
 
 const DATA_QUALITY_FIXTURE = {
+  workspace_id: TEST_WORKSPACE_ID,
   confidence_by_source: {},
-  confidence_distribution: [
-    { confidence_range: 'verified', count: 88 },
-    { confidence_range: 'raw', count: 12 },
-  ],
+  confidence_distribution: [{ confidence_range: 'projected_average', count: 100 }],
   period_start: '2026-01-01',
   period_end: '2026-01-07',
   review_pipeline: {},
-}
+  timeseries: [
+    {
+      date: '2026-01-07',
+      avg_confidence: 0.82,
+      total_events: 100,
+      low_confidence: 0,
+      high_confidence: 0,
+    },
+  ],
+  total_events: 100,
+} satisfies Schemas['DataQualityResponse']
 
 const USAGE_FIXTURE = {
   workspace_id: TEST_WORKSPACE_ID,
@@ -84,7 +109,7 @@ const USAGE_FIXTURE = {
   period_start: '2026-01-01',
   period_end: '2026-01-07',
   total_events: 25000,
-}
+} satisfies Schemas['UsageSummaryResponse']
 
 const EVENT_BREAKDOWN_FIXTURE = {
   workspace_id: TEST_WORKSPACE_ID,
@@ -96,7 +121,7 @@ const EVENT_BREAKDOWN_FIXTURE = {
   period_start: '2026-01-01',
   period_end: '2026-01-07',
   total_events: 298,
-}
+} satisfies Schemas['EventBreakdownResponse']
 
 const OPERATOR_PERFORMANCE_FIXTURE = {
   summary: {
@@ -109,14 +134,89 @@ const OPERATOR_PERFORMANCE_FIXTURE = {
     avg_non_escalated_quality_score: 0.9,
   },
   trend: [{ date: '2026-01-01', escalated_count: 3, total_calls: 20 }],
-}
+} satisfies Schemas['OperatorPerformanceResponse']
 
 const ADVANCED_CALL_STATS_FIXTURE = {
-  workspace_id: TEST_WORKSPACE_ID,
-  abandonment_rate: 0.05,
-  transfer_rate: 0.12,
-  avg_silence_seconds: 3.2,
-}
+  summary: {
+    total_calls: 150,
+    escalated: 12,
+    completed: 138,
+    avg_duration_seconds: 240,
+    p50_duration_seconds: 210,
+    p95_duration_seconds: 540,
+    p99_duration_seconds: 780,
+    avg_quality_score: 82.5,
+    p5_quality_score: 41,
+    p50_quality_score: 85,
+    p95_quality_score: 97,
+  },
+  trend: [
+    {
+      date: '2026-01-01T00:00:00Z',
+      calls: 20,
+      escalation_rate: 0.05,
+      avg_duration_seconds: 230,
+      avg_quality: 81,
+      p50_quality: 84,
+      p95_latency_ms: 910,
+    },
+  ],
+  by_service: [
+    { service_id: SERVICE_A, calls: 90, escalation_rate: 0.1, avg_quality: 80 },
+    { service_id: SERVICE_B, calls: 60, escalation_rate: 0.05, avg_quality: 86 },
+  ],
+  by_direction: {
+    inbound: { calls: 120, avg_quality: 82 },
+    outbound: { calls: 30, avg_quality: 84 },
+  },
+  groups: null,
+} satisfies AdvancedCallStatsResponse
+
+const GROUPED_ADVANCED_CALL_STATS_FIXTURE = {
+  ...ADVANCED_CALL_STATS_FIXTURE,
+  groups: [
+    {
+      service_id: SERVICE_A,
+      summary: { total_calls: 90, escalated: 9, completed: 81 },
+      trend: [{ date: '2026-01-01T00:00:00Z', calls: 12, escalation_rate: 0.08 }],
+    },
+    {
+      service_id: SERVICE_B,
+      summary: { total_calls: 60, escalated: 3, completed: 57 },
+      trend: [{ date: '2026-01-01T00:00:00Z', calls: 8, escalation_rate: 0 }],
+    },
+  ],
+} satisfies AdvancedCallStatsResponse
+
+const GROUPED_TOOL_PERFORMANCE_FIXTURE = {
+  ...TOOL_PERFORMANCE_FIXTURE,
+  groups: [
+    {
+      service_id: SERVICE_A,
+      summary: {
+        total_tool_calls: 120,
+        total_succeeded: 112,
+        total_failed: 8,
+        overall_failure_rate: 0.067,
+      },
+      trend: [
+        { date: '2026-01-01T00:00:00Z', call_count: 25, total_tool_calls: 36, total_failed: 2 },
+      ],
+    },
+    {
+      service_id: SERVICE_B,
+      summary: {
+        total_tool_calls: 80,
+        total_succeeded: 78,
+        total_failed: 2,
+        overall_failure_rate: 0.025,
+      },
+      trend: [
+        { date: '2026-01-01T00:00:00Z', call_count: 15, total_tool_calls: 24, total_failed: 1 },
+      ],
+    },
+  ],
+} satisfies ToolPerformanceResponse
 
 const EVAL_QUALITY_FIXTURE = {
   summary: { eval_key: null, total_evals: 40, judged: 36, pass_rate: 0.75, avg_score: null },
@@ -130,6 +230,27 @@ const EVAL_QUALITY_FIXTURE = {
     },
   ],
   trend: [{ date: '2026-10-10', total_evals: 12, judged: 11, pass_rate: 0.8, avg_score: null }],
+  groups: null,
+} satisfies EvalQualityResponse
+
+const GROUPED_EVAL_QUALITY_FIXTURE = {
+  ...EVAL_QUALITY_FIXTURE,
+  groups: [
+    {
+      service_id: SERVICE_A,
+      summary: { eval_key: null, total_evals: 25, judged: 24, pass_rate: 0.8, avg_score: null },
+      by_eval_key: [
+        {
+          eval_key: 'resolved_on_first_call',
+          total_evals: 25,
+          judged: 24,
+          pass_rate: 0.8,
+          avg_score: null,
+        },
+      ],
+      trend: [{ date: '2026-10-10', total_evals: 8, judged: 8, pass_rate: 0.875, avg_score: null }],
+    },
+  ],
 } satisfies EvalQualityResponse
 
 const COMPARISON_FIXTURE = {
@@ -205,13 +326,8 @@ describe('AnalyticsResource', () => {
     expect(result.calls_by_date).toHaveLength(1)
   })
 
-  it('gets call analytics with filter params', async () => {
-    const result = await client.analytics.getCalls({
-      days: 14,
-      interval: '1d',
-      date_from: '2026-01-01',
-      date_to: '2026-01-14',
-    })
+  it('gets call analytics with a days window', async () => {
+    const result = await client.analytics.getCalls({ days: 14 })
     expect(result.total_calls).toBe(150)
   })
 
@@ -244,14 +360,17 @@ describe('AnalyticsResource', () => {
 
   it('gets tool performance', async () => {
     const result = await client.analytics.getToolPerformance()
-    const tools = result.tools as { success_rate: number }[]
-    expect(tools).toHaveLength(1)
-    expect(tools[0]?.success_rate).toBe(0.95)
+    expect(result.summary.total_tool_calls).toBe(200)
+    expect(result.summary.total_succeeded).toBe(190)
+    expect(result.summary.overall_failure_rate).toBe(0.05)
+    expect(result.trend[0]?.total_failed).toBe(3)
+    expect(result.groups).toBeNull()
   })
 
   it('gets data quality', async () => {
     const result = await client.analytics.getDataQuality()
-    expect(result.confidence_distribution).toHaveLength(2)
+    expect(result.confidence_distribution).toHaveLength(1)
+    expect(result.total_events).toBe(100)
     expect(result.period_start).toBe('2026-01-01')
   })
 
@@ -275,8 +394,13 @@ describe('AnalyticsResource', () => {
 
   it('gets advanced call stats', async () => {
     const result = await client.analytics.getAdvancedCallStats()
-    expect(result.abandonment_rate).toBe(0.05)
-    expect(result.transfer_rate).toBe(0.12)
+    expect(result.summary.total_calls).toBe(150)
+    expect(result.summary.escalated).toBe(12)
+    expect(result.summary.p95_duration_seconds).toBe(540)
+    expect(result.trend[0]?.calls).toBe(20)
+    expect(result.by_service.map((row) => row.service_id)).toEqual([SERVICE_A, SERVICE_B])
+    expect(result.by_direction.inbound?.calls).toBe(120)
+    expect(result.groups).toBeNull()
   })
 
   it('gets production eval quality', async () => {
@@ -299,14 +423,14 @@ describe('AnalyticsResource', () => {
   })
 })
 
-function capturingClient() {
+function capturingClient(body: unknown = {}) {
   const captured: { url?: string } = {}
   const client = new AmigoClient({
     apiKey: TEST_API_KEY,
     workspaceId: TEST_WORKSPACE_ID,
     fetch: async (input: string | URL | Request): Promise<Response> => {
       captured.url = input instanceof Request ? input.url : input.toString()
-      return Response.json({})
+      return Response.json(body)
     },
   })
   return { client, captured }
@@ -318,13 +442,111 @@ describe('AnalyticsResource eval quality param forwarding', () => {
     await client.analytics.getEvalQuality({
       days: 14,
       interval: '1w',
-      service_id: '00000000-0000-0000-0000-0000000000a1',
+      service_id: SERVICE_A,
     })
     const url = new URL(captured.url!)
     expect(url.pathname).toBe(`/v1/${TEST_WORKSPACE_ID}/analytics/eval-quality`)
     expect(url.searchParams.get('days')).toBe('14')
     expect(url.searchParams.get('interval')).toBe('1w')
-    expect(url.searchParams.get('service_id')).toBe('00000000-0000-0000-0000-0000000000a1')
+    expect(url.searchParams.get('service_id')).toBe(SERVICE_A)
+  })
+
+  it('forwards group_by and reads each service group', async () => {
+    const { client, captured } = capturingClient(GROUPED_EVAL_QUALITY_FIXTURE)
+    const result = await client.analytics.getEvalQuality({ days: 30, group_by: 'service_id' })
+    const query = new URL(captured.url!).searchParams
+    expect(query.get('group_by')).toBe('service_id')
+    expect(query.get('days')).toBe('30')
+    expect(result.groups?.map((group) => group.service_id)).toEqual([SERVICE_A])
+    expect(result.groups?.[0]?.by_eval_key[0]?.eval_key).toBe('resolved_on_first_call')
+    expect(result.groups?.[0]?.trend[0]?.pass_rate).toBe(0.875)
+  })
+})
+
+describe('AnalyticsResource advanced call stats param forwarding', () => {
+  it('forwards the date range, interval, service and direction', async () => {
+    const { client, captured } = capturingClient(ADVANCED_CALL_STATS_FIXTURE)
+    await client.analytics.getAdvancedCallStats({
+      date_from: '2026-01-01',
+      date_to: '2026-01-07',
+      interval: '1h',
+      service_id: SERVICE_A,
+      direction: 'outbound',
+    })
+    const url = new URL(captured.url!)
+    expect(url.pathname).toBe(`/v1/${TEST_WORKSPACE_ID}/analytics/calls/advanced`)
+    expect(url.searchParams.get('date_from')).toBe('2026-01-01')
+    expect(url.searchParams.get('date_to')).toBe('2026-01-07')
+    expect(url.searchParams.get('interval')).toBe('1h')
+    expect(url.searchParams.get('service_id')).toBe(SERVICE_A)
+    expect(url.searchParams.get('direction')).toBe('outbound')
+    expect(url.searchParams.has('group_by')).toBe(false)
+  })
+
+  it('forwards group_by and reads each service group', async () => {
+    const { client, captured } = capturingClient(GROUPED_ADVANCED_CALL_STATS_FIXTURE)
+    const result = await client.analytics.getAdvancedCallStats({
+      days: 30,
+      group_by: 'service_id',
+    })
+    const query = new URL(captured.url!).searchParams
+    expect(query.get('group_by')).toBe('service_id')
+    expect(query.get('days')).toBe('30')
+    expect(result.groups?.map((group) => group.service_id)).toEqual([SERVICE_A, SERVICE_B])
+    expect(result.groups?.[0]?.summary.total_calls).toBe(90)
+    expect(result.groups?.[1]?.trend[0]?.calls).toBe(8)
+    expect(result.summary.total_calls).toBe(150)
+  })
+})
+
+describe('AnalyticsResource tool performance param forwarding', () => {
+  it('forwards the date range, interval and service', async () => {
+    const { client, captured } = capturingClient(TOOL_PERFORMANCE_FIXTURE)
+    await client.analytics.getToolPerformance({
+      date_from: '2026-01-01',
+      date_to: '2026-01-31',
+      interval: '1w',
+      service_id: SERVICE_B,
+    })
+    const url = new URL(captured.url!)
+    expect(url.pathname).toBe(`/v1/${TEST_WORKSPACE_ID}/analytics/tool-performance`)
+    expect(url.searchParams.get('date_from')).toBe('2026-01-01')
+    expect(url.searchParams.get('date_to')).toBe('2026-01-31')
+    expect(url.searchParams.get('interval')).toBe('1w')
+    expect(url.searchParams.get('service_id')).toBe(SERVICE_B)
+    expect(url.searchParams.has('group_by')).toBe(false)
+  })
+
+  it('forwards group_by and reads each service group', async () => {
+    const { client, captured } = capturingClient(GROUPED_TOOL_PERFORMANCE_FIXTURE)
+    const result = await client.analytics.getToolPerformance({
+      days: 7,
+      group_by: 'service_id',
+    })
+    const query = new URL(captured.url!).searchParams
+    expect(query.get('group_by')).toBe('service_id')
+    expect(query.get('days')).toBe('7')
+    expect(result.groups?.map((group) => group.service_id)).toEqual([SERVICE_A, SERVICE_B])
+    expect(result.groups?.[0]?.summary.total_failed).toBe(8)
+    expect(result.groups?.[1]?.trend[0]?.total_tool_calls).toBe(24)
+  })
+})
+
+describe('AnalyticsResource agent analytics param forwarding', () => {
+  it('forwards the window and the period label', async () => {
+    const { client, captured } = capturingClient(AGENTS_FIXTURE)
+    await client.analytics.getAgents({
+      days: 14,
+      date_from: '2026-01-01',
+      date_to: '2026-01-14',
+      period: 'first half of January',
+    })
+    const url = new URL(captured.url!)
+    expect(url.pathname).toBe(`/v1/${TEST_WORKSPACE_ID}/analytics/agents`)
+    expect(url.searchParams.get('days')).toBe('14')
+    expect(url.searchParams.get('date_from')).toBe('2026-01-01')
+    expect(url.searchParams.get('date_to')).toBe('2026-01-14')
+    expect(url.searchParams.get('period')).toBe('first half of January')
   })
 })
 
