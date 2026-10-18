@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.115.0] - 2026-10-18
+
+### Documentation
+
+- fix the data sources example for the 0.112.0 API (#473)
+
+### Maintenance
+
+- sync API types from platform (0425d7e7) (#476)
+
 ## [0.114.1] - 2026-10-14
 
 ### Bug Fixes
