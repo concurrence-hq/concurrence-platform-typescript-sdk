@@ -5,11 +5,14 @@ import type {
   TtsProvider,
   VoiceJudgeResultListResponse,
   VoiceSessionProvider,
+  components,
 } from '../../src/index.js'
 import { mockFetch } from '../helpers/mock-fetch.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
+
+type ServiceResponse = components['schemas']['ServiceResponse']
 
 const SERVICE_ID = 'svc-00000000-0000-0000-0000-000000000001'
 let lastCreateBody: unknown
@@ -114,6 +117,67 @@ describe('ServicesResource', () => {
         tts_provider: ttsProvider,
       },
     })
+  })
+
+  it('sends and reads back platform caller verification and the medical emergency ending', async () => {
+    const service = {
+      id: SERVICE_ID,
+      workspace_id: TEST_WORKSPACE_ID,
+      name: 'Front Desk',
+      description: 'Answers practice questions',
+      agent_id: '00000000-0000-0000-0000-000000000011',
+      context_graph_id: '00000000-0000-0000-0000-000000000012',
+      keyterms: [],
+      is_active: true,
+      version_sets: {},
+      tags: [],
+      tool_capacity: 5,
+      platform_caller_verification: false,
+      medical_emergency_ending: 'end_after_script',
+      allow_unverified_integration_results: false,
+      created_at: '2026-10-20T00:00:00Z',
+      updated_at: '2026-10-20T00:00:00Z',
+    } satisfies ServiceResponse
+    const bodies: unknown[] = []
+    const recording = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/services`]: ({ body }) => {
+          bodies.push(body)
+          return Response.json(service, { status: 201 })
+        },
+        [`PUT ${BASE}/services/${SERVICE_ID}`]: ({ body }) => {
+          bodies.push(body)
+          return Response.json({ ...service, platform_caller_verification: true })
+        },
+      }),
+    })
+
+    const created = await recording.services.create({
+      name: 'Front Desk',
+      agent_id: service.agent_id,
+      context_graph_id: service.context_graph_id,
+      platform_caller_verification: false,
+      medical_emergency_ending: 'end_after_script',
+    })
+    const updated = await recording.services.update(SERVICE_ID, {
+      platform_caller_verification: true,
+    })
+
+    expect(bodies).toEqual([
+      {
+        name: 'Front Desk',
+        agent_id: service.agent_id,
+        context_graph_id: service.context_graph_id,
+        platform_caller_verification: false,
+        medical_emergency_ending: 'end_after_script',
+      },
+      { platform_caller_verification: true },
+    ])
+    expect(created.platform_caller_verification).toBe(false)
+    expect(created.medical_emergency_ending).toBe('end_after_script')
+    expect(updated.platform_caller_verification).toBe(true)
   })
 
   it('lists services', async () => {

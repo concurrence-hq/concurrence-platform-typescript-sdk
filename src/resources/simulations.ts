@@ -406,6 +406,36 @@ export class SimulationsResource extends WorkspaceScopedResource {
           params: { path: { workspace_id: this.workspaceId, suite_run_id: suiteRunId } },
         }),
       ),
+
+    /**
+     * Get the summaries of up to 50 suite runs in one request, such as a run
+     * history page. Each carries the suite run's status, per-status run counts,
+     * expected case count, the services its runs ran against (`service_ids`),
+     * and session and turn totals. They come back in request order, and a suite
+     * run with no runs in the workspace is left out.
+     */
+    listSummaries: async (params: QueryOf<'list-simulation-suite-run-summaries'>) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suite-runs', {
+          params: { path: { workspace_id: this.workspaceId }, query: params },
+        }),
+      ),
+
+    /**
+     * Roll every run of one suite run up into pass rates, per-metric results and
+     * per-case checks in one request, however many runs it has. The response has
+     * the same shape as `getPerformance`, which reads the workspace's most recent
+     * runs instead.
+     */
+    getPerformance: async (suiteRunId: string) =>
+      extractData(
+        await this.client.GET(
+          '/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}/performance',
+          {
+            params: { path: { workspace_id: this.workspaceId, suite_run_id: suiteRunId } },
+          },
+        ),
+      ),
   }
 
   /** Benchmarks: batches of saved cases selected by `suite_id` or `required_tags` */

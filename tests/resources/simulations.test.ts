@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
+import type { components } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -485,6 +486,39 @@ describe('SimulationsResource', () => {
       ])
       expect(requests[1]!.body).toEqual({ required_tags: ['intake'], max_cases: 20 })
       expect(requests[2]!.body).toEqual({ run_ids: [RUN_ID] })
+    })
+
+    it('reads many suite run summaries and one suite run performance, each in one request', async () => {
+      const OTHER_SUITE_RUN_ID = '00000000-0000-0000-0000-0000000000b2'
+      const summaries = {
+        suite_runs: [
+          {
+            suite_run_id: SUITE_RUN_ID,
+            suite_id: SUITE_ID,
+            run_ids: [RUN_ID],
+            service_ids: [SERVICE_ID],
+            total_runs: 1,
+            status: 'completed',
+            status_counts: { completed: 1 },
+            expected_case_count: 1,
+            total_sessions: 1,
+            total_turns: 6,
+          },
+        ],
+      } satisfies components['schemas']['ListSimulationSuiteRunSummariesResponse']
+      const { client: recording, requests } = recordingClient(summaries)
+
+      const page = await recording.simulations.suiteRuns.listSummaries({
+        suite_run_id: [SUITE_RUN_ID, OTHER_SUITE_RUN_ID],
+      })
+      await recording.simulations.suiteRuns.getPerformance(SUITE_RUN_ID)
+
+      expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `GET ${BASE}/simulations/suite-runs`,
+        `GET ${BASE}/simulations/suite-runs/${SUITE_RUN_ID}/performance`,
+      ])
+      expect(requests[0]!.query.getAll('suite_run_id')).toEqual([SUITE_RUN_ID, OTHER_SUITE_RUN_ID])
+      expect(page.suite_runs[0]?.service_ids).toEqual([SERVICE_ID])
     })
   })
 })

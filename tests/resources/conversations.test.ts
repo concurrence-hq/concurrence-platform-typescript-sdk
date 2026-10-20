@@ -4,6 +4,7 @@ import {
   BadRequestError,
   ConfigurationError,
   NotFoundError,
+  PermissionError,
   ValidationError,
   sessionConnectAuthProtocols,
   textStreamAuthProtocols,
@@ -257,6 +258,37 @@ describe('ConversationsResource', () => {
 
     expect(deleteCalled).toBe(true)
     expect(result).toBeUndefined()
+  })
+
+  it('close sends source=playground only when asked, and a refused close throws PermissionError', async () => {
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    const requestUrls: string[] = []
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`DELETE ${BASE}/conversations/${conversationId}`]: (req) => {
+          requestUrls.push(req.url)
+          return new URL(req.url).searchParams.get('source') === 'playground'
+            ? Response.json(
+                {
+                  detail:
+                    'A Playground or test-credential session may not close a real conversation',
+                },
+                { status: 403 },
+              )
+            : new Response(null, { status: 204 })
+        },
+      }),
+    })
+
+    await client.conversations.close(conversationId)
+    await expect(
+      client.conversations.close(conversationId, { source: 'playground' }),
+    ).rejects.toBeInstanceOf(PermissionError)
+
+    expect(new URL(requestUrls[0]!).searchParams.has('source')).toBe(false)
+    expect(new URL(requestUrls[1]!).searchParams.get('source')).toBe('playground')
   })
 
   it('switches a conversation channel', async () => {
@@ -579,6 +611,46 @@ describe('ConversationsResource', () => {
     expect(url.searchParams.get('poll')).toBe('true')
     expect(url.searchParams.has('include_tool_calls')).toBe(false)
     expect(requestBody).toEqual({})
+  })
+
+  it('pollTurn sends source in the body, never the query, next to poll=true', async () => {
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    let requestUrl: string | undefined
+    let requestBody: unknown
+    const apiResponse: TurnResponse = {
+      turn_id: 'turn-poll',
+      conversation: {
+        id: conversationId,
+        status: 'active',
+        turn_count: 1,
+        updated_at: '2026-01-01T00:00:01Z',
+      },
+      input: { role: 'user', text: '', content: [] },
+      output: [],
+      tool_calls: [],
+    }
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/conversations/${conversationId}/turns`]: async (req) => {
+          requestUrl = req.url
+          requestBody = await req.json()
+          return Response.json(apiResponse)
+        },
+      }),
+    })
+
+    await client.conversations.pollTurn(conversationId, {
+      includeToolCalls: true,
+      source: 'playground',
+    })
+
+    const url = new URL(requestUrl as string)
+    expect(url.searchParams.get('poll')).toBe('true')
+    expect(url.searchParams.get('include_tool_calls')).toBe('true')
+    expect(url.searchParams.has('source')).toBe(false)
+    expect(requestBody).toEqual({ source: 'playground' })
   })
 
   it('createTurn rejects poll combined with a message (fail fast, no server round-trip)', async () => {

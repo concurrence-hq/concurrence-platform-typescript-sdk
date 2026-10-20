@@ -547,6 +547,10 @@ await client.services.update(service.id, {
 await client.services.upsertVersionSet(service.id, 'canary', {
   version_set: { agent_version_number: 3, context_graph_version_number: 7 },
 })
+
+// Platform caller verification is on by default. Off, the agent never asks a caller to
+// verify, and every platform tool that reads a patient record refuses.
+await client.services.update(service.id, { platform_caller_verification: false })
 ```
 
 ### Runs
@@ -580,6 +584,16 @@ if (runs.has_more) {
   })
   console.log(nextPage.items)
 }
+```
+
+Pass up to 100 conversation IDs as `sourceConversationId` to find the runs those conversations
+produced, such as a Playground session's run. Runs with no source conversation, such as framework
+runs, are excluded.
+
+```typescript
+const { items: conversationRuns } = await client.runs.list({
+  sourceConversationId: ['conversation-id'],
+})
 ```
 
 ### World Model
@@ -869,13 +883,15 @@ console.log(status.event_count)
 ### Settings
 
 ```typescript
-import type { SttProvider, TtsProvider } from '@amigo-ai/platform-sdk'
+import type { SttProvider, TtsProvider, VoiceLanguage } from '@amigo-ai/platform-sdk'
 
-// Voice
+// Voice. `language` is one of VOICE_LANGUAGES; `multilingual` starts each call in English
+// and follows the language the caller speaks.
 const voice = await client.settings.voice.get()
 await client.settings.voice.update({
   voice_id: 'new-voice-id',
   speed: 1.1,
+  language: 'es' satisfies VoiceLanguage,
   stt_provider: 'deepgram' satisfies SttProvider,
   tts_provider: 'cartesia' satisfies TtsProvider,
 })
@@ -996,6 +1012,19 @@ const query = await client.workspaceDataQueries.create({
 })
 const result = await client.workspaceDataQueries.invoke(query.id, {
   input: { status: 'open' },
+})
+```
+
+A query over practice data, such as FAQ articles, locations or hours, declares that its rows hold
+no patient's record, so the voice agent never counts its result as one. A query that declares
+nothing is counted as one that may hold a patient's record.
+
+```typescript
+await client.workspaceDataQueries.create({
+  name: 'office_hours',
+  description: 'Opening hours by location',
+  sql_template: 'select location, opens, closes from custom.office_hours',
+  declarations: { reads: { patient_in: 'none' } },
 })
 ```
 

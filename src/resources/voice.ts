@@ -7,6 +7,7 @@ export type VoiceSessionProvider = NonNullable<
 >
 export type SttProvider = NonNullable<components['schemas']['VoiceSettingsRequest']['stt_provider']>
 export type TtsProvider = NonNullable<components['schemas']['VoiceSettingsRequest']['tts_provider']>
+export type VoiceLanguage = NonNullable<components['schemas']['VoiceSettingsRequest']['language']>
 
 export type ServiceVoiceConfigInput = components['schemas']['ServiceVoiceConfig-Input']
 export type ServiceVoiceConfigOutput = components['schemas']['ServiceVoiceConfig-Output']
@@ -49,4 +50,26 @@ const ttsProviders = ['cartesia', 'elevenlabs'] as const satisfies readonly TtsP
 export const TTS_PROVIDERS = ttsProviders satisfies ExhaustiveProviderList<
   TtsProvider,
   typeof ttsProviders
+>
+
+const voiceLanguages = [
+  'en',
+  'es',
+  'ar',
+  'fr',
+  'de',
+  'pt',
+  'zh',
+  'ja',
+  'ko',
+  'multilingual',
+] as const satisfies readonly VoiceLanguage[]
+/**
+ * The languages a workspace's calls can be spoken in when the caller's record
+ * names none. `multilingual` starts each call in English and follows the
+ * language the caller speaks. Any other value is a 422.
+ */
+export const VOICE_LANGUAGES = voiceLanguages satisfies ExhaustiveProviderList<
+  VoiceLanguage,
+  typeof voiceLanguages
 >

@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
+import type { Run, RunManifest } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
 const RUN_ID = 'run-00000000-0000-0000-0000-000000000001'
 const SERVICE_IDS = ['00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000102']
+const CONVERSATION_IDS = [
+  '00000000-0000-0000-0000-000000000201',
+  '00000000-0000-0000-0000-000000000202',
+]
 const BASE = `/v1/${TEST_WORKSPACE_ID}`
 
 function mockFetch(
@@ -159,6 +164,67 @@ describe('RunsResource', () => {
     const query = new URL(capturedUrl).searchParams
     expect(query.getAll('service_id')).toEqual([SERVICE_IDS[0]])
     expect(query.get('continuation_token')).toBe('next-page')
+  })
+
+  it('list() filters by source conversation with repeated source_conversation_id params', async () => {
+    let capturedUrl = ''
+    const capturing = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input: string | URL | Request): Promise<Response> => {
+        capturedUrl = input instanceof Request ? input.url : input.toString()
+        return Response.json({ items: [], has_more: false, continuation_token: null })
+      },
+    })
+
+    await capturing.runs.list({ sourceConversationId: CONVERSATION_IDS, channel: ['web'] })
+
+    const query = new URL(capturedUrl).searchParams
+    expect(query.getAll('source_conversation_id')).toEqual(CONVERSATION_IDS)
+    expect(query.has('sourceConversationId')).toBe(false)
+    expect(query.getAll('channel')).toEqual(['web'])
+
+    await capturing.runs.list({ sourceConversationId: [] })
+
+    expect(new URL(capturedUrl).searchParams.has('source_conversation_id')).toBe(false)
+  })
+
+  it('get() reads the manifest a run executed with', async () => {
+    const run = {
+      run_id: RUN_ID,
+      workspace_id: TEST_WORKSPACE_ID,
+      kind: 'conversation',
+      status: 'completed',
+      channel: 'voice',
+      source_conversation_id: CONVERSATION_IDS[0],
+      started_at: '2026-10-20T12:00:00Z',
+      takeover: { eligible: false, mode_options: [], reason: 'run is not live' },
+      manifest: {
+        llm_model: 'gpt-5.4',
+        image_sha: '0123456789abcdef0123456789abcdef01234567',
+        runtime_release_id: 'release-2026-10-20',
+        temperature: null,
+        engage_prompt_template_hash: 'sha256:1111',
+        navigation_prompt_template_hash: 'sha256:2222',
+        tts_language: 'es',
+        decider_kind: 'decisions',
+        cooperative_stop: true,
+        effect_shadow: false,
+        emergency_floor_enforced: true,
+      },
+    } satisfies Run
+    const reading = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async () => Response.json(run),
+    })
+
+    const res = await reading.runs.get(RUN_ID)
+
+    const manifest: RunManifest | null | undefined = res.manifest
+    expect(manifest).toEqual(run.manifest)
+    expect(manifest?.decider_kind).toBe('decisions')
+    expect(manifest?.tts_language).toBe('es')
   })
 
   it('summary() returns aggregate counts', async () => {
