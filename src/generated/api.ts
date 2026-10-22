@@ -11293,7 +11293,8 @@ export interface components {
              * Dynamic Behaviors
              * @description The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the
              *     latest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.
-             *     Writing a replace-mode behavior, or changing one, needs ``platform:admin``.
+             *     Adding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it
+             *     or removing it doesn't.
              */
             dynamic_behaviors?: components["schemas"]["DynamicBehavior"][] | null;
             /**
@@ -13079,8 +13080,8 @@ export interface components {
             instruction?: string | null;
             /**
              * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
-             *     guidelines, while boundary constraints, guardrails and safety rules stay. Writing or changing a replace-mode
-             *     behavior needs ``platform:admin``.
+             *     guidelines, while boundary constraints, guardrails and safety rules stay. Adding a replace-mode behavior, or
+             *     changing one, needs ``platform:admin``; disabling or removing one doesn't.
              * @default add
              */
             mode?: components["schemas"]["DynamicBehaviorMode"];
@@ -13091,7 +13092,7 @@ export interface components {
             name: string;
             /**
              * States
-             * @description The action states it applies in. Empty: every action state.
+             * @description The action and data collection states it applies in. Empty: every one.
              * @default []
              */
             states?: components["schemas"]["NameString"][];
@@ -13128,7 +13129,7 @@ export interface components {
         /** @enum {string} */
         DynamicBehaviorOutcome: "applied" | "kept" | "held" | "none" | "below_floor" | "failed" | "skipped" | "superseded";
         /** @enum {string} */
-        DynamicBehaviorSkip: "emergency_floor" | "person_request" | "empathy_hold" | "operator" | "suspended" | "no_candidates";
+        DynamicBehaviorSkip: "emergency_floor" | "person_request" | "empathy_hold" | "suspended" | "no_candidates";
         /** EagerEvalResponse */
         EagerEvalResponse: {
             /** Eval Count */
@@ -20912,6 +20913,11 @@ export interface components {
              *     checks both decide through it.
              */
             decider_kind?: components["schemas"]["DeciderKind"] | null;
+            /**
+             * @description ``sha256:`` over the template and fixed text each dynamic behavior decision renders from. Null on
+             *     gpt_realtime, which runs no dynamic behavior, and when the graph version has no enabled one.
+             */
+            dynamic_behavior_prompt_template_hash?: components["schemas"]["NameString"] | null;
             /**
              * Effect Shadow
              * @description Whether an in-house call also recorded each turn as effects, in shadow. Null off in-house voice.
@@ -34223,7 +34229,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions, or a replace-mode dynamic behavior added or changed without platform:admin scope. */
+            /** @description Insufficient permissions, or a replace-mode dynamic behavior added or changed (other than disabled) without platform:admin scope. */
             403: {
                 headers: {
                     [name: string]: unknown;

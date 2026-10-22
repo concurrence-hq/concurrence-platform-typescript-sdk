@@ -9617,7 +9617,7 @@
                 "type": "null"
               }
             ],
-            "description": "The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the\nlatest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.\nWriting a replace-mode behavior, or changing one, needs ``platform:admin``.",
+            "description": "The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the\nlatest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.\nAdding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it\nor removing it doesn't.",
             "title": "Dynamic Behaviors"
           },
           "global_action_guidelines": {
@@ -13359,7 +13359,7 @@
           "mode": {
             "$ref": "#/components/schemas/DynamicBehaviorMode",
             "default": "add",
-            "description": "``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action\nguidelines, while boundary constraints, guardrails and safety rules stay. Writing or changing a replace-mode\nbehavior needs ``platform:admin``."
+            "description": "``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action\nguidelines, while boundary constraints, guardrails and safety rules stay. Adding a replace-mode behavior, or\nchanging one, needs ``platform:admin``; disabling or removing one doesn't."
           },
           "name": {
             "description": "What authors call it. It never reaches the reply prompt.",
@@ -13370,7 +13370,7 @@
           },
           "states": {
             "default": [],
-            "description": "The action states it applies in. Empty: every action state.",
+            "description": "The action and data collection states it applies in. Empty: every one.",
             "items": {
               "$ref": "#/components/schemas/NameString"
             },
@@ -13462,7 +13462,6 @@
           "emergency_floor",
           "person_request",
           "empathy_hold",
-          "operator",
           "suspended",
           "no_candidates"
         ],
@@ -32148,6 +32147,17 @@
               }
             ],
             "description": "How the session's region decides: ``decisions``, OpenAI Decisions through the gateway, or\n``regional``, a constrained choice on the region's own gateway. Navigation and the reply\nchecks both decide through it."
+          },
+          "dynamic_behavior_prompt_template_hash": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "``sha256:`` over the template and fixed text each dynamic behavior decision renders from. Null on\ngpt_realtime, which runs no dynamic behavior, and when the graph version has no enabled one."
           },
           "effect_shadow": {
             "anyOf": [
@@ -60533,7 +60543,7 @@
             "description": "Missing or invalid API key."
           },
           "403": {
-            "description": "Insufficient permissions, or a replace-mode dynamic behavior added or changed without platform:admin scope."
+            "description": "Insufficient permissions, or a replace-mode dynamic behavior added or changed (other than disabled) without platform:admin scope."
           },
           "404": {
             "description": "Not found."
