@@ -72,9 +72,10 @@ export class ContextGraphsResource extends WorkspaceScopedResource {
    * Omitting `dynamic_behaviors` keeps the latest version's, and an empty list
    * removes them all. Pass `options.expectedLatestVersion`, the latest version
    * this write was made from (0 for a graph with none), to have the write throw
-   * `ConflictError` (409) when the graph has moved on since. Adding or changing
-   * a replace-mode dynamic behavior without `platform:admin` throws
-   * `PermissionError` (403).
+   * `ConflictError` (409) when the graph has moved on since. Without
+   * `platform:admin`, a write may keep a replace-mode dynamic behavior as it
+   * is, disable it or remove it; adding one, or changing one any other way,
+   * throws `PermissionError` (403).
    */
   async createVersion(
     contextGraphId: ContextGraphId | string,
