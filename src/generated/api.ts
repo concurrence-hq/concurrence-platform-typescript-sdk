@@ -1676,7 +1676,7 @@ export interface paths {
         put?: never;
         /**
          * Create a context graph version
-         * @description Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward.
+         * @description Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward. Omitting `dynamic_behaviors` keeps the latest version's.
          */
         post: operations["create-context_graph-version"];
         delete?: never;
@@ -4956,7 +4956,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -4979,7 +4979,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. Requires `Service.update` permission.
+         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -8141,6 +8141,20 @@ export interface components {
             workspace_id: string;
         };
         /**
+         * AppliedBehavior
+         * @description The dynamic behavior an agent reply was rendered with.
+         */
+        AppliedBehavior: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            mode: components["schemas"]["DynamicBehaviorMode"];
+            /** Name */
+            name: string;
+        };
+        /**
          * AppliedRate
          * @description Rate record applied to this model during the requested period.
          */
@@ -8500,6 +8514,77 @@ export interface components {
              * @description discovered | ready | processing | completed | failed.
              */
             status: string;
+        };
+        /**
+         * BehaviorDecision
+         * @description What one caller turn's dynamic behavior decision did.
+         *
+         *     ``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because
+         *     the model chose it again or said it stays; ``held`` kept it inside its ``sticky_turns``, whatever the
+         *     answer; ``none``, ``below_floor`` and ``failed`` left nothing in force (no behavior applies, a choice under
+         *     the confidence floor, no usable answer); ``skipped`` ran no decision (``reason`` says why) and ended the
+         *     active behavior; ``superseded`` was cancelled by the caller's next turn before it landed.
+         */
+        BehaviorDecision: {
+            /**
+             * Behavior Id
+             * @description The behavior in force after the decision.
+             * @default null
+             */
+            behavior_id?: string | null;
+            /**
+             * Candidate Count
+             * @description How many behaviors the decision chose between, ``none`` aside.
+             * @default 0
+             */
+            candidate_count?: number;
+            /**
+             * Chosen Id
+             * @description The behavior the model chose. Null when it chose none or gave no usable answer.
+             * @default null
+             */
+            chosen_id?: string | null;
+            /**
+             * Cited Message Indexes
+             * @description The messages the decision read the turn from: the agent's line before the turn, then the caller's.
+             * @default []
+             */
+            cited_message_indexes?: number[];
+            /**
+             * Confidence
+             * @description The choice's confidence. Null where the route reports none, as in AU and CA.
+             * @default null
+             */
+            confidence?: number | null;
+            /**
+             * Context Graph Version
+             * @description The context graph version whose behaviors were offered.
+             */
+            context_graph_version: number;
+            /**
+             * Keep Confidence
+             * @description The confidence of the answer to whether the active behavior stays, when that was asked.
+             * @default null
+             */
+            keep_confidence?: number | null;
+            /**
+             * Kept By Predicate
+             * @description Whether the active behavior stayed because the model said it stays, rather than by its choice.
+             * @default false
+             */
+            kept_by_predicate?: boolean;
+            /**
+             * Latency Ms
+             * @default null
+             */
+            latency_ms?: number | null;
+            outcome: components["schemas"]["DynamicBehaviorOutcome"];
+            /**
+             * Reason
+             * @description Why a decision failed or was skipped, or why a held behavior was held.
+             * @default null
+             */
+            reason?: components["schemas"]["FailureReason"] | components["schemas"]["DynamicBehaviorSkip"] | null;
         };
         /** BindingUpsertRequest */
         BindingUpsertRequest: {
@@ -10296,6 +10381,8 @@ export interface components {
             created_at?: string | null;
             /** Description */
             description: string;
+            /** Dynamic Behaviors */
+            dynamic_behaviors?: components["schemas"]["DynamicBehavior"][];
             /**
              * Global Action Guidelines
              * @default []
@@ -10354,6 +10441,11 @@ export interface components {
             created_at: string;
             /** Description */
             description: string;
+            /**
+             * Dynamic Behaviors
+             * @description The version's dynamic behaviors, in authored order. Empty on a version saved before they existed.
+             */
+            dynamic_behaviors: components["schemas"]["DynamicBehavior"][];
             /** Global Action Guidelines */
             global_action_guidelines: string[];
             /** Global Boundary Constraints */
@@ -10738,6 +10830,8 @@ export interface components {
              * @default []
              */
             content?: components["schemas"]["ContentPartPayload"][];
+            /** @description On an agent message, the dynamic behavior its reply was rendered with. Null when none was in force, and on user and system messages. */
+            dynamic_behavior?: components["schemas"]["AppliedBehavior"] | null;
             /**
              * Engine Turn Id
              * @description The agent engine's id for the turn this message opens (a user message) or answers (an agent message). One exchange can hold several engine turns, such as a tool call and the reply to its result. Null when no engine turn is recorded on the message: a filler line, a text reply, a channel event, or an older conversation that didn't record it.
@@ -11196,6 +11290,13 @@ export interface components {
             /** @default  */
             description?: components["schemas"]["DescriptionString"];
             /**
+             * Dynamic Behaviors
+             * @description The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the
+             *     latest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.
+             *     Writing a replace-mode behavior, or changing one, needs ``platform:admin``.
+             */
+            dynamic_behaviors?: components["schemas"]["DynamicBehavior"][] | null;
+            /**
              * Global Action Guidelines
              * @default []
              */
@@ -11503,10 +11604,22 @@ export interface components {
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
              *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
              *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
-             *     patient reads still refuse until the caller verifies, and data queries and skills still count.
+             *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
+             *     beside `caller_verification_endpoint_id`.
              * @default false
              */
             allow_unverified_integration_results?: boolean;
+            /**
+             * Caller Verification Endpoint Id
+             * @description The integration endpoint that verifies this service's callers, on a service with
+             *     `platform_caller_verification` and `allow_unverified_integration_results` false. The endpoint has to
+             *     be one of this workspace's, declare `declarations.verifies`, and never wait for approval under its
+             *     integration's `approval_policy`. A successful call verifies the caller as the one patient its response
+             *     names there, once per conversation. The reads of that integration that declare the patient they read
+             *     refuse until then, and then run only for that patient, and the agent may share what they return.
+             *     Naming one needs `Service.update`.
+             */
+            caller_verification_endpoint_id?: string | null;
             /**
              * Channel Type
              * @default voice
@@ -11553,7 +11666,8 @@ export interface components {
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
              *     birth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient
-             *     record refuses. The service's integration tools run the same either way.
+             *     record refuses. The service's integration tools run either way, unless one of them verifies its
+             *     callers (`caller_verification_endpoint_id`).
              * @default true
              */
             platform_caller_verification?: boolean;
@@ -12928,6 +13042,93 @@ export interface components {
              */
             op: "drop_index";
         };
+        /**
+         * DynamicBehavior
+         * @description One authored behavior on a context graph version.
+         */
+        DynamicBehavior: {
+            /**
+             * Condition
+             * @description When it applies, in terms of what the client wants or says. It describes the behavior to the selector.
+             */
+            condition: string;
+            /**
+             * Enabled
+             * @description A disabled behavior stays on the version and is never offered.
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Examples
+             * @description Things a client says when it applies. The selector reads them; the reply never does.
+             * @default []
+             */
+            examples?: string[];
+            /**
+             * Id
+             * Format: uuid
+             * @description Stable across versions: the same behavior keeps its id in every version that carries it. The client
+             *     generates it.
+             */
+            id: string;
+            /**
+             * Instruction
+             * @description The guidance the reply follows while the behavior is in force, and the only text of a behavior that
+             *     reaches the reply prompt. Null: the behavior is decided and recorded, and changes no reply.
+             */
+            instruction?: string | null;
+            /**
+             * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
+             *     guidelines, while boundary constraints, guardrails and safety rules stay. Writing or changing a replace-mode
+             *     behavior needs ``platform:admin``.
+             * @default add
+             */
+            mode?: components["schemas"]["DynamicBehaviorMode"];
+            /**
+             * Name
+             * @description What authors call it. It never reaches the reply prompt.
+             */
+            name: string;
+            /**
+             * States
+             * @description The action states it applies in. Empty: every action state.
+             * @default []
+             */
+            states?: components["schemas"]["NameString"][];
+            /**
+             * Sticky Turns
+             * @description The fewest caller turns it stays in force once applied, counting the turn it was applied on. Another
+             *     behavior the selector chooses still replaces it sooner.
+             * @default 1
+             */
+            sticky_turns?: number;
+            /**
+             * Tags
+             * @description Labels for authors. They never reach a prompt.
+             * @default []
+             */
+            tags?: string[];
+        };
+        /**
+         * DynamicBehaviorDecidedEvent
+         * @description A caller turn's dynamic behavior decision committed. ``behavior`` is the behavior in force after it.
+         */
+        DynamicBehaviorDecidedEvent: {
+            /** @default null */
+            behavior?: components["schemas"]["AppliedBehavior"] | null;
+            decision: components["schemas"]["BehaviorDecision"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dynamic_behavior_decided";
+        };
+        /** @enum {string} */
+        DynamicBehaviorMode: "add" | "replace";
+        /** @enum {string} */
+        DynamicBehaviorOutcome: "applied" | "kept" | "held" | "none" | "below_floor" | "failed" | "skipped" | "superseded";
+        /** @enum {string} */
+        DynamicBehaviorSkip: "emergency_floor" | "person_request" | "empathy_hold" | "operator" | "suspended" | "no_candidates";
         /** EagerEvalResponse */
         EagerEvalResponse: {
             /** Eval Count */
@@ -13217,6 +13418,12 @@ export interface components {
              */
             reads?: components["schemas"]["EndpointReads"] | null;
             /**
+             * @description How a successful call verifies the caller, and as which patient, for a service that names
+             *     this endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:
+             *     a call verifies nobody.
+             */
+            verifies?: components["schemas"]["VerifiesCaller-Input"] | null;
+            /**
              * @description What a successful call writes and how its response reports it. Null when undeclared: the
              *     voice agent then never treats the endpoint's calls as a booking or cancellation.
              */
@@ -13234,6 +13441,12 @@ export interface components {
              *     Null when undeclared.
              */
             reads?: components["schemas"]["EndpointReads"] | null;
+            /**
+             * @description How a successful call verifies the caller, and as which patient, for a service that names
+             *     this endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:
+             *     a call verifies nobody.
+             */
+            verifies?: components["schemas"]["VerifiesCaller-Output"] | null;
             /**
              * @description What a successful call writes and how its response reports it. Null when undeclared: the
              *     voice agent then never treats the endpoint's calls as a booking or cancellation.
@@ -14938,6 +15151,8 @@ export interface components {
          * @enum {string}
          */
         FailureClass: "timeout" | "input_rejected" | "rounds_exhausted" | "generic";
+        /** @enum {string} */
+        FailureReason: "refusal" | "out_of_set" | "malformed" | "http_4xx" | "http_retryable" | "connection" | "timeout" | "breaker_open" | "options_exceeded";
         /** FhirAppointmentListResponse */
         FhirAppointmentListResponse: {
             /** Appointments */
@@ -15500,13 +15715,14 @@ export interface components {
         };
         /**
          * FieldSuccess
-         * @description A field of the JSON response holds the value that means the write happened.
+         * @description A field of the JSON response holds the value that means the write happened, or the caller
+         *     verified.
          */
         FieldSuccess: {
             /**
              * Equals
-             * @description The value at ``pointer`` when the write happened. Compared as JSON: ``"0"`` is not ``0``,
-             *     and ``true`` is not ``1``. A form-encoded response holds only strings.
+             * @description The value at ``pointer`` when the write happened, or the caller verified. Compared as JSON:
+             *     ``"0"`` is not ``0``, and ``true`` is not ``1``. A form-encoded response holds only strings.
              */
             equals: string | number | boolean | null;
             /**
@@ -17880,7 +18096,7 @@ export interface components {
              */
             type: "oauth2_jwt_bearer";
         };
-        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["CompoundEmotionEvent"] | components["schemas"]["EmotionEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
+        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["CompoundEmotionEvent"] | components["schemas"]["DynamicBehaviorDecidedEvent"] | components["schemas"]["EmotionEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
         /** OcrRequest */
         OcrRequest: {
             /**
@@ -18646,7 +18862,8 @@ export interface components {
              * Params
              * @description The input parameters that name the patient, by an identifier their record on file carries:
              *     its entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's
-             *     ``input_schema``.
+             *     ``input_schema``. On a service that verifies its callers through its own integration, they name
+             *     the patient by the identifier its verifier returns.
              */
             params: string[];
             /**
@@ -18968,7 +19185,8 @@ export interface components {
             /**
              * Patient
              * @description RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one
-             *     their record on file carries, such as ``/patient_id``.
+             *     their record on file carries, such as ``/patient_id``. On a service that verifies its callers
+             *     through its own integration, the identifier its verifier returns.
              */
             patient: string;
             /**
@@ -18980,7 +19198,8 @@ export interface components {
              * Records
              * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:
              *     a list of records, or one record. ``/patients`` is the list under ``patients``, and the empty
-             *     pointer is the whole body.
+             *     pointer is the whole body. A held call keeps only the records a caller may hear, and nothing
+             *     beside them, and the template renders those.
              */
             records: string;
         };
@@ -21182,6 +21401,8 @@ export interface components {
              * @default false
              */
             allow_unverified_integration_results?: boolean;
+            /** Caller Verification Endpoint Id */
+            caller_verification_endpoint_id?: string | null;
             /**
              * Channel Type
              * @default voice
@@ -21423,10 +21644,16 @@ export interface components {
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
              *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
              *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
-             *     patient reads still refuse until the caller verifies, and data queries and skills still count.
+             *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
+             *     beside `caller_verification_endpoint_id`.
              * @default false
              */
             allow_unverified_integration_results?: boolean;
+            /**
+             * Caller Verification Endpoint Id
+             * @description The integration endpoint that verifies this service's callers, or null when none does.
+             */
+            caller_verification_endpoint_id?: string | null;
             /**
              * Channel Type
              * @default voice
@@ -21488,7 +21715,8 @@ export interface components {
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
              *     birth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient
-             *     record refuses. The service's integration tools run the same either way.
+             *     record refuses. The service's integration tools run either way, unless one of them verifies its
+             *     callers (`caller_verification_endpoint_id`).
              * @default true
              */
             platform_caller_verification?: boolean;
@@ -23870,7 +24098,8 @@ export interface components {
         };
         /**
          * StatusSuccess
-         * @description Any 2xx response is the write. For a vendor that turns a write down with an error status.
+         * @description Any 2xx response is the write, or the verification. For a vendor that turns one down with an
+         *     error status.
          */
         StatusSuccess: {
             /**
@@ -26282,6 +26511,10 @@ export interface components {
             }[] | null;
             /** Decision Bearing */
             decision_bearing?: boolean | null;
+            /** @description The dynamic behavior the agent line was rendered with. Null when none was in force. */
+            dynamic_behavior?: components["schemas"]["AppliedBehavior"] | null;
+            /** @description What the caller turn's dynamic behavior decision did. Null when none ran. */
+            dynamic_behavior_decision?: components["schemas"]["BehaviorDecision"] | null;
             /** Emotion Label */
             emotion_label?: string | null;
             /** Emotion Valence */
@@ -26326,6 +26559,11 @@ export interface components {
             modality?: string | null;
             /** Nav Ms */
             nav_ms?: number | null;
+            /**
+             * Packet Id
+             * @description The signal-engine packet the turn answers. Null when none was cut for it.
+             */
+            packet_id?: string | null;
             /** Primary Effect Kind */
             primary_effect_kind?: string | null;
             /** Render Ms */
@@ -26929,9 +27167,19 @@ export interface components {
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
              *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
              *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
-             *     patient reads still refuse until the caller verifies, and data queries and skills still count.
+             *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
+             *     beside `caller_verification_endpoint_id`.
              */
             allow_unverified_integration_results?: boolean | null;
+            /**
+             * Caller Verification Endpoint Id
+             * @description The integration endpoint that verifies this service's callers, on a service with
+             *     `platform_caller_verification` and `allow_unverified_integration_results` false: one of this
+             *     workspace's that declares `declarations.verifies` and never waits for approval under its
+             *     integration's `approval_policy`. `null` clears it, and leaving it out keeps what's stored. Takes effect
+             *     on the next call or turn.
+             */
+            caller_verification_endpoint_id?: string | null;
             /** Channel Type */
             channel_type?: ("voice" | "text") | null;
             /** Context Graph Id */
@@ -26960,7 +27208,8 @@ export interface components {
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
              *     birth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient
-             *     record refuses. The service's integration tools run the same either way.
+             *     record refuses. The service's integration tools run either way, unless one of them verifies its
+             *     callers (`caller_verification_endpoint_id`).
              */
             platform_caller_verification?: boolean | null;
             /** Tags */
@@ -27837,6 +28086,55 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        VerificationSuccess: components["schemas"]["StatusSuccess"] | components["schemas"]["FieldSuccess"];
+        /**
+         * VerifiesCaller
+         * @description A successful call verifies the caller as one patient: the one its response names. Declaring it
+         *     opens nothing: only a service that names the endpoint its verifier
+         *     (``Service.caller_verification_endpoint_id``) verifies anyone by it.
+         */
+        "VerifiesCaller-Input": {
+            /**
+             * Patient
+             * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of
+             *     the patient the caller verified as, such as ``/patient/id``: the identifier the service's reads
+             *     name the patient by. Only a string there with more than whitespace in it verifies anyone, never a
+             *     number, and never a value the model sent.
+             */
+            patient: string;
+            /**
+             * @description How the response says the caller verified: any 2xx (``http_status``), or a field holding the
+             *     value that means they did (``field``). A response that doesn't say so verifies nobody, whatever
+             *     identifier it holds. The author vouches that it says so only once the caller proved who they are
+             *     (a code checked, a name and date of birth matched), never on a lookup or a code sent, and that
+             *     ``patient`` names the patient the vendor matched, not a copy of something the request sent.
+             */
+            success: components["schemas"]["VerificationSuccess"];
+        };
+        /**
+         * VerifiesCaller
+         * @description A successful call verifies the caller as one patient: the one its response names. Declaring it
+         *     opens nothing: only a service that names the endpoint its verifier
+         *     (``Service.caller_verification_endpoint_id``) verifies anyone by it.
+         */
+        "VerifiesCaller-Output": {
+            /**
+             * Patient
+             * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of
+             *     the patient the caller verified as, such as ``/patient/id``: the identifier the service's reads
+             *     name the patient by. Only a string there with more than whitespace in it verifies anyone, never a
+             *     number, and never a value the model sent.
+             */
+            patient: string;
+            /**
+             * @description How the response says the caller verified: any 2xx (``http_status``), or a field holding the
+             *     value that means they did (``field``). A response that doesn't say so verifies nobody, whatever
+             *     identifier it holds. The author vouches that it says so only once the caller proved who they are
+             *     (a code checked, a name and date of birth matched), never on a lookup or a code sent, and that
+             *     ``patient`` names the patient the vendor matched, not a copy of something the request sent.
+             */
+            success: components["schemas"]["VerificationSuccess"];
         };
         VersionNumber: number;
         /**
@@ -33892,7 +34190,10 @@ export interface operations {
     };
     "create-context_graph-version": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The latest version this write was made from, 0 for a graph with none. When the graph has a different latest version, the write is refused with 409. */
+                expected_latest_version?: number | null;
+            };
             header?: never;
             path: {
                 workspace_id: string;
@@ -33922,7 +34223,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a replace-mode dynamic behavior added or changed without platform:admin scope. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -33936,14 +34237,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Name already taken. */
+            /** @description The graph's latest version isn't expected_latest_version. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Invalid request body. */
+            /** @description Invalid request body. Dynamic behaviors that are invalid together are listed in detail.dynamic_behaviors, each by its index, id and field. */
             422: {
                 headers: {
                     [name: string]: unknown;

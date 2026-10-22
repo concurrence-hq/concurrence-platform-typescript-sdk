@@ -1877,6 +1877,31 @@
         "title": "ApiKeyResponse",
         "type": "object"
       },
+      "AppliedBehavior": {
+        "description": "The dynamic behavior an agent reply was rendered with.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/DynamicBehaviorMode"
+          },
+          "name": {
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mode"
+        ],
+        "title": "AppliedBehavior",
+        "type": "object"
+      },
       "AppliedRate": {
         "description": "Rate record applied to this model during the requested period.",
         "properties": {
@@ -2629,6 +2654,128 @@
           "created_ts"
         ],
         "title": "BatchRow",
+        "type": "object"
+      },
+      "BehaviorDecision": {
+        "description": "What one caller turn's dynamic behavior decision did.\n\n``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because\nthe model chose it again or said it stays; ``held`` kept it inside its ``sticky_turns``, whatever the\nanswer; ``none``, ``below_floor`` and ``failed`` left nothing in force (no behavior applies, a choice under\nthe confidence floor, no usable answer); ``skipped`` ran no decision (``reason`` says why) and ended the\nactive behavior; ``superseded`` was cancelled by the caller's next turn before it landed.",
+        "properties": {
+          "behavior_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The behavior in force after the decision.",
+            "title": "Behavior Id"
+          },
+          "candidate_count": {
+            "default": 0,
+            "description": "How many behaviors the decision chose between, ``none`` aside.",
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "chosen_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The behavior the model chose. Null when it chose none or gave no usable answer.",
+            "title": "Chosen Id"
+          },
+          "cited_message_indexes": {
+            "default": [],
+            "description": "The messages the decision read the turn from: the agent's line before the turn, then the caller's.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cited Message Indexes",
+            "type": "array"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The choice's confidence. Null where the route reports none, as in AU and CA.",
+            "title": "Confidence"
+          },
+          "context_graph_version": {
+            "description": "The context graph version whose behaviors were offered.",
+            "title": "Context Graph Version",
+            "type": "integer"
+          },
+          "keep_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The confidence of the answer to whether the active behavior stays, when that was asked.",
+            "title": "Keep Confidence"
+          },
+          "kept_by_predicate": {
+            "default": false,
+            "description": "Whether the active behavior stayed because the model said it stays, rather than by its choice.",
+            "title": "Kept By Predicate",
+            "type": "boolean"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Latency Ms"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/DynamicBehaviorOutcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureReason"
+              },
+              {
+                "$ref": "#/components/schemas/DynamicBehaviorSkip"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why a decision failed or was skipped, or why a held behavior was held.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "outcome",
+          "context_graph_version"
+        ],
+        "title": "BehaviorDecision",
         "type": "object"
       },
       "BindingUpsertRequest": {
@@ -7177,6 +7324,14 @@
             "title": "Description",
             "type": "string"
           },
+          "dynamic_behaviors": {
+            "items": {
+              "$ref": "#/components/schemas/DynamicBehavior"
+            },
+            "maxItems": 254,
+            "title": "Dynamic Behaviors",
+            "type": "array"
+          },
           "global_action_guidelines": {
             "default": [],
             "items": {
@@ -7306,6 +7461,14 @@
             "title": "Description",
             "type": "string"
           },
+          "dynamic_behaviors": {
+            "description": "The version's dynamic behaviors, in authored order. Empty on a version saved before they existed.",
+            "items": {
+              "$ref": "#/components/schemas/DynamicBehavior"
+            },
+            "title": "Dynamic Behaviors",
+            "type": "array"
+          },
           "global_action_guidelines": {
             "items": {
               "type": "string"
@@ -7391,6 +7554,7 @@
           "global_action_guidelines",
           "global_boundary_constraints",
           "topology_description",
+          "dynamic_behaviors",
           "created_at",
           "updated_at"
         ],
@@ -8272,6 +8436,17 @@
             },
             "title": "Content",
             "type": "array"
+          },
+          "dynamic_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On an agent message, the dynamic behavior its reply was rendered with. Null when none was in force, and on user and system messages."
           },
           "engine_turn_id": {
             "anyOf": [
@@ -9429,6 +9604,22 @@
             "$ref": "#/components/schemas/DescriptionString",
             "default": ""
           },
+          "dynamic_behaviors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DynamicBehavior"
+                },
+                "maxItems": 254,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the\nlatest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.\nWriting a replace-mode behavior, or changing one, needs ``platform:admin``.",
+            "title": "Dynamic Behaviors"
+          },
           "global_action_guidelines": {
             "default": [],
             "items": {
@@ -10205,9 +10396,22 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, on a service with\n`platform_caller_verification` and `allow_unverified_integration_results` false. The endpoint has to\nbe one of this workspace's, declare `declarations.verifies`, and never wait for approval under its\nintegration's `approval_policy`. A successful call verifies the caller as the one patient its response\nnames there, once per conversation. The reads of that integration that declare the patient they read\nrefuse until then, and then run only for that patient, and the agent may share what they return.\nNaming one needs `Service.update`.",
+            "title": "Caller Verification Endpoint Id"
           },
           "channel_type": {
             "default": "voice",
@@ -10272,7 +10476,7 @@
           },
           "platform_caller_verification": {
             "default": true,
-            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run the same either way.",
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
             "title": "Platform Caller Verification",
             "type": "boolean"
           },
@@ -13103,6 +13307,167 @@
         "title": "DropIndexAction",
         "type": "object"
       },
+      "DynamicBehavior": {
+        "additionalProperties": false,
+        "description": "One authored behavior on a context graph version.",
+        "properties": {
+          "condition": {
+            "description": "When it applies, in terms of what the client wants or says. It describes the behavior to the selector.",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Condition",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "description": "A disabled behavior stays on the version and is never offered.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "examples": {
+            "default": [],
+            "description": "Things a client says when it applies. The selector reads them; the reply never does.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Examples",
+            "type": "array"
+          },
+          "id": {
+            "description": "Stable across versions: the same behavior keeps its id in every version that carries it. The client\ngenerates it.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The guidance the reply follows while the behavior is in force, and the only text of a behavior that\nreaches the reply prompt. Null: the behavior is decided and recorded, and changes no reply.",
+            "title": "Instruction"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/DynamicBehaviorMode",
+            "default": "add",
+            "description": "``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action\nguidelines, while boundary constraints, guardrails and safety rules stay. Writing or changing a replace-mode\nbehavior needs ``platform:admin``."
+          },
+          "name": {
+            "description": "What authors call it. It never reaches the reply prompt.",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "states": {
+            "default": [],
+            "description": "The action states it applies in. Empty: every action state.",
+            "items": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxItems": 200,
+            "title": "States",
+            "type": "array"
+          },
+          "sticky_turns": {
+            "default": 1,
+            "description": "The fewest caller turns it stays in force once applied, counting the turn it was applied on. Another\nbehavior the selector chooses still replaces it sooner.",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Sticky Turns",
+            "type": "integer"
+          },
+          "tags": {
+            "default": [],
+            "description": "Labels for authors. They never reach a prompt.",
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "condition"
+        ],
+        "title": "DynamicBehavior",
+        "type": "object"
+      },
+      "DynamicBehaviorDecidedEvent": {
+        "description": "A caller turn's dynamic behavior decision committed. ``behavior`` is the behavior in force after it.",
+        "properties": {
+          "behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "decision": {
+            "$ref": "#/components/schemas/BehaviorDecision"
+          },
+          "type": {
+            "const": "dynamic_behavior_decided",
+            "default": "dynamic_behavior_decided",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "DynamicBehaviorDecidedEvent",
+        "type": "object"
+      },
+      "DynamicBehaviorMode": {
+        "enum": [
+          "add",
+          "replace"
+        ],
+        "type": "string"
+      },
+      "DynamicBehaviorOutcome": {
+        "enum": [
+          "applied",
+          "kept",
+          "held",
+          "none",
+          "below_floor",
+          "failed",
+          "skipped",
+          "superseded"
+        ],
+        "type": "string"
+      },
+      "DynamicBehaviorSkip": {
+        "enum": [
+          "emergency_floor",
+          "person_request",
+          "empathy_hold",
+          "operator",
+          "suspended",
+          "no_candidates"
+        ],
+        "type": "string"
+      },
       "EagerEvalResponse": {
         "properties": {
           "eval_count": {
@@ -13801,6 +14166,17 @@
             ],
             "description": "Whose patient record a call returns, and how the call names that patient: the one its\nrequest names (``params``), the ones its response holds (``response``), or none (``none``).\nNull when undeclared."
           },
+          "verifies": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiesCaller-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How a successful call verifies the caller, and as which patient, for a service that names\nthis endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:\na call verifies nobody."
+          },
           "writes": {
             "anyOf": [
               {
@@ -13829,6 +14205,17 @@
               }
             ],
             "description": "Whose patient record a call returns, and how the call names that patient: the one its\nrequest names (``params``), the ones its response holds (``response``), or none (``none``).\nNull when undeclared."
+          },
+          "verifies": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiesCaller-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How a successful call verifies the caller, and as which patient, for a service that names\nthis endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:\na call verifies nobody."
           },
           "writes": {
             "anyOf": [
@@ -17935,6 +18322,20 @@
         "title": "FailureClass",
         "type": "string"
       },
+      "FailureReason": {
+        "enum": [
+          "refusal",
+          "out_of_set",
+          "malformed",
+          "http_4xx",
+          "http_retryable",
+          "connection",
+          "timeout",
+          "breaker_open",
+          "options_exceeded"
+        ],
+        "type": "string"
+      },
       "FhirAppointmentListResponse": {
         "properties": {
           "appointments": {
@@ -19742,7 +20143,7 @@
         "type": "object"
       },
       "FieldSuccess": {
-        "description": "A field of the JSON response holds the value that means the write happened.",
+        "description": "A field of the JSON response holds the value that means the write happened, or the caller\nverified.",
         "properties": {
           "equals": {
             "anyOf": [
@@ -19763,7 +20164,7 @@
                 "type": "null"
               }
             ],
-            "description": "The value at ``pointer`` when the write happened. Compared as JSON: ``\"0\"`` is not ``0``,\nand ``true`` is not ``1``. A form-encoded response holds only strings.",
+            "description": "The value at ``pointer`` when the write happened, or the caller verified. Compared as JSON:\n``\"0\"`` is not ``0``, and ``true`` is not ``1``. A form-encoded response holds only strings.",
             "title": "Equals"
           },
           "pointer": {
@@ -25109,6 +25510,7 @@
             "agent_transcript_delta": "#/components/schemas/AgentTranscriptDeltaEvent",
             "barge_in": "#/components/schemas/BargeInEvent",
             "compound_emotion": "#/components/schemas/CompoundEmotionEvent",
+            "dynamic_behavior_decided": "#/components/schemas/DynamicBehaviorDecidedEvent",
             "emotion": "#/components/schemas/EmotionEvent",
             "empathy_classified": "#/components/schemas/EmpathyClassifiedEvent",
             "forward_call_resolved": "#/components/schemas/ForwardCallResolvedEvent",
@@ -25147,6 +25549,9 @@
           },
           {
             "$ref": "#/components/schemas/CompoundEmotionEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicBehaviorDecidedEvent"
           },
           {
             "$ref": "#/components/schemas/EmotionEvent"
@@ -26812,7 +27217,7 @@
         "description": "A call returns the record of the patient its request names.",
         "properties": {
           "params": {
-            "description": "The input parameters that name the patient, by an identifier their record on file carries:\nits entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's\n``input_schema``.",
+            "description": "The input parameters that name the patient, by an identifier their record on file carries:\nits entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's\n``input_schema``. On a service that verifies its callers through its own integration, they name\nthe patient by the identifier its verifier returns.",
             "items": {
               "maxLength": 128,
               "minLength": 1,
@@ -27780,7 +28185,7 @@
         "description": "A call's response holds the patient records it found: a search, or a read by some other key.",
         "properties": {
           "patient": {
-            "description": "RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one\ntheir record on file carries, such as ``/patient_id``.",
+            "description": "RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one\ntheir record on file carries, such as ``/patient_id``. On a service that verifies its callers\nthrough its own integration, the identifier its verifier returns.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Patient",
@@ -27792,7 +28197,7 @@
             "type": "string"
           },
           "records": {
-            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:\na list of records, or one record. ``/patients`` is the list under ``patients``, and the empty\npointer is the whole body.",
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:\na list of records, or one record. ``/patients`` is the list under ``patients``, and the empty\npointer is the whole body. A held call keeps only the records a caller may hear, and nothing\nbeside them, and the template renders those.",
             "maxLength": 512,
             "title": "Records",
             "type": "string"
@@ -32838,6 +33243,18 @@
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caller Verification Endpoint Id"
+          },
           "channel_type": {
             "default": "voice",
             "enum": [
@@ -33285,9 +33702,22 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, or null when none does.",
+            "title": "Caller Verification Endpoint Id"
           },
           "channel_type": {
             "default": "voice",
@@ -33375,7 +33805,7 @@
           },
           "platform_caller_verification": {
             "default": true,
-            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run the same either way.",
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
             "title": "Platform Caller Verification",
             "type": "boolean"
           },
@@ -38854,7 +39284,7 @@
         "type": "object"
       },
       "StatusSuccess": {
-        "description": "Any 2xx response is the write. For a vendor that turns a write down with an error status.",
+        "description": "Any 2xx response is the write, or the verification. For a vendor that turns one down with an\nerror status.",
         "properties": {
           "reported_by": {
             "const": "http_status",
@@ -44176,6 +44606,28 @@
             ],
             "title": "Decision Bearing"
           },
+          "dynamic_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The dynamic behavior the agent line was rendered with. Null when none was in force."
+          },
+          "dynamic_behavior_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BehaviorDecision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the caller turn's dynamic behavior decision did. Null when none ran."
+          },
           "emotion_label": {
             "anyOf": [
               {
@@ -44309,6 +44761,18 @@
               }
             ],
             "title": "Nav Ms"
+          },
+          "packet_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The signal-engine packet the turn answers. Null when none was cut for it.",
+            "title": "Packet Id"
           },
           "primary_effect_kind": {
             "anyOf": [
@@ -46044,8 +46508,21 @@
                 "type": "null"
               }
             ],
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
             "title": "Allow Unverified Integration Results"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, on a service with\n`platform_caller_verification` and `allow_unverified_integration_results` false: one of this\nworkspace's that declares `declarations.verifies` and never waits for approval under its\nintegration's `approval_policy`. `null` clears it, and leaving it out keeps what's stored. Takes effect\non the next call or turn.",
+            "title": "Caller Verification Endpoint Id"
           },
           "channel_type": {
             "anyOf": [
@@ -46174,7 +46651,7 @@
                 "type": "null"
               }
             ],
-            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run the same either way.",
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
             "title": "Platform Caller Verification"
           },
           "tags": {
@@ -48501,6 +48978,67 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationSuccess": {
+        "discriminator": {
+          "mapping": {
+            "field": "#/components/schemas/FieldSuccess",
+            "http_status": "#/components/schemas/StatusSuccess"
+          },
+          "propertyName": "reported_by"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StatusSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/FieldSuccess"
+          }
+        ]
+      },
+      "VerifiesCaller-Input": {
+        "description": "A successful call verifies the caller as one patient: the one its response names. Declaring it\nopens nothing: only a service that names the endpoint its verifier\n(``Service.caller_verification_endpoint_id``) verifies anyone by it.",
+        "properties": {
+          "patient": {
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of\nthe patient the caller verified as, such as ``/patient/id``: the identifier the service's reads\nname the patient by. Only a string there with more than whitespace in it verifies anyone, never a\nnumber, and never a value the model sent.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Patient",
+            "type": "string"
+          },
+          "success": {
+            "$ref": "#/components/schemas/VerificationSuccess",
+            "description": "How the response says the caller verified: any 2xx (``http_status``), or a field holding the\nvalue that means they did (``field``). A response that doesn't say so verifies nobody, whatever\nidentifier it holds. The author vouches that it says so only once the caller proved who they are\n(a code checked, a name and date of birth matched), never on a lookup or a code sent, and that\n``patient`` names the patient the vendor matched, not a copy of something the request sent."
+          }
+        },
+        "required": [
+          "patient",
+          "success"
+        ],
+        "title": "VerifiesCaller",
+        "type": "object"
+      },
+      "VerifiesCaller-Output": {
+        "description": "A successful call verifies the caller as one patient: the one its response names. Declaring it\nopens nothing: only a service that names the endpoint its verifier\n(``Service.caller_verification_endpoint_id``) verifies anyone by it.",
+        "properties": {
+          "patient": {
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of\nthe patient the caller verified as, such as ``/patient/id``: the identifier the service's reads\nname the patient by. Only a string there with more than whitespace in it verifies anyone, never a\nnumber, and never a value the model sent.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Patient",
+            "type": "string"
+          },
+          "success": {
+            "$ref": "#/components/schemas/VerificationSuccess",
+            "description": "How the response says the caller verified: any 2xx (``http_status``), or a field holding the\nvalue that means they did (``field``). A response that doesn't say so verifies nobody, whatever\nidentifier it holds. The author vouches that it says so only once the caller proved who they are\n(a code checked, a name and date of birth matched), never on a lookup or a code sent, and that\n``patient`` names the patient the vendor matched, not a copy of something the request sent."
+          }
+        },
+        "required": [
+          "patient",
+          "success"
+        ],
+        "title": "VerifiesCaller",
         "type": "object"
       },
       "VersionNumber": {
@@ -59927,7 +60465,7 @@
         ]
       },
       "post": {
-        "description": "Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward.",
+        "description": "Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward. Omitting `dynamic_behaviors` keeps the latest version's.",
         "operationId": "create-context_graph-version",
         "parameters": [
           {
@@ -59948,6 +60486,25 @@
               "format": "uuid",
               "title": "Context Graph Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The latest version this write was made from, 0 for a graph with none. When the graph has a different latest version, the write is refused with 409.",
+            "in": "query",
+            "name": "expected_latest_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The latest version this write was made from, 0 for a graph with none. When the graph has a different latest version, the write is refused with 409.",
+              "title": "Expected Latest Version"
             }
           }
         ],
@@ -59976,16 +60533,16 @@
             "description": "Missing or invalid API key."
           },
           "403": {
-            "description": "Insufficient permissions."
+            "description": "Insufficient permissions, or a replace-mode dynamic behavior added or changed without platform:admin scope."
           },
           "404": {
             "description": "Not found."
           },
           "409": {
-            "description": "Name already taken."
+            "description": "The graph's latest version isn't expected_latest_version."
           },
           "422": {
-            "description": "Invalid request body."
+            "description": "Invalid request body. Dynamic behaviors that are invalid together are listed in detail.dynamic_behaviors, each by its index, id and field."
           }
         },
         "summary": "Create a context graph version",
@@ -74860,7 +75417,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -75034,7 +75591,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
