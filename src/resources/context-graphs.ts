@@ -66,15 +66,26 @@ export class ContextGraphsResource extends WorkspaceScopedResource {
     })
   }
 
-  /** Create a version snapshot of the current context graph */
+  /**
+   * Create the context graph's next version.
+   *
+   * Omitting `dynamic_behaviors` keeps the latest version's, and an empty list
+   * removes them all. Pass `options.expectedLatestVersion`, the latest version
+   * this write was made from (0 for a graph with none), to have the write throw
+   * `ConflictError` (409) when the graph has moved on since. Adding or changing
+   * a replace-mode dynamic behavior without `platform:admin` throws
+   * `PermissionError` (403).
+   */
   async createVersion(
     contextGraphId: ContextGraphId | string,
     body: components['schemas']['CreateContextGraphVersionRequest'],
+    options?: { expectedLatestVersion?: number },
   ) {
     return extractData(
       await this.client.POST('/v1/{workspace_id}/context-graphs/{context_graph_id}/versions', {
         params: {
           path: { workspace_id: this.workspaceId, context_graph_id: contextGraphId },
+          query: { expected_latest_version: options?.expectedLatestVersion },
         },
         body,
       }),
