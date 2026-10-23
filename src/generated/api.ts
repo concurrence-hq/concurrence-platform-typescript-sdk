@@ -2843,10 +2843,10 @@ export interface paths {
          *     ``returns=scalar``).
          *
          *     Permissions: ``Workspace.view`` (read role and above). Read-only
-         *     keys are intentionally allowed — invocation runs a stored,
-         *     pre-validated SELECT against catalogs the workspace SP already has
-         *     SELECT on; the gate on what can run is the deploy-time validator
-         *     (read-only invariant), not the per-call permission.
+         *     keys are intentionally allowed — invocation runs a stored SELECT,
+         *     and the gate on what can run is the warehouse guard, which a sql or
+         *     ai body passes for this workspace at deploy and again before every
+         *     run (422 when it refuses a stored body), not the per-call permission.
          */
         post: operations["invoke-function"];
         delete?: never;
@@ -37715,7 +37715,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation failure (read-only / bind / parity) */
+            /** @description Validation failure (read-only / warehouse guard / bind / parity) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -37807,7 +37807,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Bind validation failure */
+            /** @description Bind validation failure, or a stored body the warehouse guard refuses */
             422: {
                 headers: {
                     [name: string]: unknown;

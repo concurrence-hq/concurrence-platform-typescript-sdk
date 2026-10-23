@@ -66615,7 +66615,7 @@
             "description": "URL function_name does not match body name"
           },
           "422": {
-            "description": "Validation failure (read-only / bind / parity)"
+            "description": "Validation failure (read-only / warehouse guard / bind / parity)"
           },
           "429": {
             "description": "Rate limited"
@@ -66629,7 +66629,7 @@
     },
     "/v1/{workspace_id}/functions/{function_name}/invoke": {
       "post": {
-        "description": "Execute a registered function and return its rows.\n\nBound parameters are validated against the stored schema; ``ws_id``\nis auto-injected from the request context. Returns the executor's\nshaped response (``rows`` for ``returns=table``, scalar value for\n``returns=scalar``).\n\nPermissions: ``Workspace.view`` (read role and above). Read-only\nkeys are intentionally allowed \u2014 invocation runs a stored,\npre-validated SELECT against catalogs the workspace SP already has\nSELECT on; the gate on what can run is the deploy-time validator\n(read-only invariant), not the per-call permission.",
+        "description": "Execute a registered function and return its rows.\n\nBound parameters are validated against the stored schema; ``ws_id``\nis auto-injected from the request context. Returns the executor's\nshaped response (``rows`` for ``returns=table``, scalar value for\n``returns=scalar``).\n\nPermissions: ``Workspace.view`` (read role and above). Read-only\nkeys are intentionally allowed \u2014 invocation runs a stored SELECT,\nand the gate on what can run is the warehouse guard, which a sql or\nai body passes for this workspace at deploy and again before every\nrun (422 when it refuses a stored body), not the per-call permission.",
         "operationId": "invoke-function",
         "parameters": [
           {
@@ -66677,7 +66677,7 @@
             "description": "Function not found"
           },
           "422": {
-            "description": "Bind validation failure"
+            "description": "Bind validation failure, or a stored body the warehouse guard refuses"
           },
           "429": {
             "description": "Rate limited"
