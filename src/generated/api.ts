@@ -4742,7 +4742,7 @@ export interface paths {
         put?: never;
         /**
          * Author the next turn on a non-voice run under takeover
-         * @description Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. It replaces the agent's next outbound message, exactly once, so the caller receives the operator's words while the agent stays suspended. Repeatable: each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. It replaces the agent's next outbound message, exactly once, so the caller receives the operator's words while the agent stays suspended. Repeatable: each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
          */
         post: operations["author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post"];
         delete?: never;
@@ -4762,7 +4762,7 @@ export interface paths {
         put?: never;
         /**
          * Send operator guidance to a live run
-         * @description Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.
          */
         post: operations["send_run_guidance_v1__workspace_id__runs__run_id__guidance_post"];
         delete?: never;
@@ -4782,7 +4782,7 @@ export interface paths {
         put?: never;
         /**
          * Hand a taken-over run back to the agent
-         * @description Release the caller's operator from a run they took over — the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over — the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
          */
         post: operations["hand_back_run_v1__workspace_id__runs__run_id__handback_post"];
         delete?: never;
@@ -4802,7 +4802,7 @@ export interface paths {
         put?: never;
         /**
          * Switch an operator between listen and takeover on a live run
-         * @description Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
          */
         post: operations["switch_run_mode_v1__workspace_id__runs__run_id__switch_mode_post"];
         delete?: never;
@@ -4822,7 +4822,7 @@ export interface paths {
         put?: never;
         /**
          * Take over a live run as operator
-         * @description Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, or if the operator has no phone number configured. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.
          */
         post: operations["take_over_run_v1__workspace_id__runs__run_id__takeover_post"];
         delete?: never;
@@ -5181,6 +5181,9 @@ export interface paths {
         /**
          * Update workspace branding
          * @description Update the workspace default branding for surfaces.
+         *
+         *     Only provided fields are updated; omitted fields keep their stored values.
+         *     Set a field to ``null`` to clear it.
          *
          *     Surface-level branding takes precedence over workspace-level branding.
          *
@@ -8728,8 +8731,8 @@ export interface components {
         };
         /**
          * BrandingSettingsRequest
-         * @description Update workspace branding. All fields are optional — only provided
-         *     fields are changed.
+         * @description Update workspace branding. All fields are optional, and only provided
+         *     fields are changed. A field sent as ``null`` is cleared.
          */
         BrandingSettingsRequest: {
             branding: components["schemas"]["BrandingConfig"];
