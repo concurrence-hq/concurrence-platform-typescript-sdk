@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.116.0] - 2026-10-23
+
+### Features
+
+- add authorTurn for staging a non-voice operator reply (#480)
+
+### Maintenance
+
+- sync API types from platform (606d2230) (#481)
+
 ## [0.115.0] - 2026-10-18
 
 ### Documentation
