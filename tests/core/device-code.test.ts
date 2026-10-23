@@ -4,6 +4,7 @@ import {
   TokenManager,
   MemoryTokenStorage,
   FileTokenStorage,
+  AmigoError,
   DeviceCodeExpiredError,
   DeviceCodeDeniedError,
   RefreshTokenExpiredError,
@@ -320,6 +321,84 @@ describe('TokenManager', () => {
     await mgr.store(validResult)
     await mgr.clear()
     expect(await mgr.hasCredentials()).toBe(false)
+  })
+
+  describe('signOut', () => {
+    function revokeCalls(fetch: typeof globalThis.fetch) {
+      return (fetch as ReturnType<typeof vi.fn>).mock.calls.map(([url, init]) => {
+        const body = new URLSearchParams((init as RequestInit).body as string)
+        return [url, body.get('token_type_hint'), body.get('token')]
+      })
+    }
+
+    it('revokes the refresh token and then the access token at identity, and clears', async () => {
+      const fetch = mockFetch(200, {})
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store(validResult)
+
+      await mgr.signOut()
+
+      expect(revokeCalls(fetch)).toEqual([
+        ['https://id.test/revoke', 'refresh_token', 'rt_abc'],
+        ['https://id.test/revoke', 'access_token', validResult.accessToken],
+      ])
+      const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+      expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal)
+      expect(await mgr.hasCredentials()).toBe(false)
+    })
+
+    it('skips a refresh token that identity never issued', async () => {
+      const fetch = mockFetch(200, {})
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store({ ...validResult, refreshToken: '' })
+
+      await mgr.signOut()
+
+      expect(revokeCalls(fetch)).toEqual([
+        ['https://id.test/revoke', 'access_token', validResult.accessToken],
+      ])
+    })
+
+    it('posts nothing when no credentials are stored', async () => {
+      const fetch = mockFetch(200, {})
+      await new TokenManager({ storage, fetch }).signOut()
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('tries a 5xx once more', async () => {
+      const fetch = createFetchSequence([
+        { status: 500, body: {} },
+        { status: 200, body: {} },
+      ])
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store(validResult)
+
+      await mgr.signOut()
+
+      expect(fetch).toHaveBeenCalledTimes(3)
+      expect(await mgr.hasCredentials()).toBe(false)
+    })
+
+    it('clears the credentials and rejects when identity keeps failing', async () => {
+      const fetch = mockFetch(500, {})
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store(validResult)
+
+      await expect(mgr.signOut()).rejects.toThrow(AmigoError)
+
+      expect(fetch).toHaveBeenCalledTimes(4)
+      expect(await mgr.hasCredentials()).toBe(false)
+    })
+
+    it('clears the credentials and rejects when identity cannot be reached', async () => {
+      const fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store(validResult)
+
+      await expect(mgr.signOut()).rejects.toThrow(NetworkError)
+
+      expect(await mgr.hasCredentials()).toBe(false)
+    })
   })
 })
 

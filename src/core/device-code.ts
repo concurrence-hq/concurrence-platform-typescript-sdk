@@ -142,6 +142,7 @@ async function identityPost(
   path: string,
   body: URLSearchParams,
   fetchFn: typeof globalThis.fetch,
+  signal?: AbortSignal,
 ): Promise<Response> {
   try {
     // redirect: 'manual' is required because the identity service uses HTTP 300
@@ -152,6 +153,7 @@ async function identityPost(
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
       redirect: 'manual',
+      signal,
     })
   } catch (err) {
     throw new NetworkError('Network error contacting identity service', err)
@@ -247,6 +249,27 @@ async function doRefreshToken(
     })
   }
   return (await res.json()) as IdentityTokenResponse
+}
+
+const REVOKE_TIMEOUT_MS = 5_000
+
+// RFC 7009: identity answers 200 for any token it is given, so a non-2xx means the
+// revoke did not happen. A 5xx (identity's session store being down) is tried once more.
+async function revokeToken(
+  baseUrl: string,
+  params: { token: string; tokenTypeHint: 'access_token' | 'refresh_token' },
+  fetchFn: typeof globalThis.fetch,
+): Promise<void> {
+  const body = new URLSearchParams({ token: params.token, token_type_hint: params.tokenTypeHint })
+  const post = () =>
+    identityPost(baseUrl, '/revoke', body, fetchFn, AbortSignal.timeout(REVOKE_TIMEOUT_MS))
+  let res = await post()
+  if (res.status >= 500) res = await post()
+  if (!res.ok) {
+    throw new AmigoError(`Identity could not revoke the ${params.tokenTypeHint} (${res.status})`, {
+      statusCode: res.status,
+    })
+  }
 }
 
 // --- JWT decode (no verification — server validates) ---
@@ -550,10 +573,31 @@ export class TokenManager {
     return (await this._loadCached()) !== null
   }
 
+  /** Forgets the credentials on this machine only. The tokens stay valid at identity until they expire; use `signOut()` to end the session. */
   async clear(): Promise<void> {
     this._cached = null
     this._refreshPromise = null
     await this._storage.clear()
+  }
+
+  /**
+   * Ends the session: revokes the refresh token and the access token at identity, then
+   * forgets them locally. The credentials are cleared even when a revoke fails, and the
+   * call then rejects, so the caller knows the tokens may still be live.
+   */
+  async signOut(): Promise<void> {
+    const creds = await this._loadCached()
+    if (!creds) return
+    const revocations = [
+      { token: creds.refresh_token, tokenTypeHint: 'refresh_token' as const },
+      { token: creds.access_token, tokenTypeHint: 'access_token' as const },
+    ].filter(({ token }) => token)
+    const results = await Promise.allSettled(
+      revocations.map((revocation) => revokeToken(this._baseUrl, revocation, this._fetch)),
+    )
+    await this.clear()
+    const failed = results.find((result) => result.status === 'rejected')
+    if (failed) throw failed.reason
   }
 
   private async _loadCached(): Promise<StoredCredentials | null> {
