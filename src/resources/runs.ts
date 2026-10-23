@@ -21,8 +21,8 @@ export type RunManifest = components['schemas']['RunManifest']
  * framework run (claude-agent-sdk / openai-agents), combined at read time
  * behind one `Run` contract. This resource is the SDK surface for that backbone:
  * list + summary + single-run detail + framework trajectory (reads), plus the
- * run-scoped operator verbs (guidance / takeover / handback / switch-mode)
- * addressed by the channel-neutral `run_id`.
+ * run-scoped operator verbs (guidance / takeover / authored-turn / handback /
+ * switch-mode) addressed by the channel-neutral `run_id`.
  *
  * Distinct from the agent-runs CONTEXT edge (`/agent-runs/harness-context`,
  * framework-only) and the conversation surface (`/conversations`,
@@ -124,6 +124,24 @@ export class RunsResource extends WorkspaceScopedResource {
   async takeOver(runId: string, body: components['schemas']['RunTakeoverRequest']) {
     return extractData(
       await this.client.POST('/v1/{workspace_id}/runs/{run_id}/takeover', {
+        params: { path: { workspace_id: this.workspaceId, run_id: runId } },
+        body,
+      }),
+    )
+  }
+
+  /**
+   * Stage the operator's reply on a taken-over text run (sms, whatsapp, email, web or imessage).
+   * The reply goes out in place of the agent's next message, once, and the agent stays paused.
+   * Call it again for each further reply, then `handBack`. `text` is 1 to 4,000 characters;
+   * longer is a 422, never truncated. A voice run gets a 409, because the operator speaks on
+   * the call. Beta: a workspace that is not enabled for operators gets a 403. The call acts as
+   * the signed-in operator, so `operator_id` must be the caller's own and the client needs that
+   * operator's identity token; a workspace API key gets a 403.
+   */
+  async authorTurn(runId: string, body: components['schemas']['RunAuthoredTurnRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/runs/{run_id}/authored-turn', {
         params: { path: { workspace_id: this.workspaceId, run_id: runId } },
         body,
       }),

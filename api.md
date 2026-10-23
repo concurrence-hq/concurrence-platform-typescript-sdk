@@ -123,6 +123,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `trajectory`
 - `sendGuidance`
 - `takeOver`
+- `authorTurn`
 - `handBack`
 - `switchMode`
 
