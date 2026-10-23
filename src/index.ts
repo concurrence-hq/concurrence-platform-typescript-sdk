@@ -761,12 +761,16 @@ export type {
 } from './resources/production-evals.js'
 
 export type {
+  AdvancedCallStatsParams,
+  AdvancedCallStatsResponse,
   EntitySurfaceHistoryParams,
   EvalQualityParams,
   EvalQualityResponse,
   SurfaceChannelEffectivenessParams,
   SurfaceCompletionRatesParams,
   SurfaceFieldAbandonmentParams,
+  ToolPerformanceParams,
+  ToolPerformanceResponse,
 } from './resources/analytics.js'
 
 export type {
@@ -775,14 +779,22 @@ export type {
   VoiceJudgeResultListResponse,
 } from './resources/services.js'
 
+export type { Run, RunManifest } from './resources/runs.js'
+
 /** Voice provider constants and types. */
-export { STT_PROVIDERS, TTS_PROVIDERS, VOICE_SESSION_PROVIDERS } from './resources/voice.js'
+export {
+  STT_PROVIDERS,
+  TTS_PROVIDERS,
+  VOICE_LANGUAGES,
+  VOICE_SESSION_PROVIDERS,
+} from './resources/voice.js'
 export type {
   AgentVoiceConfig,
   ServiceVoiceConfigInput,
   ServiceVoiceConfigOutput,
   SttProvider,
   TtsProvider,
+  VoiceLanguage,
   VoiceSessionProvider,
   VoiceSettingsRequest,
   VoiceSettingsResponse,
@@ -873,6 +885,7 @@ export { sessionConnectAuthProtocols, textStreamAuthProtocols } from './resource
 export type {
   ChannelKind,
   ConversationDetail,
+  ConversationSource,
   ConversationTurn,
   ConversationTurnAvailableAction,
   ConversationTurnStateTransition,

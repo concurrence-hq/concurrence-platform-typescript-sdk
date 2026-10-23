@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
+import type { CreateWorkspaceDataQueryRequest, WorkspaceDataQuery } from '../../src/index.js'
 import { mockFetch } from '../helpers/mock-fetch.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -22,10 +23,11 @@ const QUERY_FIXTURE = {
     },
   ],
   timeout_ms: 5000,
+  declarations: { reads: null },
   last_invoked_at: null,
   deployed_at: '2026-05-20T00:00:00Z',
   deployed_by: '00000000-0000-0000-0000-000000000001',
-}
+} satisfies WorkspaceDataQuery
 
 const client = new AmigoClient({
   apiKey: TEST_API_KEY,
@@ -66,6 +68,44 @@ describe('WorkspaceDataQueriesResource', () => {
 
     expect(result.id).toBe(QUERY_ID)
     expect(result.parameters).toHaveLength(1)
+  })
+
+  it('sends declarations on create and update, and reads them back', async () => {
+    const practiceData = {
+      ...QUERY_FIXTURE,
+      name: 'office_hours',
+      declarations: { reads: { patient_in: 'none' } },
+    } satisfies WorkspaceDataQuery
+    const bodies: unknown[] = []
+    const recording = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/data_queries`]: ({ body }) => {
+          bodies.push(body)
+          return Response.json(practiceData, { status: 201 })
+        },
+        [`PATCH ${BASE}/data_queries/${QUERY_ID}`]: ({ body }) => {
+          bodies.push(body)
+          return Response.json({ ...practiceData, declarations: { reads: null } })
+        },
+      }),
+    })
+
+    const create = {
+      name: 'office_hours',
+      description: 'Opening hours by location',
+      sql_template: 'select location, opens, closes from custom.office_hours',
+      declarations: { reads: { patient_in: 'none' } },
+    } satisfies CreateWorkspaceDataQueryRequest
+    const created = await recording.workspaceDataQueries.create(create)
+    const updated = await recording.workspaceDataQueries.update(QUERY_ID, {
+      declarations: { reads: null },
+    })
+
+    expect(bodies).toEqual([create, { declarations: { reads: null } }])
+    expect(created.declarations.reads).toEqual({ patient_in: 'none' })
+    expect(updated.declarations.reads).toBeNull()
   })
 
   it('gets a workspace data query by id', async () => {

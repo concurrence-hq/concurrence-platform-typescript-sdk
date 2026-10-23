@@ -825,6 +825,261 @@
         "title": "AddUniqueAction",
         "type": "object"
       },
+      "AdvancedCallStatsResponse": {
+        "description": "Percentile call metrics with a trend and by-service and by-direction breakdowns.",
+        "properties": {
+          "by_direction": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DirectionCalls"
+            },
+            "description": "Calls per direction (inbound, outbound); calls without a direction are left out",
+            "title": "By Direction",
+            "type": "object"
+          },
+          "by_service": {
+            "description": "Calls per service, busiest first, ties by service_id; calls without a service are left out",
+            "items": {
+              "$ref": "#/components/schemas/ServiceCalls"
+            },
+            "title": "By Service",
+            "type": "array"
+          },
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServiceCallStats"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.",
+            "title": "Groups"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AdvancedCallStatsSummary",
+            "description": "Calls in the window"
+          },
+          "trend": {
+            "description": "One point per bucket with calls",
+            "items": {
+              "$ref": "#/components/schemas/AdvancedCallStatsTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "summary",
+          "trend",
+          "by_service",
+          "by_direction"
+        ],
+        "title": "AdvancedCallStatsResponse",
+        "type": "object"
+      },
+      "AdvancedCallStatsSummary": {
+        "description": "Production calls in the window: counts, durations and quality scores.",
+        "properties": {
+          "avg_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean call duration in seconds",
+            "title": "Avg Duration Seconds"
+          },
+          "avg_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality Score"
+          },
+          "completed": {
+            "description": "Calls not escalated to an operator (total_calls minus escalated)",
+            "title": "Completed",
+            "type": "integer"
+          },
+          "escalated": {
+            "description": "Calls escalated to an operator",
+            "title": "Escalated",
+            "type": "integer"
+          },
+          "p50_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median call duration in seconds",
+            "title": "P50 Duration Seconds"
+          },
+          "p50_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median quality score (0-100)",
+            "title": "P50 Quality Score"
+          },
+          "p5_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "5th-percentile quality score (0-100)",
+            "title": "P5 Quality Score"
+          },
+          "p95_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th-percentile call duration in seconds",
+            "title": "P95 Duration Seconds"
+          },
+          "p95_quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th-percentile quality score (0-100)",
+            "title": "P95 Quality Score"
+          },
+          "p99_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "99th-percentile call duration in seconds",
+            "title": "P99 Duration Seconds"
+          },
+          "total_calls": {
+            "description": "Production calls in the window",
+            "title": "Total Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_calls",
+          "completed",
+          "escalated"
+        ],
+        "title": "AdvancedCallStatsSummary",
+        "type": "object"
+      },
+      "AdvancedCallStatsTrendPoint": {
+        "description": "One interval bucket of the advanced call stats.",
+        "properties": {
+          "avg_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean call duration in seconds",
+            "title": "Avg Duration Seconds"
+          },
+          "avg_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality"
+          },
+          "calls": {
+            "description": "Production calls in the bucket",
+            "title": "Calls",
+            "type": "integer"
+          },
+          "date": {
+            "description": "Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)",
+            "title": "Date",
+            "type": "string"
+          },
+          "escalation_rate": {
+            "description": "Escalated calls over calls in the bucket (0.0-1.0)",
+            "title": "Escalation Rate",
+            "type": "number"
+          },
+          "p50_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median quality score (0-100)",
+            "title": "P50 Quality"
+          },
+          "p95_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th percentile of each call's average audio time-to-first-byte, in ms",
+            "title": "P95 Latency Ms"
+          }
+        },
+        "required": [
+          "date",
+          "calls",
+          "escalation_rate"
+        ],
+        "title": "AdvancedCallStatsTrendPoint",
+        "type": "object"
+      },
       "AgentAnalyticsEntry": {
         "properties": {
           "agent_id": {
@@ -1442,6 +1697,21 @@
         "title": "AnalyticsKpi",
         "type": "object"
       },
+      "AnalyticsUnavailableResponse": {
+        "description": "The 503 body when the route couldn't read its data.",
+        "properties": {
+          "detail": {
+            "const": "Analytics unavailable",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "AnalyticsUnavailableResponse",
+        "type": "object"
+      },
       "AnnotationState": {
         "description": "Injects a hardcoded inner thought (no LLM call).",
         "properties": {
@@ -1605,6 +1875,31 @@
           "updated_at"
         ],
         "title": "ApiKeyResponse",
+        "type": "object"
+      },
+      "AppliedBehavior": {
+        "description": "The dynamic behavior an agent reply was rendered with.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/DynamicBehaviorMode"
+          },
+          "name": {
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mode"
+        ],
+        "title": "AppliedBehavior",
         "type": "object"
       },
       "AppliedRate": {
@@ -1939,7 +2234,7 @@
       "AuditExportSubmitResponse": {
         "properties": {
           "statement_id": {
-            "description": "Databricks statement handle \u2014 poll GET /export/{statement_id} for links.",
+            "description": "The export's handle: poll GET /export/{statement_id} for the links.",
             "title": "Statement Id",
             "type": "string"
           },
@@ -2290,7 +2585,7 @@
         "type": "object"
       },
       "BatchProcessingManifest": {
-        "description": "Per-file extraction params for a document batch's still-``received`` files \u2014\nconsumed by the batch-extract job, which runs ONCE per batch and extracts\nevery file (instead of one run-now per file, which blows the request/gateway\ntimeout for large batches). Authenticated by the same short-lived\nworkspace-scoped token as the status write-back. ``document_processing`` is\ndataset-wide (the contract); ``file_type`` is per-file (V265 multi-type).\n\nSource provenance mirrors the single-file path (resolve_source_identity, PHI\ngate): source_file_id/source_url (opaque ids) always populate; source_folder_path\n+ filename (operator-named free text) populate ONLY for contains_phi=false\ndatasets \u2014 otherwise they stay None, so PHI never leaves the Lakebase row.",
+        "description": "Per-file extraction params for a document batch's still-``received`` files \u2014\nconsumed by the batch-extract job, which runs ONCE per batch and extracts\nevery file (instead of one run-now per file, which blows the request/gateway\ntimeout for large batches). Authenticated by the same short-lived\nworkspace-scoped token as the status write-back. ``document_processing`` is\ndataset-wide (the contract); ``file_type`` is per-file (V265 multi-type).\n\nSource provenance mirrors the single-file path (resolve_source_identity, PHI\ngate): source_file_id/source_url (opaque ids) always populate; source_folder_path\n+ filename (operator-named free text) populate ONLY for contains_phi=false\ndatasets; otherwise they stay None, so PHI never leaves the file's record.",
         "properties": {
           "document_processing": {
             "additionalProperties": true,
@@ -2359,6 +2654,128 @@
           "created_ts"
         ],
         "title": "BatchRow",
+        "type": "object"
+      },
+      "BehaviorDecision": {
+        "description": "What one caller turn's dynamic behavior decision did.\n\n``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because\nthe model chose it again or said it stays; ``held`` kept it inside its ``sticky_turns``, whatever the\nanswer; ``none``, ``below_floor`` and ``failed`` left nothing in force (no behavior applies, a choice under\nthe confidence floor, no usable answer); ``skipped`` ran no decision (``reason`` says why) and ended the\nactive behavior; ``superseded`` was cancelled by the caller's next turn before it landed.",
+        "properties": {
+          "behavior_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The behavior in force after the decision.",
+            "title": "Behavior Id"
+          },
+          "candidate_count": {
+            "default": 0,
+            "description": "How many behaviors the decision chose between, ``none`` aside.",
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "chosen_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The behavior the model chose. Null when it chose none or gave no usable answer.",
+            "title": "Chosen Id"
+          },
+          "cited_message_indexes": {
+            "default": [],
+            "description": "The messages the decision read the turn from: the agent's line before the turn, then the caller's.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cited Message Indexes",
+            "type": "array"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The choice's confidence. Null where the route reports none, as in AU and CA.",
+            "title": "Confidence"
+          },
+          "context_graph_version": {
+            "description": "The context graph version whose behaviors were offered.",
+            "title": "Context Graph Version",
+            "type": "integer"
+          },
+          "keep_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The confidence of the answer to whether the active behavior stays, when that was asked.",
+            "title": "Keep Confidence"
+          },
+          "kept_by_predicate": {
+            "default": false,
+            "description": "Whether the active behavior stayed because the model said it stays, rather than by its choice.",
+            "title": "Kept By Predicate",
+            "type": "boolean"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Latency Ms"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/DynamicBehaviorOutcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureReason"
+              },
+              {
+                "$ref": "#/components/schemas/DynamicBehaviorSkip"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why a decision failed or was skipped, or why a held behavior was held.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "outcome",
+          "context_graph_version"
+        ],
+        "title": "BehaviorDecision",
         "type": "object"
       },
       "BindingUpsertRequest": {
@@ -2768,7 +3185,7 @@
         "type": "object"
       },
       "BrandingSettingsRequest": {
-        "description": "Update workspace branding. All fields are optional \u2014 only provided\nfields are changed.",
+        "description": "Update workspace branding. All fields are optional, and only provided\nfields are changed. A field sent as ``null`` is cleared.",
         "properties": {
           "branding": {
             "$ref": "#/components/schemas/BrandingConfig"
@@ -4370,7 +4787,7 @@
         "type": "object"
       },
       "CallQualityAnalyticsResponse": {
-        "description": "Call quality score trends, distribution, and summary over time.\n\nServed from the live Delta projection ``analytics.source_call_intelligence``.",
+        "description": "Call quality score trends, distribution, and summary over time.",
         "properties": {
           "quality_distribution": {
             "$ref": "#/components/schemas/CallQualityDistribution",
@@ -6564,7 +6981,7 @@
             "title": "Last Ingested At"
           },
           "source": {
-            "description": "Operator-defined source identifier as written to Delta world_events.source (e.g. 'charm', 'careclinic', 'hazel'). Enum-like; never user input.",
+            "description": "Operator-defined source identifier, as the source's events carry it (e.g. 'charm', 'careclinic', 'hazel'). Enum-like; never user input.",
             "maxLength": 256,
             "minLength": 1,
             "title": "Source",
@@ -6591,7 +7008,7 @@
             "type": "string"
           },
           "read_model_status": {
-            "description": "ready = Lakebase projection returned rows; empty = no summary rows; unavailable = read failed.",
+            "description": "ready = the summary returned rows; empty = no summary rows; unavailable = read failed.",
             "enum": [
               "ready",
               "empty",
@@ -6907,6 +7324,14 @@
             "title": "Description",
             "type": "string"
           },
+          "dynamic_behaviors": {
+            "items": {
+              "$ref": "#/components/schemas/DynamicBehavior"
+            },
+            "maxItems": 254,
+            "title": "Dynamic Behaviors",
+            "type": "array"
+          },
           "global_action_guidelines": {
             "default": [],
             "items": {
@@ -7036,6 +7461,14 @@
             "title": "Description",
             "type": "string"
           },
+          "dynamic_behaviors": {
+            "description": "The version's dynamic behaviors, in authored order. Empty on a version saved before they existed.",
+            "items": {
+              "$ref": "#/components/schemas/DynamicBehavior"
+            },
+            "title": "Dynamic Behaviors",
+            "type": "array"
+          },
           "global_action_guidelines": {
             "items": {
               "type": "string"
@@ -7121,6 +7554,7 @@
           "global_action_guidelines",
           "global_boundary_constraints",
           "topology_description",
+          "dynamic_behaviors",
           "created_at",
           "updated_at"
         ],
@@ -7462,7 +7896,7 @@
                 "type": "null"
               }
             ],
-            "description": "What the conversation executed with, as its first session recorded it at start: the agent and context graph versions, the version set, the models and the config fingerprint. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models."
+            "description": "What the conversation executed with, as its first session recorded it: the agent and context graph versions, the version set and config fingerprint, the build, the models and how they sampled, the prompt templates, the voice's language, the program flags and how the region decides. A call that changed its STT or its voice's language mid-call reads as it last stood. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models."
           },
           "phone_number": {
             "anyOf": [
@@ -8002,6 +8436,17 @@
             },
             "title": "Content",
             "type": "array"
+          },
+          "dynamic_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On an agent message, the dynamic behavior its reply was rendered with. Null when none was in force, and on user and system messages."
           },
           "engine_turn_id": {
             "anyOf": [
@@ -9159,6 +9604,22 @@
             "$ref": "#/components/schemas/DescriptionString",
             "default": ""
           },
+          "dynamic_behaviors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DynamicBehavior"
+                },
+                "maxItems": 254,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the\nlatest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.\nAdding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it\nor removing it doesn't.",
+            "title": "Dynamic Behaviors"
+          },
           "global_action_guidelines": {
             "default": [],
             "items": {
@@ -9294,6 +9755,19 @@
             "title": "Service Id",
             "type": "string"
           },
+          "source": {
+            "anyOf": [
+              {
+                "const": "playground",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set to ``playground`` when the developer console Playground starts the conversation. A Playground session writes only to conversations a Playground session or test credential started, never a real one. Web only (422 on another channel); an external user gets 403.",
+            "title": "Source"
+          },
           "use_case_id": {
             "anyOf": [
               {
@@ -9304,7 +9778,7 @@
                 "type": "null"
               }
             ],
-            "description": "Channel-manager use case the outbound conversation is sent through. Required for non-web; channel-manager resolves the sender (FROM) from it (never caller-supplied). Must be owned by this workspace.",
+            "description": "The use case the outbound conversation is sent through. Required for non-web; the sender (FROM) is resolved from it, never caller-supplied. Must be owned by this workspace.",
             "title": "Use Case Id"
           }
         },
@@ -9535,7 +10009,7 @@
         "type": "object"
       },
       "CreateOutboundCallRequest": {
-        "description": "Request body for creating an outbound call.\n\n``use_case_id`` is required: channel-manager selects the optimal outbound\nphone number bound to that use case (the sole caller-ID resolution path).",
+        "description": "Request body for creating an outbound call.\n\n``use_case_id`` is required: the call goes out from a phone number bound\nto that use case, the only way its caller ID is chosen.",
         "properties": {
           "context": {
             "additionalProperties": {
@@ -9682,7 +10156,7 @@
             "title": "Tags"
           },
           "use_case_id": {
-            "description": "Channel-manager use case ID. channel-manager selects the optimal outbound phone number bound to this use case.",
+            "description": "Use case ID. The call goes out from a phone number bound to this use case.",
             "format": "uuid",
             "title": "Use Case Id",
             "type": "string"
@@ -9739,7 +10213,7 @@
                 "type": "null"
               }
             ],
-            "description": "Channel-manager setup ID when use_case_id was used.",
+            "description": "The channel setup's ID when use_case_id was used.",
             "title": "Setup Id"
           },
           "status": {
@@ -9920,6 +10394,25 @@
             "title": "Agent Id",
             "type": "string"
           },
+          "allow_unverified_integration_results": {
+            "default": false,
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "title": "Allow Unverified Integration Results",
+            "type": "boolean"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, on a service with\n`platform_caller_verification` and `allow_unverified_integration_results` false. The endpoint has to\nbe one of this workspace's, declare `declarations.verifies`, and never wait for approval under its\nintegration's `approval_policy`. A successful call verifies the caller as the one patient its response\nnames there, once per conversation. The reads of that integration that declare the patient they read\nrefuse until then, and then run only for that patient, and the agent may share what they return.\nNaming one needs `Service.update`.",
+            "title": "Caller Verification Endpoint Id"
+          },
           "channel_type": {
             "default": "voice",
             "enum": [
@@ -9968,8 +10461,24 @@
             "title": "Keyterms",
             "type": "array"
           },
+          "medical_emergency_ending": {
+            "default": "stay_on_line",
+            "description": "How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or\n``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or\ncrisis statement keeps the call open in either.",
+            "enum": [
+              "stay_on_line",
+              "end_after_script"
+            ],
+            "title": "Medical Emergency Ending",
+            "type": "string"
+          },
           "name": {
             "$ref": "#/components/schemas/NameString"
+          },
+          "platform_caller_verification": {
+            "default": true,
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
+            "title": "Platform Caller Verification",
+            "type": "boolean"
           },
           "tags": {
             "items": {
@@ -10050,7 +10559,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional world entity UUID to bind caller context directly. Precedence rules: (1) when this resolves to a world entity in the workspace, it WINS \u2014 `caller_id` is not used for identity resolution, and the resolution provenance is `entity_id_lookup`; (2) when this is a well-formed UUID with no matching entity (stale, deleted, wrong workspace), the session falls back to phone lookup against `caller_id` (provenance `phone_lookup`) \u2014 no error is raised, the sim is survivable; (3) malformed UUIDs are rejected with HTTP 422 before the request reaches agent-engine. The supplied `caller_id` is still recorded on the active call and surfaced in the greeting metadata in case (1).",
+            "description": "Optional world entity UUID to bind caller context directly. Precedence rules: (1) when this resolves to a world entity in the workspace, it WINS \u2014 `caller_id` is not used for identity resolution, and the resolution provenance is `entity_id_lookup`; (2) when this is a well-formed UUID with no matching entity (stale, deleted, wrong workspace), the session falls back to phone lookup against `caller_id` (provenance `phone_lookup`) \u2014 no error is raised, the sim is survivable; (3) malformed UUIDs are rejected with HTTP 422 before the session starts. The supplied `caller_id` is still recorded on the active call and surfaced in the greeting metadata in case (1).",
             "title": "Entity Id"
           },
           "service_id": {
@@ -11644,6 +12153,43 @@
         "title": "DataQualityResponse",
         "type": "object"
       },
+      "DataQueryDeclarations": {
+        "description": "What a data query's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses. A reader ignores a key it doesn't\nknow, so a later declaration never breaks an older reader. The data query API refuses one at the\nwrite boundary instead (``DataQueryDeclarationsBody`` in platform-api).",
+        "properties": {
+          "reads": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointReads"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whose patient record a call returns, and how the call names that patient: the one its\nparameters name (``params``, each one of the query's ``parameters``), the ones its rows hold\n(``response``, where ``records`` points into the rows the query returns, a list of objects keyed\nby column, so the empty pointer is every row), or none (``none``: practice data, such as\narticles, locations or opening hours). Null when undeclared: the voice agent then counts a\ncall's result as one that may hold a patient's record."
+          }
+        },
+        "title": "DataQueryDeclarations",
+        "type": "object"
+      },
+      "DataQueryDeclarationsBody": {
+        "additionalProperties": false,
+        "description": "The declarations a create or PATCH names. One a data query can't make, such as an endpoint's\n``writes`` or a misspelled ``reads``, is a 422, never a key dropped with a 200. Only the write\nboundary refuses one: a reader ignores a key it doesn't know (``DataQueryDeclarations``).",
+        "properties": {
+          "reads": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointReads"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whose patient record a call returns, and how the call names that patient: the one its\nparameters name (``params``, each one of the query's ``parameters``), the ones its rows hold\n(``response``, where ``records`` points into the rows the query returns, a list of objects keyed\nby column, so the empty pointer is every row), or none (``none``: practice data, such as\narticles, locations or opening hours). Null when undeclared: the voice agent then counts a\ncall's result as one that may hold a patient's record."
+          }
+        },
+        "title": "DataQueryDeclarationsBody",
+        "type": "object"
+      },
       "DataQueryResponse": {
         "properties": {
           "count": {
@@ -12115,6 +12661,13 @@
         ],
         "title": "DatasetUpdateRunResponse",
         "type": "object"
+      },
+      "DeciderKind": {
+        "enum": [
+          "decisions",
+          "regional"
+        ],
+        "type": "string"
       },
       "DecisionFactor": {
         "description": "A specific audio input that drove an agent decision.",
@@ -12603,6 +13156,33 @@
         "title": "DestroySessionResponse",
         "type": "object"
       },
+      "DirectionCalls": {
+        "description": "One direction's calls in ``by_direction``.",
+        "properties": {
+          "avg_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality"
+          },
+          "calls": {
+            "description": "Production calls",
+            "title": "Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calls"
+        ],
+        "title": "DirectionCalls",
+        "type": "object"
+      },
       "DocumentProcessingSpec": {
         "description": "Processing config for a document dataset (``ingestion_mode=document``).\n\nDocuments have no schema/primary-key/CDC; this is what the contract carries\ninstead (docs/plans/intake_file_processing_pipeline.md \u00a75.9). Page-split /\noutput-metadata rules are stored in the same jsonb and may be added later\nwithout a migration.",
         "properties": {
@@ -12726,6 +13306,166 @@
         ],
         "title": "DropIndexAction",
         "type": "object"
+      },
+      "DynamicBehavior": {
+        "additionalProperties": false,
+        "description": "One authored behavior on a context graph version.",
+        "properties": {
+          "condition": {
+            "description": "When it applies, in terms of what the client wants or says. It describes the behavior to the selector.",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Condition",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "description": "A disabled behavior stays on the version and is never offered.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "examples": {
+            "default": [],
+            "description": "Things a client says when it applies. The selector reads them; the reply never does.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Examples",
+            "type": "array"
+          },
+          "id": {
+            "description": "Stable across versions: the same behavior keeps its id in every version that carries it. The client\ngenerates it.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The guidance the reply follows while the behavior is in force, and the only text of a behavior that\nreaches the reply prompt. Null: the behavior is decided and recorded, and changes no reply.",
+            "title": "Instruction"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/DynamicBehaviorMode",
+            "default": "add",
+            "description": "``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action\nguidelines, while boundary constraints, guardrails and safety rules stay. Adding a replace-mode behavior, or\nchanging one, needs ``platform:admin``; disabling or removing one doesn't."
+          },
+          "name": {
+            "description": "What authors call it. It never reaches the reply prompt.",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "states": {
+            "default": [],
+            "description": "The action and data collection states it applies in. Empty: every one.",
+            "items": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxItems": 200,
+            "title": "States",
+            "type": "array"
+          },
+          "sticky_turns": {
+            "default": 1,
+            "description": "The fewest caller turns it stays in force once applied, counting the turn it was applied on. Another\nbehavior the selector chooses still replaces it sooner.",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Sticky Turns",
+            "type": "integer"
+          },
+          "tags": {
+            "default": [],
+            "description": "Labels for authors. They never reach a prompt.",
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "condition"
+        ],
+        "title": "DynamicBehavior",
+        "type": "object"
+      },
+      "DynamicBehaviorDecidedEvent": {
+        "description": "A caller turn's dynamic behavior decision committed. ``behavior`` is the behavior in force after it.",
+        "properties": {
+          "behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "decision": {
+            "$ref": "#/components/schemas/BehaviorDecision"
+          },
+          "type": {
+            "const": "dynamic_behavior_decided",
+            "default": "dynamic_behavior_decided",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "DynamicBehaviorDecidedEvent",
+        "type": "object"
+      },
+      "DynamicBehaviorMode": {
+        "enum": [
+          "add",
+          "replace"
+        ],
+        "type": "string"
+      },
+      "DynamicBehaviorOutcome": {
+        "enum": [
+          "applied",
+          "kept",
+          "held",
+          "none",
+          "below_floor",
+          "failed",
+          "skipped",
+          "superseded"
+        ],
+        "type": "string"
+      },
+      "DynamicBehaviorSkip": {
+        "enum": [
+          "emergency_floor",
+          "person_request",
+          "empathy_hold",
+          "suspended",
+          "no_candidates"
+        ],
+        "type": "string"
       },
       "EagerEvalResponse": {
         "properties": {
@@ -13425,6 +14165,17 @@
             ],
             "description": "Whose patient record a call returns, and how the call names that patient: the one its\nrequest names (``params``), the ones its response holds (``response``), or none (``none``).\nNull when undeclared."
           },
+          "verifies": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiesCaller-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How a successful call verifies the caller, and as which patient, for a service that names\nthis endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:\na call verifies nobody."
+          },
           "writes": {
             "anyOf": [
               {
@@ -13453,6 +14204,17 @@
               }
             ],
             "description": "Whose patient record a call returns, and how the call names that patient: the one its\nrequest names (``params``), the ones its response holds (``response``), or none (``none``).\nNull when undeclared."
+          },
+          "verifies": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiesCaller-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How a successful call verifies the caller, and as which patient, for a service that names\nthis endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:\na call verifies nobody."
           },
           "writes": {
             "anyOf": [
@@ -15965,6 +16727,21 @@
             "title": "By Eval Key",
             "type": "array"
           },
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServiceEvalQuality"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by.",
+            "title": "Groups"
+          },
           "summary": {
             "$ref": "#/components/schemas/EvalQualitySummary",
             "description": "Workspace-wide aggregate for the period"
@@ -17542,6 +18319,20 @@
           "generic"
         ],
         "title": "FailureClass",
+        "type": "string"
+      },
+      "FailureReason": {
+        "enum": [
+          "refusal",
+          "out_of_set",
+          "malformed",
+          "http_4xx",
+          "http_retryable",
+          "connection",
+          "timeout",
+          "breaker_open",
+          "options_exceeded"
+        ],
         "type": "string"
       },
       "FhirAppointmentListResponse": {
@@ -19351,7 +20142,7 @@
         "type": "object"
       },
       "FieldSuccess": {
-        "description": "A field of the JSON response holds the value that means the write happened.",
+        "description": "A field of the JSON response holds the value that means the write happened, or the caller\nverified.",
         "properties": {
           "equals": {
             "anyOf": [
@@ -19372,7 +20163,7 @@
                 "type": "null"
               }
             ],
-            "description": "The value at ``pointer`` when the write happened. Compared as JSON: ``\"0\"`` is not ``0``,\nand ``true`` is not ``1``. A form-encoded response holds only strings.",
+            "description": "The value at ``pointer`` when the write happened, or the caller verified. Compared as JSON:\n``\"0\"`` is not ``0``, and ``true`` is not ``1``. A form-encoded response holds only strings.",
             "title": "Equals"
           },
           "pointer": {
@@ -21471,6 +22262,19 @@
               }
             ],
             "title": "Reason"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "const": "playground",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set to ``playground`` when the developer console Playground decides the approval. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+            "title": "Source"
           }
         },
         "title": "IntegrationRejectRequest",
@@ -22340,6 +23144,23 @@
         "title": "Limits",
         "type": "object"
       },
+      "ListSimulationSuiteRunSummariesResponse": {
+        "properties": {
+          "suite_runs": {
+            "description": "One summary per requested suite run that has runs in the workspace, in request order.",
+            "items": {
+              "$ref": "#/components/schemas/SimulationSuiteRunSummary"
+            },
+            "title": "Suite Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suite_runs"
+        ],
+        "title": "ListSimulationSuiteRunSummariesResponse",
+        "type": "object"
+      },
       "ListSimulationSuiteRunsResponse": {
         "properties": {
           "runs": {
@@ -22685,7 +23506,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional deterministic row id (typically uuid5(NAMESPACE, '<stable-key>')). Re-emitting with the same value lands on the same world_events row instead of double-billing. Use for backfills and retries. Default: server generates a random uuid4.",
+            "description": "Optional deterministic row id (typically uuid5(NAMESPACE, '<stable-key>')). Re-emitting with the same value lands on the same metering event instead of double-billing. Use for backfills and retries. Default: server generates a random uuid4.",
             "title": "Event Id"
           },
           "event_type": {
@@ -24688,6 +25509,7 @@
             "agent_transcript_delta": "#/components/schemas/AgentTranscriptDeltaEvent",
             "barge_in": "#/components/schemas/BargeInEvent",
             "compound_emotion": "#/components/schemas/CompoundEmotionEvent",
+            "dynamic_behavior_decided": "#/components/schemas/DynamicBehaviorDecidedEvent",
             "emotion": "#/components/schemas/EmotionEvent",
             "empathy_classified": "#/components/schemas/EmpathyClassifiedEvent",
             "forward_call_resolved": "#/components/schemas/ForwardCallResolvedEvent",
@@ -24726,6 +25548,9 @@
           },
           {
             "$ref": "#/components/schemas/CompoundEmotionEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicBehaviorDecidedEvent"
           },
           {
             "$ref": "#/components/schemas/EmotionEvent"
@@ -26391,7 +27216,7 @@
         "description": "A call returns the record of the patient its request names.",
         "properties": {
           "params": {
-            "description": "The input parameters that name the patient, by an identifier their record on file carries:\nits entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's\n``input_schema``.",
+            "description": "The input parameters that name the patient, by an identifier their record on file carries:\nits entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's\n``input_schema``. On a service that verifies its callers through its own integration, they name\nthe patient by the identifier its verifier returns.",
             "items": {
               "maxLength": 128,
               "minLength": 1,
@@ -27359,7 +28184,7 @@
         "description": "A call's response holds the patient records it found: a search, or a read by some other key.",
         "properties": {
           "patient": {
-            "description": "RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one\ntheir record on file carries, such as ``/patient_id``.",
+            "description": "RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one\ntheir record on file carries, such as ``/patient_id``. On a service that verifies its callers\nthrough its own integration, the identifier its verifier returns.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Patient",
@@ -27371,7 +28196,7 @@
             "type": "string"
           },
           "records": {
-            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:\na list of records, or one record. ``/patients`` is the list under ``patients``, and the empty\npointer is the whole body.",
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:\na list of records, or one record. ``/patients`` is the list under ``patients``, and the empty\npointer is the whole body. A held call keeps only the records a caller may hear, and nothing\nbeside them, and the template renders those.",
             "maxLength": 512,
             "title": "Records",
             "type": "string"
@@ -28350,7 +29175,7 @@
                 "type": "null"
               }
             ],
-            "description": "The agent-engine turn that rendered this prompt (32 hex characters): the user turn, or one tool round within it, so each tool round's prompt has its own. Null on logs written before this field.",
+            "description": "The engine turn that rendered this prompt (32 hex characters): the user turn, or one tool round within it, so each tool round's prompt has its own. Null on logs written before this field.",
             "title": "Engine Turn Id"
           },
           "event_id": {
@@ -28537,7 +29362,7 @@
                 "type": "null"
               }
             ],
-            "description": "Counts the prompts one agent-engine instance rendered: every engage render (a user turn, each tool round, a check-in) adds one, and it starts again at 0 when the engine is rebuilt, which on text is every request. It repeats within a conversation and names no turn: join on ``turn_id`` or ``engine_turn_id``.",
+            "description": "Counts the prompts one engine instance rendered: every engage render (a user turn, each tool round, a check-in) adds one, and it starts again at 0 when the engine is rebuilt, which on text is every request. It repeats within a conversation and names no turn: join on ``turn_id`` or ``engine_turn_id``.",
             "title": "Turn Index"
           },
           "workspace_id": {
@@ -30984,7 +31809,7 @@
                 "type": "null"
               }
             ],
-            "description": "What the run executed with, as its session recorded it at start. Null on a run recorded\nbefore the platform kept it, on a text conversation before its first session starts, on a\nframework run, and on a live in-house call until it ends."
+            "description": "What the run executed with, as its session recorded it at start, or as it last stood after\na mid-call change. Null on a run recorded before the platform kept it, on a text conversation\nbefore its first session starts, on a framework run, and on a live in-house call until it ends."
           },
           "phone_number": {
             "anyOf": [
@@ -31250,7 +32075,7 @@
         "type": "object"
       },
       "RunManifest": {
-        "description": "The configuration a run executed with, as its session started.\n\nA field is null when the session had nothing to record for it: a text run has no\nspeech models, and a gpt_realtime call whose engine failed to load has no agent or\ngraph version. Nothing here is read back from the service's current configuration.",
+        "description": "The configuration a run executed with: as its session started, and as it stood after\nany change the run made mid-way.\n\nA field is null when the session had nothing to record for it: a text run has no\nspeech models, and a gpt_realtime call whose engine failed to load has no agent or\ngraph version. Nothing here is read back from the service's current configuration.",
         "properties": {
           "agent_id": {
             "anyOf": [
@@ -31300,6 +32125,86 @@
             "description": "The context graph version number the session loaded.",
             "title": "Context Graph Version"
           },
+          "cooperative_stop": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether an in-house call's teardown let its session stop on its own before cancelling it.\nNull off in-house voice.",
+            "title": "Cooperative Stop"
+          },
+          "decider_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeciderKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the session's region decides: ``decisions``, OpenAI Decisions through the gateway, or\n``regional``, a constrained choice on the region's own gateway. Navigation and the reply\nchecks both decide through it."
+          },
+          "dynamic_behavior_prompt_template_hash": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "``sha256:`` over the template and fixed text each dynamic behavior decision renders from. Null on\ngpt_realtime, which runs no dynamic behavior, and when the graph version has no enabled one."
+          },
+          "effect_shadow": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether an in-house call also recorded each turn as effects, in shadow. Null off in-house voice.",
+            "title": "Effect Shadow"
+          },
+          "emergency_floor_enforced": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the medical-emergency floor acted on what it caught, rather than only counting it.",
+            "title": "Emergency Floor Enforced"
+          },
+          "engage_prompt_template_hash": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "``sha256:`` over the templates the reply prompt renders from. Null on gpt_realtime, whose\ninstructions aren't rendered from them."
+          },
+          "image_sha": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The build the session ran on: the commit the agent-engine image was built from."
+          },
           "llm_model": {
             "anyOf": [
               {
@@ -31322,6 +32227,17 @@
             ],
             "description": "The model that chose each context-graph transition. Null on gpt_realtime, which doesn't navigate."
           },
+          "navigation_prompt_template_hash": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "``sha256:`` over the templates each navigation decision renders from. Null on gpt_realtime."
+          },
           "platform_config_fingerprint": {
             "anyOf": [
               {
@@ -31332,6 +32248,17 @@
               }
             ],
             "description": "``sha256:`` over the agent and graph version ids and the LLM model: one value per config generation."
+          },
+          "runtime_release_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The runtime release of the pod the session ran on."
           },
           "stt_model": {
             "anyOf": [
@@ -31352,7 +32279,32 @@
                 "type": "null"
               }
             ],
-            "description": "The speech-to-text vendor the call opened with. Null on a text run."
+            "description": "The speech-to-text vendor the call ran on: the one it opened with, or the one it failed over\nto. Null on a text run."
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The sampling temperature the reply requests set. Null where they set none and the model's own\ndefault applies: every voice call, and a text run on a model family that takes none. On a\nreasoning model it rides only the requests that carry tools.",
+            "title": "Temperature"
+          },
+          "tts_language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The language the call's voice spoke: the one it opened in, or the caller's language once an\nin-house call switched to it. ``multilingual`` on a gpt_realtime call left to answer in the\ncaller's language. Null on a text run."
           },
           "tts_model": {
             "anyOf": [
@@ -32296,6 +33248,23 @@
             "title": "Agent Id",
             "type": "string"
           },
+          "allow_unverified_integration_results": {
+            "default": false,
+            "title": "Allow Unverified Integration Results",
+            "type": "boolean"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caller Verification Endpoint Id"
+          },
           "channel_type": {
             "default": "voice",
             "enum": [
@@ -32356,9 +33325,23 @@
             "title": "Keyterms",
             "type": "array"
           },
+          "medical_emergency_ending": {
+            "default": "stay_on_line",
+            "enum": [
+              "stay_on_line",
+              "end_after_script"
+            ],
+            "title": "Medical Emergency Ending",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "platform_caller_verification": {
+            "default": true,
+            "title": "Platform Caller Verification",
+            "type": "boolean"
           },
           "tags": {
             "items": {
@@ -32481,6 +33464,77 @@
         "title": "ServiceBindingResponse",
         "type": "object"
       },
+      "ServiceCallStats": {
+        "description": "One service's summary and trend: what the route returns for ``service_id`` set to it.",
+        "properties": {
+          "service_id": {
+            "description": "The service",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AdvancedCallStatsSummary",
+            "description": "The service's calls in the window"
+          },
+          "trend": {
+            "description": "The service's trend",
+            "items": {
+              "$ref": "#/components/schemas/AdvancedCallStatsTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "summary",
+          "trend"
+        ],
+        "title": "ServiceCallStats",
+        "type": "object"
+      },
+      "ServiceCalls": {
+        "description": "One service's calls in ``by_service``.",
+        "properties": {
+          "avg_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean quality score of scored calls (0-100)",
+            "title": "Avg Quality"
+          },
+          "calls": {
+            "description": "Production calls",
+            "title": "Calls",
+            "type": "integer"
+          },
+          "escalation_rate": {
+            "description": "Escalated calls over calls (0.0-1.0)",
+            "title": "Escalation Rate",
+            "type": "number"
+          },
+          "service_id": {
+            "description": "The service",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "calls",
+          "escalation_rate"
+        ],
+        "title": "ServiceCalls",
+        "type": "object"
+      },
       "ServiceCost": {
         "description": "Cost attributed to one service.",
         "properties": {
@@ -32528,6 +33582,47 @@
           "cost_share"
         ],
         "title": "ServiceCost",
+        "type": "object"
+      },
+      "ServiceEvalQuality": {
+        "description": "One service's verdicts: what the route returns for ``service_id`` set to it.",
+        "properties": {
+          "by_eval_key": {
+            "description": "The service's per-eval-key aggregates, most-evaluated first",
+            "items": {
+              "$ref": "#/components/schemas/EvalQualitySummary"
+            },
+            "maxItems": 200,
+            "title": "By Eval Key",
+            "type": "array"
+          },
+          "service_id": {
+            "description": "The service the verdicts are attributed to",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/EvalQualitySummary",
+            "description": "The service's aggregate for the period"
+          },
+          "trend": {
+            "description": "The service's trend",
+            "items": {
+              "$ref": "#/components/schemas/EvalQualityTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "summary",
+          "by_eval_key",
+          "trend"
+        ],
+        "title": "ServiceEvalQuality",
         "type": "object"
       },
       "ServiceForwardingConfig": {
@@ -32615,6 +33710,25 @@
             ],
             "title": "Agent Name"
           },
+          "allow_unverified_integration_results": {
+            "default": false,
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "title": "Allow Unverified Integration Results",
+            "type": "boolean"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, or null when none does.",
+            "title": "Caller Verification Endpoint Id"
+          },
           "channel_type": {
             "default": "voice",
             "enum": [
@@ -32685,9 +33799,25 @@
             "title": "Keyterms",
             "type": "array"
           },
+          "medical_emergency_ending": {
+            "default": "stay_on_line",
+            "description": "How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or\n``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or\ncrisis statement keeps the call open in either.",
+            "enum": [
+              "stay_on_line",
+              "end_after_script"
+            ],
+            "title": "Medical Emergency Ending",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "platform_caller_verification": {
+            "default": true,
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
+            "title": "Platform Caller Verification",
+            "type": "boolean"
           },
           "tags": {
             "items": {
@@ -32768,6 +33898,37 @@
           "key"
         ],
         "title": "ServiceTag",
+        "type": "object"
+      },
+      "ServiceToolPerformance": {
+        "description": "One service's summary and trend: what the route returns for ``service_id`` set to it.",
+        "properties": {
+          "service_id": {
+            "description": "The service",
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ToolPerformanceSummary",
+            "description": "The service's tool executions in the window"
+          },
+          "trend": {
+            "description": "The service's trend",
+            "items": {
+              "$ref": "#/components/schemas/ToolPerformanceTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "summary",
+          "trend"
+        ],
+        "title": "ServiceToolPerformance",
         "type": "object"
       },
       "ServiceUsage": {
@@ -35756,7 +36917,7 @@
         "type": "object"
       },
       "SimulationProxyErrorResponse": {
-        "description": "Error envelope for simulation routes that proxy agent-engine.\n\n``detail`` is a string for forwarded runtime/configuration errors and a\nstructured list for FastAPI request validation failures. Both share HTTP\n422, so the published contract must admit both shapes.",
+        "description": "Error envelope for simulation routes that forward to the agent runtime.\n\n``detail`` is a string for forwarded runtime/configuration errors and a\nstructured list for FastAPI request validation failures. Both share HTTP\n422, so the published contract must admit both shapes.",
         "properties": {
           "detail": {
             "anyOf": [
@@ -36597,6 +37758,15 @@
               "type": "string"
             },
             "title": "Run Ids",
+            "type": "array"
+          },
+          "service_ids": {
+            "description": "Agents the suite run's runs ran against, each once, in launch order.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Service Ids",
             "type": "array"
           },
           "status": {
@@ -37861,6 +39031,19 @@
             "format": "uuid",
             "title": "Service Id",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "const": "playground",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's.",
+            "title": "Source"
           }
         },
         "required": [
@@ -38111,7 +39294,7 @@
         "type": "object"
       },
       "StatusSuccess": {
-        "description": "Any 2xx response is the write. For a vendor that turns a write down with an error status.",
+        "description": "Any 2xx response is the write, or the verification. For a vendor that turns one down with an\nerror status.",
         "properties": {
           "reported_by": {
             "const": "http_status",
@@ -39862,6 +41045,19 @@
             ],
             "description": "Recipient address on the new channel (E.164). Required for sms/imessage."
           },
+          "source": {
+            "anyOf": [
+              {
+                "const": "playground",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set to ``playground`` when the developer console Playground switches the conversation. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+            "title": "Source"
+          },
           "use_case_id": {
             "anyOf": [
               {
@@ -39872,7 +41068,7 @@
                 "type": "null"
               }
             ],
-            "description": "Channel-manager use case for the new channel (resolves the sender). Required for sms/imessage.",
+            "description": "The use case for the new channel, which resolves the sender. Required for sms/imessage.",
             "title": "Use Case Id"
           }
         },
@@ -41909,6 +43105,123 @@
         "title": "ToolExecuteResponse",
         "type": "object"
       },
+      "ToolPerformanceResponse": {
+        "description": "Tool execution totals and a trend, over the calls that carry a tool summary.",
+        "properties": {
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ServiceToolPerformance"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.",
+            "title": "Groups"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ToolPerformanceSummary",
+            "description": "Tool executions in the window"
+          },
+          "trend": {
+            "description": "One point per bucket with a tool summary",
+            "items": {
+              "$ref": "#/components/schemas/ToolPerformanceTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "summary",
+          "trend"
+        ],
+        "title": "ToolPerformanceResponse",
+        "type": "object"
+      },
+      "ToolPerformanceSummary": {
+        "description": "Tool executions in the window, over the calls that carry a tool summary.",
+        "properties": {
+          "avg_failure_rate_per_call": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mean of each call's tool failure rate; null with no tool summaries",
+            "title": "Avg Failure Rate Per Call"
+          },
+          "overall_failure_rate": {
+            "description": "total_failed over total_tool_calls; 0.0 with no executions",
+            "title": "Overall Failure Rate",
+            "type": "number"
+          },
+          "total_failed": {
+            "description": "Tool executions that failed",
+            "title": "Total Failed",
+            "type": "integer"
+          },
+          "total_succeeded": {
+            "description": "Tool executions that succeeded",
+            "title": "Total Succeeded",
+            "type": "integer"
+          },
+          "total_tool_calls": {
+            "description": "Tool executions",
+            "title": "Total Tool Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_tool_calls",
+          "total_succeeded",
+          "total_failed",
+          "overall_failure_rate"
+        ],
+        "title": "ToolPerformanceSummary",
+        "type": "object"
+      },
+      "ToolPerformanceTrendPoint": {
+        "description": "One interval bucket of tool performance.",
+        "properties": {
+          "call_count": {
+            "description": "Calls in the bucket with a tool summary",
+            "title": "Call Count",
+            "type": "integer"
+          },
+          "date": {
+            "description": "Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)",
+            "title": "Date",
+            "type": "string"
+          },
+          "total_failed": {
+            "description": "Tool executions in the bucket that failed",
+            "title": "Total Failed",
+            "type": "integer"
+          },
+          "total_tool_calls": {
+            "description": "Tool executions in the bucket",
+            "title": "Total Tool Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "call_count",
+          "total_tool_calls",
+          "total_failed"
+        ],
+        "title": "ToolPerformanceTrendPoint",
+        "type": "object"
+      },
       "ToolResolveResponse": {
         "properties": {
           "service_id": {
@@ -42129,7 +43442,7 @@
         "type": "object"
       },
       "TraceAnalysisResponse": {
-        "description": "Deep call understanding produced by the Amigo intelligence pipeline.\n\nAnalyzes the raw call audio to identify emotional dynamics, key decision\nmoments, and actionable coaching - understanding that exceeds what either\nparticipant had during the call itself.\n\n**Latency note**: This endpoint reads from the analytics data warehouse.\nExpect 500ms-2s response time, not sub-10ms like transactional endpoints.",
+        "description": "Deep call understanding produced by the Amigo intelligence pipeline.\n\nAnalyzes the raw call audio to identify emotional dynamics, key decision\nmoments, and actionable coaching - understanding that exceeds what either\nparticipant had during the call itself.\n\n**Latency note**: This endpoint is an analytics read. Expect 500ms-2s\nresponse time, not sub-10ms like transactional endpoints.",
         "examples": [
           {
             "call_sid": "CA493e4610386f87f43b02102068eb6ad3",
@@ -43303,6 +44616,28 @@
             ],
             "title": "Decision Bearing"
           },
+          "dynamic_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The dynamic behavior the agent line was rendered with. Null when none was in force."
+          },
+          "dynamic_behavior_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BehaviorDecision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the caller turn's dynamic behavior decision did. Null when none ran."
+          },
           "emotion_label": {
             "anyOf": [
               {
@@ -43436,6 +44771,18 @@
               }
             ],
             "title": "Nav Ms"
+          },
+          "packet_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The signal-engine packet the turn answers. Null when none was cut for it.",
+            "title": "Packet Id"
           },
           "primary_effect_kind": {
             "anyOf": [
@@ -43777,6 +45124,19 @@
             "format": "uuid",
             "title": "Request Id",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "const": "playground",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set to ``playground`` when the developer console Playground acknowledges the delivery. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+            "title": "Source"
           }
         },
         "required": [
@@ -44165,6 +45525,19 @@
             "maxLength": 10000,
             "title": "Message",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "const": "playground",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set to ``playground`` on every turn the developer console Playground sends, polls included. A Playground turn on a real conversation, one no Playground session or test credential started, is refused with 403.",
+            "title": "Source"
           },
           "suppress_filler": {
             "anyOf": [
@@ -45136,6 +46509,31 @@
             ],
             "title": "Agent Id"
           },
+          "allow_unverified_integration_results": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "title": "Allow Unverified Integration Results"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, on a service with\n`platform_caller_verification` and `allow_unverified_integration_results` false: one of this\nworkspace's that declares `declarations.verifies` and never waits for approval under its\nintegration's `approval_policy`. `null` clears it, and leaving it out keeps what's stored. Takes effect\non the next call or turn.",
+            "title": "Caller Verification Endpoint Id"
+          },
           "channel_type": {
             "anyOf": [
               {
@@ -45228,6 +46626,22 @@
             ],
             "title": "Keyterms"
           },
+          "medical_emergency_ending": {
+            "anyOf": [
+              {
+                "enum": [
+                  "stay_on_line",
+                  "end_after_script"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or\n``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or\ncrisis statement keeps the call open in either.",
+            "title": "Medical Emergency Ending"
+          },
           "name": {
             "anyOf": [
               {
@@ -45237,6 +46651,18 @@
                 "type": "null"
               }
             ]
+          },
+          "platform_caller_verification": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
+            "title": "Platform Caller Verification"
           },
           "tags": {
             "anyOf": [
@@ -47564,6 +48990,67 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerificationSuccess": {
+        "discriminator": {
+          "mapping": {
+            "field": "#/components/schemas/FieldSuccess",
+            "http_status": "#/components/schemas/StatusSuccess"
+          },
+          "propertyName": "reported_by"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StatusSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/FieldSuccess"
+          }
+        ]
+      },
+      "VerifiesCaller-Input": {
+        "description": "A successful call verifies the caller as one patient: the one its response names. Declaring it\nopens nothing: only a service that names the endpoint its verifier\n(``Service.caller_verification_endpoint_id``) verifies anyone by it.",
+        "properties": {
+          "patient": {
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of\nthe patient the caller verified as, such as ``/patient/id``: the identifier the service's reads\nname the patient by. Only a string there with more than whitespace in it verifies anyone, never a\nnumber, and never a value the model sent.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Patient",
+            "type": "string"
+          },
+          "success": {
+            "$ref": "#/components/schemas/VerificationSuccess",
+            "description": "How the response says the caller verified: any 2xx (``http_status``), or a field holding the\nvalue that means they did (``field``). A response that doesn't say so verifies nobody, whatever\nidentifier it holds. The author vouches that it says so only once the caller proved who they are\n(a code checked, a name and date of birth matched), never on a lookup or a code sent, and that\n``patient`` names the patient the vendor matched, not a copy of something the request sent."
+          }
+        },
+        "required": [
+          "patient",
+          "success"
+        ],
+        "title": "VerifiesCaller",
+        "type": "object"
+      },
+      "VerifiesCaller-Output": {
+        "description": "A successful call verifies the caller as one patient: the one its response names. Declaring it\nopens nothing: only a service that names the endpoint its verifier\n(``Service.caller_verification_endpoint_id``) verifies anyone by it.",
+        "properties": {
+          "patient": {
+            "description": "RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of\nthe patient the caller verified as, such as ``/patient/id``: the identifier the service's reads\nname the patient by. Only a string there with more than whitespace in it verifies anyone, never a\nnumber, and never a value the model sent.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Patient",
+            "type": "string"
+          },
+          "success": {
+            "$ref": "#/components/schemas/VerificationSuccess",
+            "description": "How the response says the caller verified: any 2xx (``http_status``), or a field holding the\nvalue that means they did (``field``). A response that doesn't say so verifies nobody, whatever\nidentifier it holds. The author vouches that it says so only once the caller proved who they are\n(a code checked, a name and date of birth matched), never on a lookup or a code sent, and that\n``patient`` names the patient the vendor matched, not a copy of something the request sent."
+          }
+        },
+        "required": [
+          "patient",
+          "success"
+        ],
+        "title": "VerifiesCaller",
+        "type": "object"
+      },
       "VersionNumber": {
         "maximum": 2147483647.0,
         "minimum": 1.0,
@@ -48057,7 +49544,7 @@
         "type": "object"
       },
       "VoiceJudgeResultRow": {
-        "description": "One call's voice-judge scoring, as stored in the Delta output table.",
+        "description": "One call's voice-judge scoring.",
         "properties": {
           "accent_quality_score": {
             "anyOf": [
@@ -48337,13 +49824,25 @@
           "language": {
             "anyOf": [
               {
-                "maxLength": 32,
+                "enum": [
+                  "en",
+                  "es",
+                  "ar",
+                  "fr",
+                  "de",
+                  "pt",
+                  "zh",
+                  "ja",
+                  "ko",
+                  "multilingual"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "The language calls are spoken in when the caller's record names none. `multilingual` starts each call in English and follows the language the caller speaks.",
             "title": "Language"
           },
           "language_providers": {
@@ -48732,6 +50231,10 @@
       "WorkspaceDataQueryItem": {
         "description": "Wire shape for the response of every read + create/update handler.\n\n``id`` (UUID) is the stable handle \u2014 every URL except list takes it.\n``name`` is the workspace-visible label (UNIQUE per workspace) and is\nstill what the LLM tool registry keys on (``wsq_<name>``), but it is\nnot the route identifier.\n\n``input_schema`` is deliberately NOT exposed \u2014 it is fully derivable\nfrom ``parameters[]``. UI consumers can build the JSON Schema view\nlocally if they need it.",
         "properties": {
+          "declarations": {
+            "$ref": "#/components/schemas/DataQueryDeclarations",
+            "description": "What the query's author declares about its calls. A declaration it never made is null."
+          },
           "deployed_at": {
             "format": "date-time",
             "title": "Deployed At",
@@ -48790,6 +50293,7 @@
           "sql_template",
           "parameters",
           "timeout_ms",
+          "declarations",
           "deployed_at",
           "deployed_by"
         ],
@@ -49243,7 +50747,7 @@
           },
           "event_read_model_status": {
             "default": "empty",
-            "description": "ready = Lakebase projection returned a row; empty = no summary row; unavailable = read failed.",
+            "description": "ready = the summary returned a row; empty = no summary row; unavailable = read failed.",
             "enum": [
               "ready",
               "empty",
@@ -49275,7 +50779,7 @@
                 "type": "null"
               }
             ],
-            "description": "Event count from the Lakebase read model; null when the projection is empty or unavailable.",
+            "description": "Event count from the event summary; null when the summary is empty or unavailable.",
             "title": "Events 24H"
           },
           "events_7d": {
@@ -49288,7 +50792,7 @@
                 "type": "null"
               }
             ],
-            "description": "Event count from the Lakebase read model; null when the projection is empty or unavailable.",
+            "description": "Event count from the event summary; null when the summary is empty or unavailable.",
             "title": "Events 7D"
           },
           "sources": {
@@ -51221,6 +52725,10 @@
         "additionalProperties": false,
         "description": "Create body \u2014 the authored shape of a new workspace data query.\n\nThe SQL template + parameters parity check + multi-statement /\nsession-state-command refusal runs inside :meth:`_validate_template`\nso a bad payload surfaces as a Pydantic 422 with the standard wire\nshape \u2014 no try/except in the handler.",
         "properties": {
+          "declarations": {
+            "$ref": "#/components/schemas/DataQueryDeclarationsBody",
+            "description": "What the query's author declares about its calls. A declaration left out is undeclared. A query\nover practice data, such as FAQ articles, locations or hours, declares `reads` of\n`{\"patient_in\": \"none\"}`, so the voice agent never counts its result as a patient's record."
+          },
           "description": {
             "maxLength": 2048,
             "minLength": 1,
@@ -51405,6 +52913,10 @@
       },
       "src__routes__workspace_data_queries__list_workspace_data_queries__Response__Item": {
         "properties": {
+          "declarations": {
+            "$ref": "#/components/schemas/DataQueryDeclarations",
+            "description": "What the query's author declares about its calls. A declaration it never made is null."
+          },
           "deployed_at": {
             "format": "date-time",
             "title": "Deployed At",
@@ -51460,6 +52972,7 @@
           "sql_template",
           "parameter_count",
           "timeout_ms",
+          "declarations",
           "deployed_at",
           "deployed_by"
         ],
@@ -51474,6 +52987,17 @@
         "additionalProperties": false,
         "description": "PATCH body \u2014 every field optional. Present \u21d2 overwrite; absent \u21d2 keep.",
         "properties": {
+          "declarations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataQueryDeclarationsBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The declarations to change. Each one named replaces the stored one (`null` undeclares it), and\none left out keeps what is stored."
+          },
           "description": {
             "anyOf": [
               {
@@ -53166,7 +54690,7 @@
     },
     "/v1/metric-store/runs/{run_id}": {
       "get": {
-        "description": "Read the Databricks status for a Metric Store setup or refresh run.",
+        "description": "Read the status of a Metric Store setup or refresh run.",
         "operationId": "get_metric_store_run_v1_metric_store_runs__run_id__get",
         "parameters": [
           {
@@ -54400,6 +55924,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Get Agent Analytics",
@@ -54485,19 +56019,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -54525,6 +56061,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Call Quality Analytics",
@@ -54581,6 +56127,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Call Stats",
@@ -54666,19 +56222,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           },
@@ -54703,6 +56261,25 @@
               "description": "Filter by call direction: inbound or outbound",
               "title": "Direction"
             }
+          },
+          {
+            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "service_id",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "title": "Group By"
+            }
           }
         ],
         "responses": {
@@ -54710,9 +56287,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Advanced-Call-Stats",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AdvancedCallStatsResponse"
                 }
               }
             },
@@ -54730,6 +56305,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Advanced Call Stats",
@@ -54802,19 +56387,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -54844,6 +56431,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Call Comparison",
@@ -54905,6 +56502,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Analytics Dashboard",
@@ -55046,19 +56653,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -55088,6 +56697,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Emotion Trends",
@@ -55139,20 +56758,41 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
+            }
+          },
+          {
+            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "service_id",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "title": "Group By"
             }
           }
         ],
@@ -55179,6 +56819,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Eval Quality Analytics",
@@ -55235,6 +56885,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Event Breakdown",
@@ -55320,19 +56980,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -55362,6 +57024,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Latency Analytics",
@@ -55447,19 +57119,21 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
             }
           }
@@ -55487,6 +57161,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Operator Performance Analytics",
@@ -55961,20 +57645,41 @@
             }
           },
           {
+            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
             "in": "query",
             "name": "service_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 64,
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
               "title": "Service Id"
+            }
+          },
+          {
+            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "service_id",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "title": "Group By"
             }
           }
         ],
@@ -55983,9 +57688,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Tool-Performance",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ToolPerformanceResponse"
                 }
               }
             },
@@ -56003,6 +57706,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Tool Performance Analytics",
@@ -56059,6 +57772,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Usage Summary",
@@ -56766,7 +58489,7 @@
     },
     "/v1/{workspace_id}/audit/export": {
       "post": {
-        "description": "Submit an async audit-events export.\n\nRuns the filtered query on the SQL warehouse with results staged to\npresigned CSV EXTERNAL_LINKS, and returns a Databricks ``statement_id``.\nPoll ``GET /export/{statement_id}`` for the download links. Nothing is\nmaterialized in platform-api, so the export scales to large date windows.\n\nPermissions: admin, owner",
+        "description": "Submit an async audit-events export.\n\nRuns the filtered query with results staged as presigned CSV links, and\nreturns a ``statement_id``. Poll ``GET /export/{statement_id}`` for the\ndownload links. The export scales to large date windows.\n\nPermissions: admin, owner",
         "operationId": "create-audit-export",
         "parameters": [
           {
@@ -57427,6 +59150,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Workspace call quality benchmarks",
@@ -57437,7 +59170,7 @@
     },
     "/v1/{workspace_id}/calls/outbound": {
       "post": {
-        "description": "Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 saying channel-manager refused the call, for example an invalid number, is final.",
+        "description": "Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them.",
         "operationId": "create-outbound-call",
         "parameters": [
           {
@@ -57489,7 +59222,7 @@
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id"
           },
           "429": {
             "description": "Rate limit exceeded"
@@ -57690,10 +59423,7 @@
             "description": "Invalid query parameters"
           },
           "502": {
-            "description": "Analytics warehouse query failed"
-          },
-          "503": {
-            "description": "Analytics warehouse not configured"
+            "description": "The read of trace analyses failed. Retry later."
           }
         },
         "summary": "List trace analyses",
@@ -57945,7 +59675,7 @@
     },
     "/v1/{workspace_id}/calls/{call_id}/trace-analysis": {
       "get": {
-        "description": "Audio-native intelligence for a completed call: emotional arc, key decision moments with causal attribution, counterfactual reasoning, and actionable coaching. Produced by the Amigo intelligence pipeline from the raw call recording.\n\n**Latency**: 500ms-2s (reads from analytics warehouse, not transactional store).\n\n**Status values**: `ready` = analysis complete, `pending` = analysis started on first request (typically ready in 2-5 minutes; poll again), `unavailable` = no recording or analysis transiently unavailable (retry later).",
+        "description": "Audio-native intelligence for a completed call: emotional arc, key decision moments with causal attribution, counterfactual reasoning, and actionable coaching. Produced by the Amigo intelligence pipeline from the raw call recording.\n\n**Latency**: 500ms-2s (an analytics read, not a transactional one).\n\n**Status values**: `ready` = analysis complete, `pending` = analysis started on first request (typically ready in 2-5 minutes; poll again), `unavailable` = no recording or analysis transiently unavailable (retry later).",
         "operationId": "get-call-trace-analysis",
         "parameters": [
           {
@@ -57994,9 +59724,6 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "description": "Analytics warehouse not configured"
           }
         },
         "summary": "Deep call understanding",
@@ -58748,7 +60475,7 @@
         ]
       },
       "post": {
-        "description": "Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward.",
+        "description": "Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward. Omitting `dynamic_behaviors` keeps the latest version's.",
         "operationId": "create-context_graph-version",
         "parameters": [
           {
@@ -58769,6 +60496,25 @@
               "format": "uuid",
               "title": "Context Graph Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The latest version this write was made from, 0 for a graph with none. When the graph has a different latest version, the write is refused with 409.",
+            "in": "query",
+            "name": "expected_latest_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The latest version this write was made from, 0 for a graph with none. When the graph has a different latest version, the write is refused with 409.",
+              "title": "Expected Latest Version"
             }
           }
         ],
@@ -58797,16 +60543,16 @@
             "description": "Missing or invalid API key."
           },
           "403": {
-            "description": "Insufficient permissions."
+            "description": "Insufficient permissions, or a replace-mode dynamic behavior added or changed (other than disabled) without platform:admin scope."
           },
           "404": {
             "description": "Not found."
           },
           "409": {
-            "description": "Name already taken."
+            "description": "The graph's latest version isn't expected_latest_version."
           },
           "422": {
-            "description": "Invalid request body."
+            "description": "Invalid request body. Dynamic behaviors that are invalid together are listed in detail.dynamic_behaviors, each by its index, id and field."
           }
         },
         "summary": "Create a context graph version",
@@ -58971,11 +60717,33 @@
               "title": "Conversation Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Set to ``playground`` when the developer console Playground closes the conversation. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "playground",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Set to ``playground`` when the developer console Playground closes the conversation. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+              "title": "Source"
+            }
           }
         ],
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "403": {
+            "description": "A Playground or test-credential session may not close a real conversation"
           },
           "404": {
             "description": "Conversation not found"
@@ -59386,7 +61154,7 @@
             "description": "Successful Response"
           },
           "403": {
-            "description": "The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active"
+            "description": "The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active, or a Playground or test-credential session on a real conversation"
           },
           "404": {
             "description": "Conversation or service not found"
@@ -59505,7 +61273,7 @@
             "description": "SSE stream of TurnStreamEvent frames"
           },
           "403": {
-            "description": "The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active"
+            "description": "The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active, or a Playground or test-credential session on a real conversation"
           },
           "404": {
             "description": "Conversation or service not found"
@@ -60079,7 +61847,7 @@
     },
     "/v1/{workspace_id}/dashboards/{dashboard_id}/execute": {
       "post": {
-        "description": "Execute all panel queries and return results for rendering.\n\nSQL injection is mitigated by ResearchQueryService.execute_sql, which calls\n_validate_read_only_sql to block DROP/TRUNCATE/ALTER/CREATE/GRANT/REVOKE/\nDELETE/UPDATE/INSERT statements. Catalog-level access is further restricted\nby the service principal's Databricks grants (read-only on analytics catalog).\n\nEvery panel query MUST reference the ``:ws_id`` parameter so that\nResearchQueryService binds it to the requesting workspace. Queries\nwithout this binding are rejected to prevent cross-tenant data access.",
+        "description": "Execute all panel queries and return results for rendering.\n\nPanel queries are read-only: a DROP, TRUNCATE, ALTER, CREATE, GRANT, REVOKE,\nDELETE, UPDATE or INSERT statement is rejected, and every query runs with\nread-only access.\n\nEvery panel query MUST reference the ``:ws_id`` parameter, which is bound\nto the requesting workspace. Queries without this binding are rejected to\nprevent cross-tenant data access.",
         "operationId": "execute_dashboard_v1__workspace_id__dashboards__dashboard_id__execute_post",
         "parameters": [
           {
@@ -64847,7 +66615,7 @@
             "description": "URL function_name does not match body name"
           },
           "422": {
-            "description": "Validation failure (read-only / bind / parity)"
+            "description": "Validation failure (read-only / warehouse guard / bind / parity)"
           },
           "429": {
             "description": "Rate limited"
@@ -64861,7 +66629,7 @@
     },
     "/v1/{workspace_id}/functions/{function_name}/invoke": {
       "post": {
-        "description": "Execute a registered function and return its rows.\n\nBound parameters are validated against the stored schema; ``ws_id``\nis auto-injected from the request context. Returns the executor's\nshaped response (``rows`` for ``returns=table``, scalar value for\n``returns=scalar``).\n\nPermissions: ``Workspace.view`` (read role and above). Read-only\nkeys are intentionally allowed \u2014 invocation runs a stored,\npre-validated SELECT against catalogs the workspace SP already has\nSELECT on; the gate on what can run is the deploy-time validator\n(read-only invariant), not the per-call permission.",
+        "description": "Execute a registered function and return its rows.\n\nBound parameters are validated against the stored schema; ``ws_id``\nis auto-injected from the request context. Returns the executor's\nshaped response (``rows`` for ``returns=table``, scalar value for\n``returns=scalar``).\n\nPermissions: ``Workspace.view`` (read role and above). Read-only\nkeys are intentionally allowed \u2014 invocation runs a stored SELECT,\nand the gate on what can run is the warehouse guard, which a sql or\nai body passes for this workspace at deploy and again before every\nrun (422 when it refuses a stored body), not the per-call permission.",
         "operationId": "invoke-function",
         "parameters": [
           {
@@ -64909,7 +66677,7 @@
             "description": "Function not found"
           },
           "422": {
-            "description": "Bind validation failure"
+            "description": "Bind validation failure, or a stored body the warehouse guard refuses"
           },
           "429": {
             "description": "Rate limited"
@@ -65932,7 +67700,7 @@
     },
     "/v1/{workspace_id}/intake/files/{file_id}/status": {
       "post": {
-        "description": "Advance a file's status from the async CDC/extraction job (P4).\n\nThe job authenticates with the workspace's API key (Bearer) over the\nstandard Databricks\u2192platform-api path \u2014 so RLS scopes the update to\nthat workspace. Moves the row to its terminal verdict and records the\ncurated/cdc paths. For a batch-sourced file, advances its batch (chain the\nnext snapshot version + roll up) once the verdict is terminal.",
+        "description": "Advance a file's status from the async CDC/extraction job (P4).\n\nThe job authenticates with the workspace's API key (Bearer), so the update\nis scoped to that workspace. Moves the row to its terminal verdict and\nrecords the curated/cdc paths. For a batch-sourced file, advances its batch\n(chain the next snapshot version + roll up) once the verdict is terminal.",
         "operationId": "write_back_intake_file_status_v1__workspace_id__intake_files__file_id__status_post",
         "parameters": [
           {
@@ -65996,7 +67764,7 @@
     },
     "/v1/{workspace_id}/intake/materializations": {
       "get": {
-        "description": "Per-dataset materialization status for the workspace's Destinations tab.\n\nLists each registered dataset alongside its customer-data destination table's\nstatus \u2014 ``materialized`` (with row count + last-write time) or\n``not_materialized`` (no table yet). The dataset list + pagination mirror\n``GET /datasets`` (the contracts registry); the destination status is read\nfrom the ``customer_data_<env>`` catalog via the SQL warehouse. Member read.",
+        "description": "Per-dataset materialization status for the workspace's Destinations tab.\n\nLists each registered dataset alongside its customer-data destination table's\nstatus \u2014 ``materialized`` (with row count + last-write time) or\n``not_materialized`` (no table yet). The dataset list + pagination mirror\n``GET /datasets`` (the contracts registry); the destination status is read\nfrom the ``customer_data_<env>`` catalog. Member read.",
         "operationId": "list_intake_materializations_v1__workspace_id__intake_materializations_get",
         "parameters": [
           {
@@ -66091,7 +67859,7 @@
     },
     "/v1/{workspace_id}/intake/materialize": {
       "post": {
-        "description": "Trigger the intake \u2192 customer-data materializer for this workspace.\n\nFires the materializer Databricks job (run-now); it rescans the workspace's\ncurated intake files and (re)materializes each snapshot dataset into\n``customer_data_<env>.<workspace_id>.<dataset>``. Every write is an idempotent\nkeyed MERGE / full overwrite, so a re-click is safe. Optionally scope to one\n``dataset``; omit for all curated snapshot datasets. Returns ``202`` with the\njob ``run_id`` (``null`` when the job is not configured in this environment).\nSame auth gate as ``POST /batches/{batch_id}/process``.",
+        "description": "Trigger the intake \u2192 customer-data materializer for this workspace.\n\nStarts the materializer job; it rescans the workspace's curated intake\nfiles and (re)materializes each snapshot dataset into\n``customer_data_<env>.<workspace_id>.<dataset>``. Every write is an idempotent\nkeyed MERGE / full overwrite, so a re-click is safe. Optionally scope to one\n``dataset``; omit for all curated snapshot datasets. Returns ``202`` with the\njob ``run_id`` (``null`` when the job is not configured in this environment).\nSame auth gate as ``POST /batches/{batch_id}/process``.",
         "operationId": "materialize_intake_v1__workspace_id__intake_materialize_post",
         "parameters": [
           {
@@ -66695,6 +68463,25 @@
               "title": "Conversation Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Set to ``playground`` when the developer console Playground decides the approval. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "playground",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Set to ``playground`` when the developer console Playground decides the approval. Refused with 403 on a real conversation, one no Playground session or test credential started.",
+              "title": "Source"
+            }
           }
         ],
         "responses": {
@@ -66712,7 +68499,7 @@
             "description": "Missing or invalid API key."
           },
           "403": {
-            "description": "Insufficient permissions."
+            "description": "Insufficient permissions, or a Playground or test-credential session on a real conversation."
           },
           "404": {
             "description": "Conversation not found in this workspace."
@@ -66788,7 +68575,7 @@
             "description": "Missing or invalid API key."
           },
           "403": {
-            "description": "Insufficient permissions."
+            "description": "Insufficient permissions, or a Playground or test-credential session on a real conversation."
           },
           "404": {
             "description": "Conversation not found in this workspace."
@@ -70526,7 +72313,7 @@
     },
     "/v1/{workspace_id}/pipeline/entity-resolution": {
       "get": {
-        "description": "Historical same_as merge-edge counts (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline \u2014 new edges are not produced) and entity resolution loop status.",
+        "description": "Historical same_as merge-edge counts (no new edges are produced) and the entity resolution loop status.",
         "operationId": "get-entity-resolution",
         "parameters": [
           {
@@ -71213,7 +73000,7 @@
     },
     "/v1/{workspace_id}/pipeline/status": {
       "get": {
-        "description": "Pipeline dashboard: Lakebase entity count + Delta read-model event counts.",
+        "description": "Pipeline dashboard: the entity count and event counts.",
         "operationId": "get-pipeline-status",
         "parameters": [
           {
@@ -71654,7 +73441,7 @@
     },
     "/v1/{workspace_id}/prompt-logs": {
       "get": {
-        "description": "Lists ``prompt_log`` events emitted by agent-engine \u2014 full system prompt, conversation history, tool catalog, LLM model, and response \u2014 for auditing and debugging. Reads the Delta ``world_events`` ledger via Databricks SQL; typical latency is 1-5s with a 15s ceiling on cold-start.\n\n**Conversation filter**: pass ``conversation_id``, the id ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row; an older call with no such row answers 404, so filter it by ``call_sid``. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.\n\n**Other filters**: ``prompt_type``, ``state_name``, ``from_ts``, ``to_ts``. When no selectivity-bearing filter (conversation_id / call_sid / time range) is supplied, the query is auto-capped to the last 7 days; the applied window is reported in ``applied_time_window_days``.\n\n**Pagination**: peek-ahead \u2014 ``has_more`` is true when more rows exist; use ``next_offset`` to fetch the next page.\n\n**Auth**: `Audit:View` permission required. Reads are audit-logged (``prompt_logs.queried``); responses can include PHI from prompt history.",
+        "description": "Lists the prompts the agent rendered (full system prompt, conversation history, tool catalog, LLM model, and response) for auditing and debugging. It's an analytics read: typical latency is 1-5s, with a 15s ceiling on a cold start.\n\n**Conversation filter**: pass ``conversation_id``, the id ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's record; an older call with no conversation record answers 404, so filter it by ``call_sid``. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.\n\n**Other filters**: ``prompt_type``, ``state_name``, ``from_ts``, ``to_ts``. When no selectivity-bearing filter (conversation_id / call_sid / time range) is supplied, the query is auto-capped to the last 7 days; the applied window is reported in ``applied_time_window_days``.\n\n**Pagination**: peek-ahead \u2014 ``has_more`` is true when more rows exist; use ``next_offset`` to fetch the next page.\n\n**Auth**: `Audit:View` permission required. Reads are audit-logged (``prompt_logs.queried``); responses can include PHI from prompt history.",
         "operationId": "list-prompt-logs",
         "parameters": [
           {
@@ -71668,7 +73455,7 @@
             }
           },
           {
-            "description": "The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its row. An older call with no such row answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter.",
+            "description": "The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's record: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its record. An older call with no conversation record answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter.",
             "in": "query",
             "name": "conversation_id",
             "required": false,
@@ -71682,7 +73469,7 @@
                   "type": "null"
                 }
               ],
-              "description": "The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its row. An older call with no such row answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter.",
+              "description": "The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's record: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its record. An older call with no conversation record answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter.",
               "title": "Conversation Id"
             }
           },
@@ -71841,7 +73628,7 @@
             "description": "Validation Error"
           },
           "503": {
-            "description": "Raw world event reads disabled or warehouse unavailable"
+            "description": "Prompt logs couldn't be read right now. Retry later."
           }
         },
         "summary": "List prompt logs for a workspace",
@@ -72329,7 +74116,7 @@
     },
     "/v1/{workspace_id}/runs": {
       "get": {
-        "description": "Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage \u2014 conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.",
+        "description": "Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Combines framework runs and conversation runs at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage \u2014 conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), ``source_conversation_id`` (the conversation a run came from), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.",
         "operationId": "list_runs_v1__workspace_id__runs_get",
         "parameters": [
           {
@@ -72469,6 +74256,23 @@
               "description": "Case-insensitive substring match on a conversation run's entity name, caller ID or phone number, applied before pagination. Framework runs carry none of these and are excluded when search is set. Combines with other filters using AND.",
               "title": "Search"
             }
+          },
+          {
+            "description": "Filter by up to 100 conversation IDs, matching each run's ``source_conversation_id``, such as the conversation a Playground session ran. A run with no source conversation (a framework run, or a live call before its conversation is recorded) is excluded. Repeated values are ORed; combines with other filters using AND.",
+            "in": "query",
+            "name": "source_conversation_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Filter by up to 100 conversation IDs, matching each run's ``source_conversation_id``, such as the conversation a Playground session ran. A run with no source conversation (a framework run, or a live call before its conversation is recorded) is excluded. Repeated values are ORed; combines with other filters using AND.",
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "title": "Source Conversation Id",
+              "type": "array"
+            }
           }
         ],
         "responses": {
@@ -72501,7 +74305,7 @@
     },
     "/v1/{workspace_id}/runs/summary": {
       "get": {
-        "description": "Aggregate counts for the workspace's runs behind the unified ``Run`` contract: ``total``, ``live`` (running + paused), each canonical status, a full ``by_status`` map, and ``by_kind`` (conversation vs framework). Federates the Delta ``world.runs`` MV and Lakebase ``world.conversations`` with a cheap GROUP BY. Optional ``kind`` / ``channel`` filters mirror the list; a ``channel`` filter restricts to conversation runs.",
+        "description": "Aggregate counts for the workspace's runs behind the unified ``Run`` contract: ``total``, ``live`` (running + paused), each canonical status, a full ``by_status`` map, and ``by_kind`` (conversation vs framework). Counts framework and conversation runs together. Optional ``kind`` / ``channel`` filters mirror the list; a ``channel`` filter restricts to conversation runs.",
         "operationId": "runs_summary_v1__workspace_id__runs_summary_get",
         "parameters": [
           {
@@ -72581,7 +74385,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}": {
       "get": {
-        "description": "Resolve a single run by its channel-neutral ``run_id`` and return the canonical ``Run`` \u2014 at any status (live, completed, failed, timed out). Federates the Delta ``world.runs`` MV (framework runs), Lakebase ``world.conversations`` (conversation runs), and the live-voice registry, matched by ``run_id`` and scoped to the workspace. Use the returned ``kind`` / ``channel`` / ``source_*`` fields to open the channel-appropriate detail (voice call, text conversation, framework trace). 404 if the run does not exist in this workspace.",
+        "description": "Resolve a single run by its channel-neutral ``run_id`` and return the canonical ``Run`` at any status (live, completed, failed, timed out). Looks across framework runs, conversation runs and live voice calls, matched by ``run_id`` and scoped to the workspace. Use the returned ``kind`` / ``channel`` / ``source_*`` fields to open the channel-appropriate detail (voice call, text conversation, framework trace). 404 if the run does not exist in this workspace.",
         "operationId": "get_run_v1__workspace_id__runs__run_id__get",
         "parameters": [
           {
@@ -72635,7 +74439,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/authored-turn": {
       "post": {
-        "description": "Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. The agent-engine send-gate substitutes it for the agent's next outbound (exactly-once), so the caller receives the operator's words while the agent stays suspended. Repeatable \u2014 each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg \u2014 use the conference, not an authored turn).",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. It replaces the agent's next outbound message, exactly once, so the caller receives the operator's words while the agent stays suspended. Repeatable: each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg \u2014 use the conference, not an authored turn).",
         "operationId": "author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post",
         "parameters": [
           {
@@ -72699,7 +74503,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/guidance": {
       "post": {
-        "description": "Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.",
         "operationId": "send_run_guidance_v1__workspace_id__runs__run_id__guidance_post",
         "parameters": [
           {
@@ -72763,7 +74567,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/handback": {
       "post": {
-        "description": "Release the caller's operator from a run they took over \u2014 the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over \u2014 the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.",
         "operationId": "hand_back_run_v1__workspace_id__runs__run_id__handback_post",
         "parameters": [
           {
@@ -72827,7 +74631,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/switch-mode": {
       "post": {
-        "description": "Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.",
         "operationId": "switch_run_mode_v1__workspace_id__runs__run_id__switch_mode_post",
         "parameters": [
           {
@@ -72891,7 +74695,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/takeover": {
       "post": {
-        "description": "Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, or if the operator has no phone number configured. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.",
         "operationId": "take_over_run_v1__workspace_id__runs__run_id__takeover_post",
         "parameters": [
           {
@@ -72955,7 +74759,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/trajectory": {
       "get": {
-        "description": "Ordered structural steps (perception / decision / tool / completion) of a FRAMEWORK run, read from the durable Delta trace source by the run's correlation id. 404 if the run does not exist in this workspace; 409 if the run is a conversation run (use ``/conversations/{id}`` for per-turn detail).",
+        "description": "Ordered structural steps (perception / decision / tool / completion) of a FRAMEWORK run, read from the run's durable trace by its correlation id. 404 if the run does not exist in this workspace; 409 if the run is a conversation run (use ``/conversations/{id}`` for per-turn detail).",
         "operationId": "get_run_trajectory_v1__workspace_id__runs__run_id__trajectory_get",
         "parameters": [
           {
@@ -73009,7 +74813,7 @@
     },
     "/v1/{workspace_id}/scheduling-rule-sets": {
       "get": {
-        "description": "List all scheduling rule sets for the workspace. Optional filters: `agent_kind` (tms / ketamine / general), `is_active`. Used by the agent-engine rules engine and by operators inspecting config.",
+        "description": "List all scheduling rule sets for the workspace. Optional filters: `agent_kind` (tms / ketamine / general), `is_active`. Used by the agent's scheduling rules engine and by operators inspecting config.",
         "operationId": "list-scheduling-rule-sets",
         "parameters": [
           {
@@ -73623,7 +75427,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -73797,7 +75601,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
@@ -74006,7 +75810,7 @@
     },
     "/v1/{workspace_id}/services/{service_id}/voice-judge/recent": {
       "get": {
-        "description": "Returns the most recent per-call voice-judge scores for one service, ordered newest first. Produced by the Databricks `voice_judge` job (stereo audio \u2192 Gemini 3.5 Flash \u2192 10-dimension rubric). Used by the Agent Readiness page to populate Voice Quality criterion cards.\n\n**Latency**: 500ms-2s (reads from analytics warehouse, not OLTP).\n\n**Default limit**: 20. Max 100.",
+        "description": "Returns the most recent per-call voice-judge scores for one service, ordered newest first. Produced by the voice judge, which scores each call's stereo audio with Gemini 3.5 Flash on a 10-dimension rubric. Used by the Agent Readiness page to populate Voice Quality criterion cards.\n\n**Latency**: 500ms-2s (an analytics read, not a transactional one).\n\n**Default limit**: 20. Max 100.",
         "operationId": "list-voice-judge-recent",
         "parameters": [
           {
@@ -74081,7 +75885,7 @@
             "description": "Validation Error"
           },
           "503": {
-            "description": "Analytics warehouse not configured or transiently unavailable"
+            "description": "Voice-judge results couldn't be read, so treat this 503 as no answer, not as an empty list."
           }
         },
         "summary": "Recent voice-judge results for a service",
@@ -74178,7 +75982,7 @@
     },
     "/v1/{workspace_id}/sessions/active": {
       "get": {
-        "description": "Real-time list of active voice sessions from Valkey (cross-pod).",
+        "description": "Real-time list of the workspace's active voice sessions.",
         "operationId": "list_active_sessions_v1__workspace_id__sessions_active_get",
         "parameters": [
           {
@@ -74414,7 +76218,7 @@
         ]
       },
       "put": {
-        "description": "Update the workspace default branding for surfaces.\n\nSurface-level branding takes precedence over workspace-level branding.\n\nPermissions: admin, owner.",
+        "description": "Update the workspace default branding for surfaces.\n\nOnly provided fields are updated; omitted fields keep their stored values.\nSet a field to ``null`` to clear it.\n\nSurface-level branding takes precedence over workspace-level branding.\n\nPermissions: admin, owner.",
         "operationId": "update-branding-settings",
         "parameters": [
           {
@@ -74971,7 +76775,7 @@
         ]
       },
       "put": {
-        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID \u2014 determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: BCP-47 language tag (default ``en``)\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
+        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID \u2014 determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
         "operationId": "update-voice-settings",
         "parameters": [
           {
@@ -75132,7 +76936,7 @@
     },
     "/v1/{workspace_id}/simulations/bridge": {
       "post": {
-        "description": "NL objective to N autonomous scenarios against the tracked simulation primitives.\n\nReturns immediately with run_id + generated scenarios. Scenarios run in\nthe background via BridgeExecutor (lifecycle-managed, shutdown-drained).\nCompletion events are emitted to Delta via world_emitter for SDP\nobservability.",
+        "description": "NL objective to N autonomous scenarios against the tracked simulation primitives.\n\nReturns immediately with run_id + generated scenarios. Scenarios run in\nthe background, and each records a completion event when it finishes.",
         "operationId": "simulation-bridge",
         "parameters": [
           {
@@ -75922,7 +77726,7 @@
         ]
       },
       "post": {
-        "description": "Create a simulation coverage run with an optional Lakebase branch.",
+        "description": "Create a simulation coverage run, with an optional ``branch_name``.",
         "operationId": "create-simulation-run",
         "parameters": [
           {
@@ -76109,7 +77913,7 @@
     },
     "/v1/{workspace_id}/simulations/runs/{run_id}/sessions": {
       "post": {
-        "description": "Create a simulation session within a run. Proxies to agent-engine.\n\nThe run must be in the workspace (404 otherwise) and ``service_id`` must be\nthe run's service (422 otherwise), both checked before agent-engine is called.\n\nentity_id ownership: agent-engine's _resolve_caller queries the entity\nwith workspace_id scoping \u2014 a workspace-A entity_id resolves to None in\nworkspace-B, so no cross-tenant data is exposed.",
+        "description": "Create a simulation session within a run.\n\nThe run must be in the workspace (404 otherwise) and ``service_id`` must be\nthe run's service (422 otherwise), both checked before the session starts.\n\nentity_id ownership: the entity is looked up within the workspace, so a\nworkspace-A entity_id resolves to no entity in workspace-B, and no\ncross-tenant data is exposed.",
         "operationId": "create-simulation-session",
         "parameters": [
           {
@@ -77189,7 +78993,7 @@
     },
     "/v1/{workspace_id}/simulations/sessions/{session_id}/promote": {
       "post": {
-        "description": "Promote a run-less (interactive playground) session into a coverage run.\n\nInteractive text sessions are created run-less, so ``fork`` \u2014 which requires\na ``run_id`` \u2014 404s on them. This creates a coverage run, binds the existing\nagent-engine session to it (``adopt-run``, a Valkey meta update \u2014 the session\nitself is not recreated), and writes the platform-api ``SimulationCoverageSession``\nrecord that ``get_session_metadata`` returns, unblocking fork/score.\n\nIdempotent: a session that already has a coverage record returns its existing\nrun with ``already_bound=True``.",
+        "description": "Promote a run-less (interactive playground) session into a coverage run.\n\nInteractive text sessions are created run-less, so ``fork`` \u2014 which requires\na ``run_id`` \u2014 404s on them. This creates a coverage run, binds the existing\nsession to it (the session itself is not recreated), and writes the session's\ncoverage record, unblocking fork and score.\n\nIdempotent: a session that already has a coverage record returns its existing\nrun with ``already_bound=True``.",
         "operationId": "promote-simulation-session",
         "parameters": [
           {
@@ -77486,6 +79290,65 @@
         ]
       }
     },
+    "/v1/{workspace_id}/simulations/suite-runs": {
+      "get": {
+        "description": "Progress summaries for up to 50 suite runs in one request.\n\nRepeat ``suite_run_id`` once per suite run. Each summary carries the suite run's\nstatus, per-status run counts, expected case count, agents, and session and turn\ntotals. A suite run with no runs in the workspace is left out. Use this to show\nmany suite runs at once, such as a run history, and get-simulation-suite-run-results\nfor one suite run's scored results.",
+        "operationId": "list-simulation-suite-run-summaries",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "suite_run_id",
+            "required": true,
+            "schema": {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 50,
+              "minItems": 1,
+              "title": "Suite Run Id",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSimulationSuiteRunSummariesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Simulation Suite Run Summaries",
+        "tags": [
+          "Simulations"
+        ]
+      }
+    },
     "/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}": {
       "get": {
         "description": "Fetch aggregate results for a durable suite run.",
@@ -77535,6 +79398,60 @@
           }
         },
         "summary": "Get Simulation Suite Run Results",
+        "tags": [
+          "Simulations"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}/performance": {
+      "get": {
+        "description": "The get-simulation-performance rollup over every run of one suite run.\n\nPass rates, per-metric results and per-case checks for the whole suite run in\none request, however many runs it has, instead of over the workspace's most\nrecent runs.",
+        "operationId": "get-simulation-suite-run-performance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suite Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationPerformanceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Simulation Suite Run Performance",
         "tags": [
           "Simulations"
         ]
@@ -79021,7 +80938,7 @@
     },
     "/v1/{workspace_id}/surfaces/{surface_id}/deliver": {
       "post": {
-        "description": "Record a real delivery handoff for a surface.\n\nEmail targets are delivered through channel-manager's\n``POST /v1/email/`` (CM owns SES sender identity, IP pool, DKIM,\nsuppression \u2014 keyed on the surface row's ``use_case_id``). Phone-shaped\naddresses return 422 \u2014 SMS surface delivery was removed in PR #2783.\nOther targets record an external handoff that was completed outside\nplatform-api.\n\nPermissions: member, admin, owner (surfaces:write)",
+        "description": "Record a real delivery handoff for a surface.\n\nEmail targets are sent from the sender of the surface's ``use_case_id``,\nand that use case's suppression list applies. Phone-shaped addresses\nreturn 422. Other targets record an external handoff that was completed\noutside the platform.\n\nPermissions: member, admin, owner (surfaces:write)",
         "operationId": "deliver-surface",
         "parameters": [
           {
@@ -81667,7 +83584,7 @@
     },
     "/v1/{workspace_id}/world/entities/duplicates": {
       "get": {
-        "description": "Suspected duplicate entities \u2014 historical same_as merge edges sorted by confidence (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline \u2014 new edges are not produced).",
+        "description": "Suspected duplicate entities: historical same_as merge edges, sorted by confidence. No new ones are produced.",
         "operationId": "get-entity-duplicates",
         "parameters": [
           {
@@ -82170,7 +84087,7 @@
     },
     "/v1/{workspace_id}/world/entities/{entity_id}/graph": {
       "get": {
-        "description": "Entity relationship graph \u2014 one level of edges with neighbor metadata. same_as edges are historical merge edges (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline \u2014 new edges are not produced).",
+        "description": "Entity relationship graph: one level of edges with neighbor metadata. same_as edges are historical merge edges; no new ones are produced.",
         "operationId": "get-entity-graph",
         "parameters": [
           {
@@ -82294,7 +84211,7 @@
     },
     "/v1/{workspace_id}/world/entities/{entity_id}/merged": {
       "get": {
-        "description": "Returns entities linked via same_as edges \u2014 historical merge edges where different data sources refer to the same real-world entity (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline \u2014 new edges are not produced).",
+        "description": "Returns entities linked via same_as edges: historical merge edges where different data sources refer to the same real-world entity. No new ones are produced.",
         "operationId": "merged-entities",
         "parameters": [
           {
@@ -82354,7 +84271,7 @@
     },
     "/v1/{workspace_id}/world/entities/{entity_id}/provenance": {
       "get": {
-        "description": "Data lineage for an entity \u2014 sources, confidence history, merge history (historical same_as edges from the pre-SDP resolver \u2014 new edges are not produced).",
+        "description": "Data lineage for an entity: sources, confidence history and merge history (historical same_as edges; no new ones are produced).",
         "operationId": "get-entity-provenance",
         "parameters": [
           {
@@ -82712,7 +84629,7 @@
     },
     "/v1/{workspace_id}/world/migration/conversations": {
       "post": {
-        "description": "Writes one terminal world.conversations row per v1 conversation (real dates, provider='v1-migration'), giving the returning-user greeting and the real conversation list. Admin-only, idempotent + correctable per (workspace, v1 conversation id), memory-safe (no world events emitted \u2192 the memory extractor never re-derives from these). Transcript content (turns) is a separate follow-up. Batch size <= 500.",
+        "description": "Writes one terminal conversation record per v1 conversation (real dates, provider='v1-migration'), giving the returning-user greeting and the real conversation list. Admin-only, idempotent + correctable per (workspace, v1 conversation id), memory-safe (no world events emitted \u2192 the memory extractor never re-derives from these). Transcript content (turns) is a separate follow-up. Batch size <= 500.",
         "operationId": "bulk-import-migration-conversations",
         "parameters": [
           {
@@ -82981,6 +84898,12 @@
     {
       "description": "Production",
       "url": "https://platform.api-us.concurrence.com"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403.",
+      "name": "Operators"
     }
   ]
 }

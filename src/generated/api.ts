@@ -357,7 +357,7 @@ export interface paths {
         };
         /**
          * Get Metric Store Run
-         * @description Read the Databricks status for a Metric Store setup or refresh run.
+         * @description Read the status of a Metric Store setup or refresh run.
          */
         get: operations["get_metric_store_run_v1_metric_store_runs__run_id__get"];
         put?: never;
@@ -1137,10 +1137,9 @@ export interface paths {
          * Create Audit Export
          * @description Submit an async audit-events export.
          *
-         *     Runs the filtered query on the SQL warehouse with results staged to
-         *     presigned CSV EXTERNAL_LINKS, and returns a Databricks ``statement_id``.
-         *     Poll ``GET /export/{statement_id}`` for the download links. Nothing is
-         *     materialized in platform-api, so the export scales to large date windows.
+         *     Runs the filtered query with results staged as presigned CSV links, and
+         *     returns a ``statement_id``. Poll ``GET /export/{statement_id}`` for the
+         *     download links. The export scales to large date windows.
          *
          *     Permissions: admin, owner
          */
@@ -1300,7 +1299,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number. channel-manager selects the optimal number for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 saying channel-manager refused the call, for example an invalid number, is final.
+         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -1440,7 +1439,7 @@ export interface paths {
          * Deep call understanding
          * @description Audio-native intelligence for a completed call: emotional arc, key decision moments with causal attribution, counterfactual reasoning, and actionable coaching. Produced by the Amigo intelligence pipeline from the raw call recording.
          *
-         *     **Latency**: 500ms-2s (reads from analytics warehouse, not transactional store).
+         *     **Latency**: 500ms-2s (an analytics read, not a transactional one).
          *
          *     **Status values**: `ready` = analysis complete, `pending` = analysis started on first request (typically ready in 2-5 minutes; poll again), `unavailable` = no recording or analysis transiently unavailable (retry later).
          */
@@ -1677,7 +1676,7 @@ export interface paths {
         put?: never;
         /**
          * Create a context graph version
-         * @description Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward.
+         * @description Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward. Omitting `dynamic_behaviors` keeps the latest version's.
          */
         post: operations["create-context_graph-version"];
         delete?: never;
@@ -1929,14 +1928,13 @@ export interface paths {
          * Execute Dashboard
          * @description Execute all panel queries and return results for rendering.
          *
-         *     SQL injection is mitigated by ResearchQueryService.execute_sql, which calls
-         *     _validate_read_only_sql to block DROP/TRUNCATE/ALTER/CREATE/GRANT/REVOKE/
-         *     DELETE/UPDATE/INSERT statements. Catalog-level access is further restricted
-         *     by the service principal's Databricks grants (read-only on analytics catalog).
+         *     Panel queries are read-only: a DROP, TRUNCATE, ALTER, CREATE, GRANT, REVOKE,
+         *     DELETE, UPDATE or INSERT statement is rejected, and every query runs with
+         *     read-only access.
          *
-         *     Every panel query MUST reference the ``:ws_id`` parameter so that
-         *     ResearchQueryService binds it to the requesting workspace. Queries
-         *     without this binding are rejected to prevent cross-tenant data access.
+         *     Every panel query MUST reference the ``:ws_id`` parameter, which is bound
+         *     to the requesting workspace. Queries without this binding are rejected to
+         *     prevent cross-tenant data access.
          */
         post: operations["execute_dashboard_v1__workspace_id__dashboards__dashboard_id__execute_post"];
         delete?: never;
@@ -2845,10 +2843,10 @@ export interface paths {
          *     ``returns=scalar``).
          *
          *     Permissions: ``Workspace.view`` (read role and above). Read-only
-         *     keys are intentionally allowed — invocation runs a stored,
-         *     pre-validated SELECT against catalogs the workspace SP already has
-         *     SELECT on; the gate on what can run is the deploy-time validator
-         *     (read-only invariant), not the per-call permission.
+         *     keys are intentionally allowed — invocation runs a stored SELECT,
+         *     and the gate on what can run is the warehouse guard, which a sql or
+         *     ai body passes for this workspace at deploy and again before every
+         *     run (422 when it refuses a stored body), not the per-call permission.
          */
         post: operations["invoke-function"];
         delete?: never;
@@ -3187,11 +3185,10 @@ export interface paths {
          * Write Back Intake File Status
          * @description Advance a file's status from the async CDC/extraction job (P4).
          *
-         *     The job authenticates with the workspace's API key (Bearer) over the
-         *     standard Databricks→platform-api path — so RLS scopes the update to
-         *     that workspace. Moves the row to its terminal verdict and records the
-         *     curated/cdc paths. For a batch-sourced file, advances its batch (chain the
-         *     next snapshot version + roll up) once the verdict is terminal.
+         *     The job authenticates with the workspace's API key (Bearer), so the update
+         *     is scoped to that workspace. Moves the row to its terminal verdict and
+         *     records the curated/cdc paths. For a batch-sourced file, advances its batch
+         *     (chain the next snapshot version + roll up) once the verdict is terminal.
          */
         post: operations["write_back_intake_file_status_v1__workspace_id__intake_files__file_id__status_post"];
         delete?: never;
@@ -3215,7 +3212,7 @@ export interface paths {
          *     status — ``materialized`` (with row count + last-write time) or
          *     ``not_materialized`` (no table yet). The dataset list + pagination mirror
          *     ``GET /datasets`` (the contracts registry); the destination status is read
-         *     from the ``customer_data_<env>`` catalog via the SQL warehouse. Member read.
+         *     from the ``customer_data_<env>`` catalog. Member read.
          */
         get: operations["list_intake_materializations_v1__workspace_id__intake_materializations_get"];
         put?: never;
@@ -3239,8 +3236,8 @@ export interface paths {
          * Materialize Intake
          * @description Trigger the intake → customer-data materializer for this workspace.
          *
-         *     Fires the materializer Databricks job (run-now); it rescans the workspace's
-         *     curated intake files and (re)materializes each snapshot dataset into
+         *     Starts the materializer job; it rescans the workspace's curated intake
+         *     files and (re)materializes each snapshot dataset into
          *     ``customer_data_<env>.<workspace_id>.<dataset>``. Every write is an idempotent
          *     keyed MERGE / full overwrite, so a re-click is safe. Optionally scope to one
          *     ``dataset``; omit for all curated snapshot datasets. Returns ``202`` with the
@@ -4307,7 +4304,7 @@ export interface paths {
         };
         /**
          * Entity resolution metrics
-         * @description Historical same_as merge-edge counts (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline — new edges are not produced) and entity resolution loop status.
+         * @description Historical same_as merge-edge counts (no new edges are produced) and the entity resolution loop status.
          */
         get: operations["get-entity-resolution"];
         put?: never;
@@ -4467,7 +4464,7 @@ export interface paths {
         };
         /**
          * Pipeline status
-         * @description Pipeline dashboard: Lakebase entity count + Delta read-model event counts.
+         * @description Pipeline dashboard: the entity count and event counts.
          */
         get: operations["get-pipeline-status"];
         put?: never;
@@ -4559,9 +4556,9 @@ export interface paths {
         };
         /**
          * List prompt logs for a workspace
-         * @description Lists ``prompt_log`` events emitted by agent-engine — full system prompt, conversation history, tool catalog, LLM model, and response — for auditing and debugging. Reads the Delta ``world_events`` ledger via Databricks SQL; typical latency is 1-5s with a 15s ceiling on cold-start.
+         * @description Lists the prompts the agent rendered (full system prompt, conversation history, tool catalog, LLM model, and response) for auditing and debugging. It's an analytics read: typical latency is 1-5s, with a 15s ceiling on a cold start.
          *
-         *     **Conversation filter**: pass ``conversation_id``, the id ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row; an older call with no such row answers 404, so filter it by ``call_sid``. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.
+         *     **Conversation filter**: pass ``conversation_id``, the id ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's record; an older call with no conversation record answers 404, so filter it by ``call_sid``. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.
          *
          *     **Other filters**: ``prompt_type``, ``state_name``, ``from_ts``, ``to_ts``. When no selectivity-bearing filter (conversation_id / call_sid / time range) is supplied, the query is auto-capped to the last 7 days; the applied window is reported in ``applied_time_window_days``.
          *
@@ -4683,7 +4680,7 @@ export interface paths {
         };
         /**
          * List runs (framework + conversation)
-         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Federates framework runs (Delta ``world.runs`` MV) and conversation runs (Lakebase ``world.conversations``) at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
+         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Combines framework runs and conversation runs at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), ``source_conversation_id`` (the conversation a run came from), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
          */
         get: operations["list_runs_v1__workspace_id__runs_get"];
         put?: never;
@@ -4703,7 +4700,7 @@ export interface paths {
         };
         /**
          * Run counts (framework + conversation)
-         * @description Aggregate counts for the workspace's runs behind the unified ``Run`` contract: ``total``, ``live`` (running + paused), each canonical status, a full ``by_status`` map, and ``by_kind`` (conversation vs framework). Federates the Delta ``world.runs`` MV and Lakebase ``world.conversations`` with a cheap GROUP BY. Optional ``kind`` / ``channel`` filters mirror the list; a ``channel`` filter restricts to conversation runs.
+         * @description Aggregate counts for the workspace's runs behind the unified ``Run`` contract: ``total``, ``live`` (running + paused), each canonical status, a full ``by_status`` map, and ``by_kind`` (conversation vs framework). Counts framework and conversation runs together. Optional ``kind`` / ``channel`` filters mirror the list; a ``channel`` filter restricts to conversation runs.
          */
         get: operations["runs_summary_v1__workspace_id__runs_summary_get"];
         put?: never;
@@ -4723,7 +4720,7 @@ export interface paths {
         };
         /**
          * Get one run (framework or conversation) by run_id
-         * @description Resolve a single run by its channel-neutral ``run_id`` and return the canonical ``Run`` — at any status (live, completed, failed, timed out). Federates the Delta ``world.runs`` MV (framework runs), Lakebase ``world.conversations`` (conversation runs), and the live-voice registry, matched by ``run_id`` and scoped to the workspace. Use the returned ``kind`` / ``channel`` / ``source_*`` fields to open the channel-appropriate detail (voice call, text conversation, framework trace). 404 if the run does not exist in this workspace.
+         * @description Resolve a single run by its channel-neutral ``run_id`` and return the canonical ``Run`` at any status (live, completed, failed, timed out). Looks across framework runs, conversation runs and live voice calls, matched by ``run_id`` and scoped to the workspace. Use the returned ``kind`` / ``channel`` / ``source_*`` fields to open the channel-appropriate detail (voice call, text conversation, framework trace). 404 if the run does not exist in this workspace.
          */
         get: operations["get_run_v1__workspace_id__runs__run_id__get"];
         put?: never;
@@ -4745,7 +4742,7 @@ export interface paths {
         put?: never;
         /**
          * Author the next turn on a non-voice run under takeover
-         * @description Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. The agent-engine send-gate substitutes it for the agent's next outbound (exactly-once), so the caller receives the operator's words while the agent stays suspended. Repeatable — each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. It replaces the agent's next outbound message, exactly once, so the caller receives the operator's words while the agent stays suspended. Repeatable: each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
          */
         post: operations["author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post"];
         delete?: never;
@@ -4765,7 +4762,7 @@ export interface paths {
         put?: never;
         /**
          * Send operator guidance to a live run
-         * @description Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.
          */
         post: operations["send_run_guidance_v1__workspace_id__runs__run_id__guidance_post"];
         delete?: never;
@@ -4785,7 +4782,7 @@ export interface paths {
         put?: never;
         /**
          * Hand a taken-over run back to the agent
-         * @description Release the caller's operator from a run they took over — the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over — the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
          */
         post: operations["hand_back_run_v1__workspace_id__runs__run_id__handback_post"];
         delete?: never;
@@ -4805,7 +4802,7 @@ export interface paths {
         put?: never;
         /**
          * Switch an operator between listen and takeover on a live run
-         * @description Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
          */
         post: operations["switch_run_mode_v1__workspace_id__runs__run_id__switch_mode_post"];
         delete?: never;
@@ -4825,7 +4822,7 @@ export interface paths {
         put?: never;
         /**
          * Take over a live run as operator
-         * @description Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, or if the operator has no phone number configured. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.
          */
         post: operations["take_over_run_v1__workspace_id__runs__run_id__takeover_post"];
         delete?: never;
@@ -4843,7 +4840,7 @@ export interface paths {
         };
         /**
          * Get a framework run's step-by-step trajectory
-         * @description Ordered structural steps (perception / decision / tool / completion) of a FRAMEWORK run, read from the durable Delta trace source by the run's correlation id. 404 if the run does not exist in this workspace; 409 if the run is a conversation run (use ``/conversations/{id}`` for per-turn detail).
+         * @description Ordered structural steps (perception / decision / tool / completion) of a FRAMEWORK run, read from the run's durable trace by its correlation id. 404 if the run does not exist in this workspace; 409 if the run is a conversation run (use ``/conversations/{id}`` for per-turn detail).
          */
         get: operations["get_run_trajectory_v1__workspace_id__runs__run_id__trajectory_get"];
         put?: never;
@@ -4863,7 +4860,7 @@ export interface paths {
         };
         /**
          * List scheduling rule sets
-         * @description List all scheduling rule sets for the workspace. Optional filters: `agent_kind` (tms / ketamine / general), `is_active`. Used by the agent-engine rules engine and by operators inspecting config.
+         * @description List all scheduling rule sets for the workspace. Optional filters: `agent_kind` (tms / ketamine / general), `is_active`. Used by the agent's scheduling rules engine and by operators inspecting config.
          */
         get: operations["list-scheduling-rule-sets"];
         put?: never;
@@ -4959,7 +4956,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -4982,7 +4979,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. Requires `Service.update` permission.
+         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5045,9 +5042,9 @@ export interface paths {
         };
         /**
          * Recent voice-judge results for a service
-         * @description Returns the most recent per-call voice-judge scores for one service, ordered newest first. Produced by the Databricks `voice_judge` job (stereo audio → Gemini 3.5 Flash → 10-dimension rubric). Used by the Agent Readiness page to populate Voice Quality criterion cards.
+         * @description Returns the most recent per-call voice-judge scores for one service, ordered newest first. Produced by the voice judge, which scores each call's stereo audio with Gemini 3.5 Flash on a 10-dimension rubric. Used by the Agent Readiness page to populate Voice Quality criterion cards.
          *
-         *     **Latency**: 500ms-2s (reads from analytics warehouse, not OLTP).
+         *     **Latency**: 500ms-2s (an analytics read, not a transactional one).
          *
          *     **Default limit**: 20. Max 100.
          */
@@ -5094,7 +5091,7 @@ export interface paths {
         };
         /**
          * List active voice sessions
-         * @description Real-time list of active voice sessions from Valkey (cross-pod).
+         * @description Real-time list of the workspace's active voice sessions.
          */
         get: operations["list_active_sessions_v1__workspace_id__sessions_active_get"];
         put?: never;
@@ -5184,6 +5181,9 @@ export interface paths {
         /**
          * Update workspace branding
          * @description Update the workspace default branding for surfaces.
+         *
+         *     Only provided fields are updated; omitted fields keep their stored values.
+         *     Set a field to ``null`` to clear it.
          *
          *     Surface-level branding takes precedence over workspace-level branding.
          *
@@ -5389,7 +5389,8 @@ export interface paths {
          *       the baseline when no strong emotional signal is detected.
          *     - **speed**: Speech rate multiplier (0.5-2.0)
          *     - **volume**: Volume multiplier (0.0-1.0)
-         *     - **language**: BCP-47 language tag (default ``en``)
+         *     - **language**: The language calls are spoken in (default ``en``), or
+         *       ``multilingual`` to follow the language the caller speaks
          *
          *     **Speech Recognition Boost**
          *     - **keyterms**: Exact words the speech recognition engine should
@@ -5465,9 +5466,7 @@ export interface paths {
          * @description NL objective to N autonomous scenarios against the tracked simulation primitives.
          *
          *     Returns immediately with run_id + generated scenarios. Scenarios run in
-         *     the background via BridgeExecutor (lifecycle-managed, shutdown-drained).
-         *     Completion events are emitted to Delta via world_emitter for SDP
-         *     observability.
+         *     the background, and each records a completion event when it finishes.
          */
         post: operations["simulation-bridge"];
         delete?: never;
@@ -5623,7 +5622,7 @@ export interface paths {
         put?: never;
         /**
          * Create Simulation Run
-         * @description Create a simulation coverage run with an optional Lakebase branch.
+         * @description Create a simulation coverage run, with an optional ``branch_name``.
          */
         post: operations["create-simulation-run"];
         delete?: never;
@@ -5687,14 +5686,14 @@ export interface paths {
         put?: never;
         /**
          * Create Simulation Session
-         * @description Create a simulation session within a run. Proxies to agent-engine.
+         * @description Create a simulation session within a run.
          *
          *     The run must be in the workspace (404 otherwise) and ``service_id`` must be
-         *     the run's service (422 otherwise), both checked before agent-engine is called.
+         *     the run's service (422 otherwise), both checked before the session starts.
          *
-         *     entity_id ownership: agent-engine's _resolve_caller queries the entity
-         *     with workspace_id scoping — a workspace-A entity_id resolves to None in
-         *     workspace-B, so no cross-tenant data is exposed.
+         *     entity_id ownership: the entity is looked up within the workspace, so a
+         *     workspace-A entity_id resolves to no entity in workspace-B, and no
+         *     cross-tenant data is exposed.
          */
         post: operations["create-simulation-session"];
         delete?: never;
@@ -5905,9 +5904,8 @@ export interface paths {
          *
          *     Interactive text sessions are created run-less, so ``fork`` — which requires
          *     a ``run_id`` — 404s on them. This creates a coverage run, binds the existing
-         *     agent-engine session to it (``adopt-run``, a Valkey meta update — the session
-         *     itself is not recreated), and writes the platform-api ``SimulationCoverageSession``
-         *     record that ``get_session_metadata`` returns, unblocking fork/score.
+         *     session to it (the session itself is not recreated), and writes the session's
+         *     coverage record, unblocking fork and score.
          *
          *     Idempotent: a session that already has a coverage record returns its existing
          *     run with ``already_bound=True``.
@@ -5979,6 +5977,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/simulations/suite-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Simulation Suite Run Summaries
+         * @description Progress summaries for up to 50 suite runs in one request.
+         *
+         *     Repeat ``suite_run_id`` once per suite run. Each summary carries the suite run's
+         *     status, per-status run counts, expected case count, agents, and session and turn
+         *     totals. A suite run with no runs in the workspace is left out. Use this to show
+         *     many suite runs at once, such as a run history, and get-simulation-suite-run-results
+         *     for one suite run's scored results.
+         */
+        get: operations["list-simulation-suite-run-summaries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}": {
         parameters: {
             query?: never;
@@ -5991,6 +6015,30 @@ export interface paths {
          * @description Fetch aggregate results for a durable suite run.
          */
         get: operations["get-simulation-suite-run-results"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Simulation Suite Run Performance
+         * @description The get-simulation-performance rollup over every run of one suite run.
+         *
+         *     Pass rates, per-metric results and per-case checks for the whole suite run in
+         *     one request, however many runs it has, instead of over the workspace's most
+         *     recent runs.
+         */
+        get: operations["get-simulation-suite-run-performance"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6343,12 +6391,10 @@ export interface paths {
          * Deliver Surface
          * @description Record a real delivery handoff for a surface.
          *
-         *     Email targets are delivered through channel-manager's
-         *     ``POST /v1/email/`` (CM owns SES sender identity, IP pool, DKIM,
-         *     suppression — keyed on the surface row's ``use_case_id``). Phone-shaped
-         *     addresses return 422 — SMS surface delivery was removed in PR #2783.
-         *     Other targets record an external handoff that was completed outside
-         *     platform-api.
+         *     Email targets are sent from the sender of the surface's ``use_case_id``,
+         *     and that use case's suppression list applies. Phone-shaped addresses
+         *     return 422. Other targets record an external handoff that was completed
+         *     outside the platform.
          *
          *     Permissions: member, admin, owner (surfaces:write)
          */
@@ -6883,7 +6929,7 @@ export interface paths {
         };
         /**
          * Get Entity Duplicates
-         * @description Suspected duplicate entities — historical same_as merge edges sorted by confidence (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline — new edges are not produced).
+         * @description Suspected duplicate entities: historical same_as merge edges, sorted by confidence. No new ones are produced.
          */
         get: operations["get-entity-duplicates"];
         put?: never;
@@ -7003,7 +7049,7 @@ export interface paths {
         };
         /**
          * Get Entity Graph
-         * @description Entity relationship graph — one level of edges with neighbor metadata. same_as edges are historical merge edges (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline — new edges are not produced).
+         * @description Entity relationship graph: one level of edges with neighbor metadata. same_as edges are historical merge edges; no new ones are produced.
          */
         get: operations["get-entity-graph"];
         put?: never;
@@ -7043,7 +7089,7 @@ export interface paths {
         };
         /**
          * Get merged entities (same_as links)
-         * @description Returns entities linked via same_as edges — historical merge edges where different data sources refer to the same real-world entity (written by the pre-SDP resolver; merge detection now lives in the Databricks pipeline — new edges are not produced).
+         * @description Returns entities linked via same_as edges: historical merge edges where different data sources refer to the same real-world entity. No new ones are produced.
          */
         get: operations["merged-entities"];
         put?: never;
@@ -7063,7 +7109,7 @@ export interface paths {
         };
         /**
          * Get Entity Provenance
-         * @description Data lineage for an entity — sources, confidence history, merge history (historical same_as edges from the pre-SDP resolver — new edges are not produced).
+         * @description Data lineage for an entity: sources, confidence history and merge history (historical same_as edges; no new ones are produced).
          */
         get: operations["get-entity-provenance"];
         put?: never;
@@ -7185,7 +7231,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk-import v1 conversation envelopes for migrated patients
-         * @description Writes one terminal world.conversations row per v1 conversation (real dates, provider='v1-migration'), giving the returning-user greeting and the real conversation list. Admin-only, idempotent + correctable per (workspace, v1 conversation id), memory-safe (no world events emitted → the memory extractor never re-derives from these). Transcript content (turns) is a separate follow-up. Batch size <= 500.
+         * @description Writes one terminal conversation record per v1 conversation (real dates, provider='v1-migration'), giving the returning-user greeting and the real conversation list. Admin-only, idempotent + correctable per (workspace, v1 conversation id), memory-safe (no world events emitted → the memory extractor never re-derives from these). Transcript content (turns) is a separate follow-up. Batch size <= 500.
          */
         post: operations["bulk-import-migration-conversations"];
         delete?: never;
@@ -7593,6 +7639,138 @@ export interface components {
              */
             op: "add_unique";
         };
+        /**
+         * AdvancedCallStatsResponse
+         * @description Percentile call metrics with a trend and by-service and by-direction breakdowns.
+         */
+        AdvancedCallStatsResponse: {
+            /**
+             * By Direction
+             * @description Calls per direction (inbound, outbound); calls without a direction are left out
+             */
+            by_direction: {
+                [key: string]: components["schemas"]["DirectionCalls"];
+            };
+            /**
+             * By Service
+             * @description Calls per service, busiest first, ties by service_id; calls without a service are left out
+             */
+            by_service: components["schemas"]["ServiceCalls"][];
+            /**
+             * Groups
+             * @description With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.
+             */
+            groups?: components["schemas"]["ServiceCallStats"][] | null;
+            /** @description Calls in the window */
+            summary: components["schemas"]["AdvancedCallStatsSummary"];
+            /**
+             * Trend
+             * @description One point per bucket with calls
+             */
+            trend: components["schemas"]["AdvancedCallStatsTrendPoint"][];
+        };
+        /**
+         * AdvancedCallStatsSummary
+         * @description Production calls in the window: counts, durations and quality scores.
+         */
+        AdvancedCallStatsSummary: {
+            /**
+             * Avg Duration Seconds
+             * @description Mean call duration in seconds
+             */
+            avg_duration_seconds?: number | null;
+            /**
+             * Avg Quality Score
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality_score?: number | null;
+            /**
+             * Completed
+             * @description Calls not escalated to an operator (total_calls minus escalated)
+             */
+            completed: number;
+            /**
+             * Escalated
+             * @description Calls escalated to an operator
+             */
+            escalated: number;
+            /**
+             * P50 Duration Seconds
+             * @description Median call duration in seconds
+             */
+            p50_duration_seconds?: number | null;
+            /**
+             * P50 Quality Score
+             * @description Median quality score (0-100)
+             */
+            p50_quality_score?: number | null;
+            /**
+             * P5 Quality Score
+             * @description 5th-percentile quality score (0-100)
+             */
+            p5_quality_score?: number | null;
+            /**
+             * P95 Duration Seconds
+             * @description 95th-percentile call duration in seconds
+             */
+            p95_duration_seconds?: number | null;
+            /**
+             * P95 Quality Score
+             * @description 95th-percentile quality score (0-100)
+             */
+            p95_quality_score?: number | null;
+            /**
+             * P99 Duration Seconds
+             * @description 99th-percentile call duration in seconds
+             */
+            p99_duration_seconds?: number | null;
+            /**
+             * Total Calls
+             * @description Production calls in the window
+             */
+            total_calls: number;
+        };
+        /**
+         * AdvancedCallStatsTrendPoint
+         * @description One interval bucket of the advanced call stats.
+         */
+        AdvancedCallStatsTrendPoint: {
+            /**
+             * Avg Duration Seconds
+             * @description Mean call duration in seconds
+             */
+            avg_duration_seconds?: number | null;
+            /**
+             * Avg Quality
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality?: number | null;
+            /**
+             * Calls
+             * @description Production calls in the bucket
+             */
+            calls: number;
+            /**
+             * Date
+             * @description Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)
+             */
+            date: string;
+            /**
+             * Escalation Rate
+             * @description Escalated calls over calls in the bucket (0.0-1.0)
+             */
+            escalation_rate: number;
+            /**
+             * P50 Quality
+             * @description Median quality score (0-100)
+             */
+            p50_quality?: number | null;
+            /**
+             * P95 Latency Ms
+             * @description 95th percentile of each call's average audio time-to-first-byte, in ms
+             */
+            p95_latency_ms?: number | null;
+        };
         /** AgentAnalyticsEntry */
         AgentAnalyticsEntry: {
             /**
@@ -7884,6 +8062,17 @@ export interface components {
             value?: number | null;
         };
         /**
+         * AnalyticsUnavailableResponse
+         * @description The 503 body when the route couldn't read its data.
+         */
+        AnalyticsUnavailableResponse: {
+            /**
+             * Detail
+             * @constant
+             */
+            detail: "Analytics unavailable";
+        };
+        /**
          * AnnotationState
          * @description Injects a hardcoded inner thought (no LLM call).
          */
@@ -7953,6 +8142,20 @@ export interface components {
              * Format: uuid
              */
             workspace_id: string;
+        };
+        /**
+         * AppliedBehavior
+         * @description The dynamic behavior an agent reply was rendered with.
+         */
+        AppliedBehavior: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            mode: components["schemas"]["DynamicBehaviorMode"];
+            /** Name */
+            name: string;
         };
         /**
          * AppliedRate
@@ -8120,7 +8323,7 @@ export interface components {
         AuditExportSubmitResponse: {
             /**
              * Statement Id
-             * @description Databricks statement handle — poll GET /export/{statement_id} for links.
+             * @description The export's handle: poll GET /export/{statement_id} for the links.
              */
             statement_id: string;
             /**
@@ -8280,7 +8483,7 @@ export interface components {
          *     Source provenance mirrors the single-file path (resolve_source_identity, PHI
          *     gate): source_file_id/source_url (opaque ids) always populate; source_folder_path
          *     + filename (operator-named free text) populate ONLY for contains_phi=false
-         *     datasets — otherwise they stay None, so PHI never leaves the Lakebase row.
+         *     datasets; otherwise they stay None, so PHI never leaves the file's record.
          */
         BatchProcessingManifest: {
             /** Document Processing */
@@ -8314,6 +8517,77 @@ export interface components {
              * @description discovered | ready | processing | completed | failed.
              */
             status: string;
+        };
+        /**
+         * BehaviorDecision
+         * @description What one caller turn's dynamic behavior decision did.
+         *
+         *     ``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because
+         *     the model chose it again or said it stays; ``held`` kept it inside its ``sticky_turns``, whatever the
+         *     answer; ``none``, ``below_floor`` and ``failed`` left nothing in force (no behavior applies, a choice under
+         *     the confidence floor, no usable answer); ``skipped`` ran no decision (``reason`` says why) and ended the
+         *     active behavior; ``superseded`` was cancelled by the caller's next turn before it landed.
+         */
+        BehaviorDecision: {
+            /**
+             * Behavior Id
+             * @description The behavior in force after the decision.
+             * @default null
+             */
+            behavior_id?: string | null;
+            /**
+             * Candidate Count
+             * @description How many behaviors the decision chose between, ``none`` aside.
+             * @default 0
+             */
+            candidate_count?: number;
+            /**
+             * Chosen Id
+             * @description The behavior the model chose. Null when it chose none or gave no usable answer.
+             * @default null
+             */
+            chosen_id?: string | null;
+            /**
+             * Cited Message Indexes
+             * @description The messages the decision read the turn from: the agent's line before the turn, then the caller's.
+             * @default []
+             */
+            cited_message_indexes?: number[];
+            /**
+             * Confidence
+             * @description The choice's confidence. Null where the route reports none, as in AU and CA.
+             * @default null
+             */
+            confidence?: number | null;
+            /**
+             * Context Graph Version
+             * @description The context graph version whose behaviors were offered.
+             */
+            context_graph_version: number;
+            /**
+             * Keep Confidence
+             * @description The confidence of the answer to whether the active behavior stays, when that was asked.
+             * @default null
+             */
+            keep_confidence?: number | null;
+            /**
+             * Kept By Predicate
+             * @description Whether the active behavior stayed because the model said it stays, rather than by its choice.
+             * @default false
+             */
+            kept_by_predicate?: boolean;
+            /**
+             * Latency Ms
+             * @default null
+             */
+            latency_ms?: number | null;
+            outcome: components["schemas"]["DynamicBehaviorOutcome"];
+            /**
+             * Reason
+             * @description Why a decision failed or was skipped, or why a held behavior was held.
+             * @default null
+             */
+            reason?: components["schemas"]["FailureReason"] | components["schemas"]["DynamicBehaviorSkip"] | null;
         };
         /** BindingUpsertRequest */
         BindingUpsertRequest: {
@@ -8457,8 +8731,8 @@ export interface components {
         };
         /**
          * BrandingSettingsRequest
-         * @description Update workspace branding. All fields are optional — only provided
-         *     fields are changed.
+         * @description Update workspace branding. All fields are optional, and only provided
+         *     fields are changed. A field sent as ``null`` is cleared.
          */
         BrandingSettingsRequest: {
             branding: components["schemas"]["BrandingConfig"];
@@ -9033,8 +9307,6 @@ export interface components {
         /**
          * CallQualityAnalyticsResponse
          * @description Call quality score trends, distribution, and summary over time.
-         *
-         *     Served from the live Delta projection ``analytics.source_call_intelligence``.
          */
         CallQualityAnalyticsResponse: {
             /** @description Call counts bucketed by quality-score band */
@@ -9962,7 +10234,7 @@ export interface components {
             last_ingested_at: string | null;
             /**
              * Source
-             * @description Operator-defined source identifier as written to Delta world_events.source (e.g. 'charm', 'careclinic', 'hazel'). Enum-like; never user input.
+             * @description Operator-defined source identifier, as the source's events carry it (e.g. 'charm', 'careclinic', 'hazel'). Enum-like; never user input.
              */
             source: string;
         };
@@ -9976,7 +10248,7 @@ export interface components {
             as_of: string;
             /**
              * Read Model Status
-             * @description ready = Lakebase projection returned rows; empty = no summary rows; unavailable = read failed.
+             * @description ready = the summary returned rows; empty = no summary rows; unavailable = read failed.
              * @enum {string}
              */
             read_model_status: "ready" | "empty" | "unavailable";
@@ -10112,6 +10384,8 @@ export interface components {
             created_at?: string | null;
             /** Description */
             description: string;
+            /** Dynamic Behaviors */
+            dynamic_behaviors?: components["schemas"]["DynamicBehavior"][];
             /**
              * Global Action Guidelines
              * @default []
@@ -10170,6 +10444,11 @@ export interface components {
             created_at: string;
             /** Description */
             description: string;
+            /**
+             * Dynamic Behaviors
+             * @description The version's dynamic behaviors, in authored order. Empty on a version saved before they existed.
+             */
+            dynamic_behaviors: components["schemas"]["DynamicBehavior"][];
             /** Global Action Guidelines */
             global_action_guidelines: string[];
             /** Global Boundary Constraints */
@@ -10307,7 +10586,7 @@ export interface components {
              * @enum {string}
              */
             lifecycle: "active" | "dormant" | "closed";
-            /** @description What the conversation executed with, as its first session recorded it at start: the agent and context graph versions, the version set, the models and the config fingerprint. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models. */
+            /** @description What the conversation executed with, as its first session recorded it: the agent and context graph versions, the version set and config fingerprint, the build, the models and how they sampled, the prompt templates, the voice's language, the program flags and how the region decides. A call that changed its STT or its voice's language mid-call reads as it last stood. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models. */
             manifest?: components["schemas"]["RunManifest"] | null;
             /** Phone Number */
             phone_number?: string | null;
@@ -10554,6 +10833,8 @@ export interface components {
              * @default []
              */
             content?: components["schemas"]["ContentPartPayload"][];
+            /** @description On an agent message, the dynamic behavior its reply was rendered with. Null when none was in force, and on user and system messages. */
+            dynamic_behavior?: components["schemas"]["AppliedBehavior"] | null;
             /**
              * Engine Turn Id
              * @description The agent engine's id for the turn this message opens (a user message) or answers (an agent message). One exchange can hold several engine turns, such as a tool call and the reply to its result. Null when no engine turn is recorded on the message: a filler line, a text reply, a channel event, or an older conversation that didn't record it.
@@ -11012,6 +11293,14 @@ export interface components {
             /** @default  */
             description?: components["schemas"]["DescriptionString"];
             /**
+             * Dynamic Behaviors
+             * @description The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the
+             *     latest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.
+             *     Adding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it
+             *     or removing it doesn't.
+             */
+            dynamic_behaviors?: components["schemas"]["DynamicBehavior"][] | null;
+            /**
              * Global Action Guidelines
              * @default []
              */
@@ -11066,8 +11355,13 @@ export interface components {
              */
             service_id: string;
             /**
+             * Source
+             * @description Set to ``playground`` when the developer console Playground starts the conversation. A Playground session writes only to conversations a Playground session or test credential started, never a real one. Web only (422 on another channel); an external user gets 403.
+             */
+            source?: "playground" | null;
+            /**
              * Use Case Id
-             * @description Channel-manager use case the outbound conversation is sent through. Required for non-web; channel-manager resolves the sender (FROM) from it (never caller-supplied). Must be owned by this workspace.
+             * @description The use case the outbound conversation is sent through. Required for non-web; the sender (FROM) is resolved from it, never caller-supplied. Must be owned by this workspace.
              */
             use_case_id?: string | null;
         };
@@ -11155,8 +11449,8 @@ export interface components {
          * CreateOutboundCallRequest
          * @description Request body for creating an outbound call.
          *
-         *     ``use_case_id`` is required: channel-manager selects the optimal outbound
-         *     phone number bound to that use case (the sole caller-ID resolution path).
+         *     ``use_case_id`` is required: the call goes out from a phone number bound
+         *     to that use case, the only way its caller ID is chosen.
          */
         CreateOutboundCallRequest: {
             /**
@@ -11214,7 +11508,7 @@ export interface components {
             /**
              * Use Case Id
              * Format: uuid
-             * @description Channel-manager use case ID. channel-manager selects the optimal outbound phone number bound to this use case.
+             * @description Use case ID. The call goes out from a phone number bound to this use case.
              */
             use_case_id: string;
         };
@@ -11240,7 +11534,7 @@ export interface components {
             phone_from?: string | null;
             /**
              * Setup Id
-             * @description Channel-manager setup ID when use_case_id was used.
+             * @description The channel setup's ID when use_case_id was used.
              */
             setup_id?: string | null;
             /**
@@ -11310,6 +11604,27 @@ export interface components {
              */
             agent_id: string;
             /**
+             * Allow Unverified Integration Results
+             * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
+             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
+             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
+             *     beside `caller_verification_endpoint_id`.
+             * @default false
+             */
+            allow_unverified_integration_results?: boolean;
+            /**
+             * Caller Verification Endpoint Id
+             * @description The integration endpoint that verifies this service's callers, on a service with
+             *     `platform_caller_verification` and `allow_unverified_integration_results` false. The endpoint has to
+             *     be one of this workspace's, declare `declarations.verifies`, and never wait for approval under its
+             *     integration's `approval_policy`. A successful call verifies the caller as the one patient its response
+             *     names there, once per conversation. The reads of that integration that declare the patient they read
+             *     refuse until then, and then run only for that patient, and the agent may share what they return.
+             *     Naming one needs `Service.update`.
+             */
+            caller_verification_endpoint_id?: string | null;
+            /**
              * Channel Type
              * @default voice
              * @enum {string}
@@ -11341,7 +11656,25 @@ export interface components {
             is_active?: boolean;
             /** Keyterms */
             keyterms?: string[];
+            /**
+             * Medical Emergency Ending
+             * @description How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or
+             *     ``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or
+             *     crisis statement keeps the call open in either.
+             * @default stay_on_line
+             * @enum {string}
+             */
+            medical_emergency_ending?: "stay_on_line" | "end_after_script";
             name: components["schemas"]["NameString"];
+            /**
+             * Platform Caller Verification
+             * @description Whether the platform verifies a caller who may match a patient record by full name and date of
+             *     birth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient
+             *     record refuses. The service's integration tools run either way, unless one of them verifies its
+             *     callers (`caller_verification_endpoint_id`).
+             * @default true
+             */
+            platform_caller_verification?: boolean;
             /** Tags */
             tags?: components["schemas"]["ServiceTag"][];
             /**
@@ -11369,7 +11702,7 @@ export interface components {
             caller_id?: string | null;
             /**
              * Entity Id
-             * @description Optional world entity UUID to bind caller context directly. Precedence rules: (1) when this resolves to a world entity in the workspace, it WINS — `caller_id` is not used for identity resolution, and the resolution provenance is `entity_id_lookup`; (2) when this is a well-formed UUID with no matching entity (stale, deleted, wrong workspace), the session falls back to phone lookup against `caller_id` (provenance `phone_lookup`) — no error is raised, the sim is survivable; (3) malformed UUIDs are rejected with HTTP 422 before the request reaches agent-engine. The supplied `caller_id` is still recorded on the active call and surfaced in the greeting metadata in case (1).
+             * @description Optional world entity UUID to bind caller context directly. Precedence rules: (1) when this resolves to a world entity in the workspace, it WINS — `caller_id` is not used for identity resolution, and the resolution provenance is `entity_id_lookup`; (2) when this is a well-formed UUID with no matching entity (stale, deleted, wrong workspace), the session falls back to phone lookup against `caller_id` (provenance `phone_lookup`) — no error is raised, the sim is survivable; (3) malformed UUIDs are rejected with HTTP 422 before the session starts. The supplied `caller_id` is still recorded on the active call and surfaced in the greeting metadata in case (1).
              */
             entity_id?: string | null;
             /**
@@ -12176,6 +12509,41 @@ export interface components {
              */
             workspace_id: string;
         };
+        /**
+         * DataQueryDeclarations
+         * @description What a data query's author declares about its calls. Each declaration is optional, and one
+         *     left out is unknown, never a default the platform guesses. A reader ignores a key it doesn't
+         *     know, so a later declaration never breaks an older reader. The data query API refuses one at the
+         *     write boundary instead (``DataQueryDeclarationsBody`` in platform-api).
+         */
+        DataQueryDeclarations: {
+            /**
+             * @description Whose patient record a call returns, and how the call names that patient: the one its
+             *     parameters name (``params``, each one of the query's ``parameters``), the ones its rows hold
+             *     (``response``, where ``records`` points into the rows the query returns, a list of objects keyed
+             *     by column, so the empty pointer is every row), or none (``none``: practice data, such as
+             *     articles, locations or opening hours). Null when undeclared: the voice agent then counts a
+             *     call's result as one that may hold a patient's record.
+             */
+            reads?: components["schemas"]["EndpointReads"] | null;
+        };
+        /**
+         * DataQueryDeclarationsBody
+         * @description The declarations a create or PATCH names. One a data query can't make, such as an endpoint's
+         *     ``writes`` or a misspelled ``reads``, is a 422, never a key dropped with a 200. Only the write
+         *     boundary refuses one: a reader ignores a key it doesn't know (``DataQueryDeclarations``).
+         */
+        DataQueryDeclarationsBody: {
+            /**
+             * @description Whose patient record a call returns, and how the call names that patient: the one its
+             *     parameters name (``params``, each one of the query's ``parameters``), the ones its rows hold
+             *     (``response``, where ``records`` points into the rows the query returns, a list of objects keyed
+             *     by column, so the empty pointer is every row), or none (``none``: practice data, such as
+             *     articles, locations or opening hours). Null when undeclared: the voice agent then counts a
+             *     call's result as one that may hold a patient's record.
+             */
+            reads?: components["schemas"]["EndpointReads"] | null;
+        };
         /** DataQueryResponse */
         DataQueryResponse: {
             /** Count */
@@ -12394,6 +12762,8 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** @enum {string} */
+        DeciderKind: "decisions" | "regional";
         /**
          * DecisionFactor
          * @description A specific audio input that drove an agent decision.
@@ -12585,6 +12955,22 @@ export interface components {
             status: "destroyed";
         };
         /**
+         * DirectionCalls
+         * @description One direction's calls in ``by_direction``.
+         */
+        DirectionCalls: {
+            /**
+             * Avg Quality
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality?: number | null;
+            /**
+             * Calls
+             * @description Production calls
+             */
+            calls: number;
+        };
+        /**
          * DocumentProcessingSpec
          * @description Processing config for a document dataset (``ingestion_mode=document``).
          *
@@ -12660,6 +13046,93 @@ export interface components {
              */
             op: "drop_index";
         };
+        /**
+         * DynamicBehavior
+         * @description One authored behavior on a context graph version.
+         */
+        DynamicBehavior: {
+            /**
+             * Condition
+             * @description When it applies, in terms of what the client wants or says. It describes the behavior to the selector.
+             */
+            condition: string;
+            /**
+             * Enabled
+             * @description A disabled behavior stays on the version and is never offered.
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Examples
+             * @description Things a client says when it applies. The selector reads them; the reply never does.
+             * @default []
+             */
+            examples?: string[];
+            /**
+             * Id
+             * Format: uuid
+             * @description Stable across versions: the same behavior keeps its id in every version that carries it. The client
+             *     generates it.
+             */
+            id: string;
+            /**
+             * Instruction
+             * @description The guidance the reply follows while the behavior is in force, and the only text of a behavior that
+             *     reaches the reply prompt. Null: the behavior is decided and recorded, and changes no reply.
+             */
+            instruction?: string | null;
+            /**
+             * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
+             *     guidelines, while boundary constraints, guardrails and safety rules stay. Adding a replace-mode behavior, or
+             *     changing one, needs ``platform:admin``; disabling or removing one doesn't.
+             * @default add
+             */
+            mode?: components["schemas"]["DynamicBehaviorMode"];
+            /**
+             * Name
+             * @description What authors call it. It never reaches the reply prompt.
+             */
+            name: string;
+            /**
+             * States
+             * @description The action and data collection states it applies in. Empty: every one.
+             * @default []
+             */
+            states?: components["schemas"]["NameString"][];
+            /**
+             * Sticky Turns
+             * @description The fewest caller turns it stays in force once applied, counting the turn it was applied on. Another
+             *     behavior the selector chooses still replaces it sooner.
+             * @default 1
+             */
+            sticky_turns?: number;
+            /**
+             * Tags
+             * @description Labels for authors. They never reach a prompt.
+             * @default []
+             */
+            tags?: string[];
+        };
+        /**
+         * DynamicBehaviorDecidedEvent
+         * @description A caller turn's dynamic behavior decision committed. ``behavior`` is the behavior in force after it.
+         */
+        DynamicBehaviorDecidedEvent: {
+            /** @default null */
+            behavior?: components["schemas"]["AppliedBehavior"] | null;
+            decision: components["schemas"]["BehaviorDecision"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dynamic_behavior_decided";
+        };
+        /** @enum {string} */
+        DynamicBehaviorMode: "add" | "replace";
+        /** @enum {string} */
+        DynamicBehaviorOutcome: "applied" | "kept" | "held" | "none" | "below_floor" | "failed" | "skipped" | "superseded";
+        /** @enum {string} */
+        DynamicBehaviorSkip: "emergency_floor" | "person_request" | "empathy_hold" | "suspended" | "no_candidates";
         /** EagerEvalResponse */
         EagerEvalResponse: {
             /** Eval Count */
@@ -12949,6 +13422,12 @@ export interface components {
              */
             reads?: components["schemas"]["EndpointReads"] | null;
             /**
+             * @description How a successful call verifies the caller, and as which patient, for a service that names
+             *     this endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:
+             *     a call verifies nobody.
+             */
+            verifies?: components["schemas"]["VerifiesCaller-Input"] | null;
+            /**
              * @description What a successful call writes and how its response reports it. Null when undeclared: the
              *     voice agent then never treats the endpoint's calls as a booking or cancellation.
              */
@@ -12966,6 +13445,12 @@ export interface components {
              *     Null when undeclared.
              */
             reads?: components["schemas"]["EndpointReads"] | null;
+            /**
+             * @description How a successful call verifies the caller, and as which patient, for a service that names
+             *     this endpoint its verifier (``Service.caller_verification_endpoint_id``). Null when undeclared:
+             *     a call verifies nobody.
+             */
+            verifies?: components["schemas"]["VerifiesCaller-Output"] | null;
             /**
              * @description What a successful call writes and how its response reports it. Null when undeclared: the
              *     voice agent then never treats the endpoint's calls as a booking or cancellation.
@@ -14005,6 +14490,11 @@ export interface components {
              * @description Per-eval-key aggregates, most-evaluated first
              */
             by_eval_key: components["schemas"]["EvalQualitySummary"][];
+            /**
+             * Groups
+             * @description With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by.
+             */
+            groups?: components["schemas"]["ServiceEvalQuality"][] | null;
             /** @description Workspace-wide aggregate for the period */
             summary: components["schemas"]["EvalQualitySummary"];
             /**
@@ -14665,6 +15155,8 @@ export interface components {
          * @enum {string}
          */
         FailureClass: "timeout" | "input_rejected" | "rounds_exhausted" | "generic";
+        /** @enum {string} */
+        FailureReason: "refusal" | "out_of_set" | "malformed" | "http_4xx" | "http_retryable" | "connection" | "timeout" | "breaker_open" | "options_exceeded";
         /** FhirAppointmentListResponse */
         FhirAppointmentListResponse: {
             /** Appointments */
@@ -15227,13 +15719,14 @@ export interface components {
         };
         /**
          * FieldSuccess
-         * @description A field of the JSON response holds the value that means the write happened.
+         * @description A field of the JSON response holds the value that means the write happened, or the caller
+         *     verified.
          */
         FieldSuccess: {
             /**
              * Equals
-             * @description The value at ``pointer`` when the write happened. Compared as JSON: ``"0"`` is not ``0``,
-             *     and ``true`` is not ``1``. A form-encoded response holds only strings.
+             * @description The value at ``pointer`` when the write happened, or the caller verified. Compared as JSON:
+             *     ``"0"`` is not ``0``, and ``true`` is not ``1``. A form-encoded response holds only strings.
              */
             equals: string | number | boolean | null;
             /**
@@ -16113,6 +16606,11 @@ export interface components {
         IntegrationRejectRequest: {
             /** Reason */
             reason?: string | null;
+            /**
+             * Source
+             * @description Set to ``playground`` when the developer console Playground decides the approval. Refused with 403 on a real conversation, one no Playground session or test credential started.
+             */
+            source?: "playground" | null;
         };
         /**
          * IntegrationToolRef
@@ -16544,6 +17042,14 @@ export interface components {
             /** Max Size Mb */
             max_size_mb?: number | null;
         };
+        /** ListSimulationSuiteRunSummariesResponse */
+        ListSimulationSuiteRunSummariesResponse: {
+            /**
+             * Suite Runs
+             * @description One summary per requested suite run that has runs in the workspace, in request order.
+             */
+            suite_runs: components["schemas"]["SimulationSuiteRunSummary"][];
+        };
         /** ListSimulationSuiteRunsResponse */
         ListSimulationSuiteRunsResponse: {
             /** Runs */
@@ -16712,7 +17218,7 @@ export interface components {
             effective_at?: string | null;
             /**
              * Event Id
-             * @description Optional deterministic row id (typically uuid5(NAMESPACE, '<stable-key>')). Re-emitting with the same value lands on the same world_events row instead of double-billing. Use for backfills and retries. Default: server generates a random uuid4.
+             * @description Optional deterministic row id (typically uuid5(NAMESPACE, '<stable-key>')). Re-emitting with the same value lands on the same metering event instead of double-billing. Use for backfills and retries. Default: server generates a random uuid4.
              */
             event_id?: string | null;
             /** Event Type */
@@ -17594,7 +18100,7 @@ export interface components {
              */
             type: "oauth2_jwt_bearer";
         };
-        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["CompoundEmotionEvent"] | components["schemas"]["EmotionEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
+        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["CompoundEmotionEvent"] | components["schemas"]["DynamicBehaviorDecidedEvent"] | components["schemas"]["EmotionEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
         /** OcrRequest */
         OcrRequest: {
             /**
@@ -18360,7 +18866,8 @@ export interface components {
              * Params
              * @description The input parameters that name the patient, by an identifier their record on file carries:
              *     its entity_id, MRN, FHIR id or source system id. Each one is a property of the endpoint's
-             *     ``input_schema``.
+             *     ``input_schema``. On a service that verifies its callers through its own integration, they name
+             *     the patient by the identifier its verifier returns.
              */
             params: string[];
             /**
@@ -18682,7 +19189,8 @@ export interface components {
             /**
              * Patient
              * @description RFC 6901 JSON Pointer into each record to the identifier of the patient it belongs to, one
-             *     their record on file carries, such as ``/patient_id``.
+             *     their record on file carries, such as ``/patient_id``. On a service that verifies its callers
+             *     through its own integration, the identifier its verifier returns.
              */
             patient: string;
             /**
@@ -18694,7 +19202,8 @@ export interface components {
              * Records
              * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the records:
              *     a list of records, or one record. ``/patients`` is the list under ``patients``, and the empty
-             *     pointer is the whole body.
+             *     pointer is the whole body. A held call keeps only the records a caller may hear, and nothing
+             *     beside them, and the template renders those.
              */
             records: string;
         };
@@ -19152,7 +19661,7 @@ export interface components {
             effective_at?: string | null;
             /**
              * Engine Turn Id
-             * @description The agent-engine turn that rendered this prompt (32 hex characters): the user turn, or one tool round within it, so each tool round's prompt has its own. Null on logs written before this field.
+             * @description The engine turn that rendered this prompt (32 hex characters): the user turn, or one tool round within it, so each tool round's prompt has its own. Null on logs written before this field.
              */
             engine_turn_id?: string | null;
             /**
@@ -19200,7 +19709,7 @@ export interface components {
             turn_id?: string | null;
             /**
              * Turn Index
-             * @description Counts the prompts one agent-engine instance rendered: every engage render (a user turn, each tool round, a check-in) adds one, and it starts again at 0 when the engine is rebuilt, which on text is every request. It repeats within a conversation and names no turn: join on ``turn_id`` or ``engine_turn_id``.
+             * @description Counts the prompts one engine instance rendered: every engage render (a user turn, each tool round, a check-in) adds one, and it starts again at 0 when the engine is rebuilt, which on text is every request. It repeats within a conversation and names no turn: join on ``turn_id`` or ``engine_turn_id``.
              */
             turn_index?: number | null;
             /**
@@ -20247,9 +20756,9 @@ export interface components {
              */
             kind: "conversation" | "framework";
             /**
-             * @description What the run executed with, as its session recorded it at start. Null on a run recorded
-             *     before the platform kept it, on a text conversation before its first session starts, on a
-             *     framework run, and on a live in-house call until it ends.
+             * @description What the run executed with, as its session recorded it at start, or as it last stood after
+             *     a mid-call change. Null on a run recorded before the platform kept it, on a text conversation
+             *     before its first session starts, on a framework run, and on a live in-house call until it ends.
              */
             manifest?: components["schemas"]["RunManifest"] | null;
             /** Phone Number */
@@ -20373,7 +20882,8 @@ export interface components {
         };
         /**
          * RunManifest
-         * @description The configuration a run executed with, as its session started.
+         * @description The configuration a run executed with: as its session started, and as it stood after
+         *     any change the run made mid-way.
          *
          *     A field is null when the session had nothing to record for it: a text run has no
          *     speech models, and a gpt_realtime call whose engine failed to load has no agent or
@@ -20394,15 +20904,69 @@ export interface components {
              * @description The context graph version number the session loaded.
              */
             context_graph_version?: number | null;
+            /**
+             * Cooperative Stop
+             * @description Whether an in-house call's teardown let its session stop on its own before cancelling it.
+             *     Null off in-house voice.
+             */
+            cooperative_stop?: boolean | null;
+            /**
+             * @description How the session's region decides: ``decisions``, OpenAI Decisions through the gateway, or
+             *     ``regional``, a constrained choice on the region's own gateway. Navigation and the reply
+             *     checks both decide through it.
+             */
+            decider_kind?: components["schemas"]["DeciderKind"] | null;
+            /**
+             * @description ``sha256:`` over the template and fixed text each dynamic behavior decision renders from. Null on
+             *     gpt_realtime, which runs no dynamic behavior, and when the graph version has no enabled one.
+             */
+            dynamic_behavior_prompt_template_hash?: components["schemas"]["NameString"] | null;
+            /**
+             * Effect Shadow
+             * @description Whether an in-house call also recorded each turn as effects, in shadow. Null off in-house voice.
+             */
+            effect_shadow?: boolean | null;
+            /**
+             * Emergency Floor Enforced
+             * @description Whether the medical-emergency floor acted on what it caught, rather than only counting it.
+             */
+            emergency_floor_enforced?: boolean | null;
+            /**
+             * @description ``sha256:`` over the templates the reply prompt renders from. Null on gpt_realtime, whose
+             *     instructions aren't rendered from them.
+             */
+            engage_prompt_template_hash?: components["schemas"]["NameString"] | null;
+            /** @description The build the session ran on: the commit the agent-engine image was built from. */
+            image_sha?: components["schemas"]["NameString"] | null;
             /** @description The model that wrote the agent's replies: the engage model, or the realtime model on gpt_realtime. */
             llm_model?: components["schemas"]["NameString"] | null;
             /** @description The model that chose each context-graph transition. Null on gpt_realtime, which doesn't navigate. */
             navigation_model?: components["schemas"]["NameString"] | null;
+            /** @description ``sha256:`` over the templates each navigation decision renders from. Null on gpt_realtime. */
+            navigation_prompt_template_hash?: components["schemas"]["NameString"] | null;
             /** @description ``sha256:`` over the agent and graph version ids and the LLM model: one value per config generation. */
             platform_config_fingerprint?: components["schemas"]["NameString"] | null;
+            /** @description The runtime release of the pod the session ran on. */
+            runtime_release_id?: components["schemas"]["NameString"] | null;
             stt_model?: components["schemas"]["NameString"] | null;
-            /** @description The speech-to-text vendor the call opened with. Null on a text run. */
+            /**
+             * @description The speech-to-text vendor the call ran on: the one it opened with, or the one it failed over
+             *     to. Null on a text run.
+             */
             stt_provider?: components["schemas"]["NameString"] | null;
+            /**
+             * Temperature
+             * @description The sampling temperature the reply requests set. Null where they set none and the model's own
+             *     default applies: every voice call, and a text run on a model family that takes none. On a
+             *     reasoning model it rides only the requests that carry tools.
+             */
+            temperature?: number | null;
+            /**
+             * @description The language the call's voice spoke: the one it opened in, or the caller's language once an
+             *     in-house call switched to it. ``multilingual`` on a gpt_realtime call left to answer in the
+             *     caller's language. Null on a text run.
+             */
+            tts_language?: components["schemas"]["NameString"] | null;
             tts_model?: components["schemas"]["NameString"] | null;
             /** @description The vendor that voiced the call's replies. Null on a text run. */
             tts_provider?: components["schemas"]["NameString"] | null;
@@ -20842,6 +21406,13 @@ export interface components {
              */
             agent_id: string;
             /**
+             * Allow Unverified Integration Results
+             * @default false
+             */
+            allow_unverified_integration_results?: boolean;
+            /** Caller Verification Endpoint Id */
+            caller_verification_endpoint_id?: string | null;
+            /**
              * Channel Type
              * @default voice
              * @enum {string}
@@ -20876,8 +21447,19 @@ export interface components {
             is_active: boolean;
             /** Keyterms */
             keyterms: string[];
+            /**
+             * Medical Emergency Ending
+             * @default stay_on_line
+             * @enum {string}
+             */
+            medical_emergency_ending?: "stay_on_line" | "end_after_script";
             /** Name */
             name: string;
+            /**
+             * Platform Caller Verification
+             * @default true
+             */
+            platform_caller_verification?: boolean;
             /** Tags */
             tags: components["schemas"]["ServiceTag"][];
             /**
@@ -20935,6 +21517,52 @@ export interface components {
             workspace_id: string;
         };
         /**
+         * ServiceCallStats
+         * @description One service's summary and trend: what the route returns for ``service_id`` set to it.
+         */
+        ServiceCallStats: {
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service
+             */
+            service_id: string;
+            /** @description The service's calls in the window */
+            summary: components["schemas"]["AdvancedCallStatsSummary"];
+            /**
+             * Trend
+             * @description The service's trend
+             */
+            trend: components["schemas"]["AdvancedCallStatsTrendPoint"][];
+        };
+        /**
+         * ServiceCalls
+         * @description One service's calls in ``by_service``.
+         */
+        ServiceCalls: {
+            /**
+             * Avg Quality
+             * @description Mean quality score of scored calls (0-100)
+             */
+            avg_quality?: number | null;
+            /**
+             * Calls
+             * @description Production calls
+             */
+            calls: number;
+            /**
+             * Escalation Rate
+             * @description Escalated calls over calls (0.0-1.0)
+             */
+            escalation_rate: number;
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service
+             */
+            service_id: string;
+        };
+        /**
          * ServiceCost
          * @description Cost attributed to one service.
          */
@@ -20955,6 +21583,30 @@ export interface components {
              * @description Service identifier, or null for cost that could not be attributed.
              */
             service_id: string | null;
+        };
+        /**
+         * ServiceEvalQuality
+         * @description One service's verdicts: what the route returns for ``service_id`` set to it.
+         */
+        ServiceEvalQuality: {
+            /**
+             * By Eval Key
+             * @description The service's per-eval-key aggregates, most-evaluated first
+             */
+            by_eval_key: components["schemas"]["EvalQualitySummary"][];
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service the verdicts are attributed to
+             */
+            service_id: string;
+            /** @description The service's aggregate for the period */
+            summary: components["schemas"]["EvalQualitySummary"];
+            /**
+             * Trend
+             * @description The service's trend
+             */
+            trend: components["schemas"]["EvalQualityTrendPoint"][];
         };
         /**
          * ServiceForwardingConfig
@@ -20996,6 +21648,21 @@ export interface components {
             agent_id: string;
             /** Agent Name */
             agent_name?: string | null;
+            /**
+             * Allow Unverified Integration Results
+             * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
+             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
+             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
+             *     beside `caller_verification_endpoint_id`.
+             * @default false
+             */
+            allow_unverified_integration_results?: boolean;
+            /**
+             * Caller Verification Endpoint Id
+             * @description The integration endpoint that verifies this service's callers, or null when none does.
+             */
+            caller_verification_endpoint_id?: string | null;
             /**
              * Channel Type
              * @default voice
@@ -21042,8 +21709,26 @@ export interface components {
             is_system?: boolean;
             /** Keyterms */
             keyterms: string[];
+            /**
+             * Medical Emergency Ending
+             * @description How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or
+             *     ``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or
+             *     crisis statement keeps the call open in either.
+             * @default stay_on_line
+             * @enum {string}
+             */
+            medical_emergency_ending?: "stay_on_line" | "end_after_script";
             /** Name */
             name: string;
+            /**
+             * Platform Caller Verification
+             * @description Whether the platform verifies a caller who may match a patient record by full name and date of
+             *     birth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient
+             *     record refuses. The service's integration tools run either way, unless one of them verifies its
+             *     callers (`caller_verification_endpoint_id`).
+             * @default true
+             */
+            platform_caller_verification?: boolean;
             /** Tags */
             tags: components["schemas"]["ServiceTag"][];
             /** Tool Capacity */
@@ -21070,6 +21755,25 @@ export interface components {
             key: string;
             /** Value */
             value?: string | null;
+        };
+        /**
+         * ServiceToolPerformance
+         * @description One service's summary and trend: what the route returns for ``service_id`` set to it.
+         */
+        ServiceToolPerformance: {
+            /**
+             * Service Id
+             * Format: uuid
+             * @description The service
+             */
+            service_id: string;
+            /** @description The service's tool executions in the window */
+            summary: components["schemas"]["ToolPerformanceSummary"];
+            /**
+             * Trend
+             * @description The service's trend
+             */
+            trend: components["schemas"]["ToolPerformanceTrendPoint"][];
         };
         /**
          * ServiceUsage
@@ -22324,7 +23028,7 @@ export interface components {
         };
         /**
          * SimulationProxyErrorResponse
-         * @description Error envelope for simulation routes that proxy agent-engine.
+         * @description Error envelope for simulation routes that forward to the agent runtime.
          *
          *     ``detail`` is a string for forwarded runtime/configuration errors and a
          *     structured list for FastAPI request validation failures. Both share HTTP
@@ -22728,6 +23432,11 @@ export interface components {
             };
             /** Run Ids */
             run_ids: string[];
+            /**
+             * Service Ids
+             * @description Agents the suite run's runs ran against, each once, in launch order.
+             */
+            service_ids?: string[];
             /**
              * Status
              * @enum {string}
@@ -23261,6 +23970,11 @@ export interface components {
              * Format: uuid
              */
             service_id: string;
+            /**
+             * Source
+             * @description Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's.
+             */
+            source?: "playground" | null;
         };
         /** StartSessionResponse */
         StartSessionResponse: {
@@ -23393,7 +24107,8 @@ export interface components {
         };
         /**
          * StatusSuccess
-         * @description Any 2xx response is the write. For a vendor that turns a write down with an error status.
+         * @description Any 2xx response is the write, or the verification. For a vendor that turns one down with an
+         *     error status.
          */
         StatusSuccess: {
             /**
@@ -24119,8 +24834,13 @@ export interface components {
             /** @description Recipient address on the new channel (E.164). Required for sms/imessage. */
             recipient?: components["schemas"]["PhoneE164"] | null;
             /**
+             * Source
+             * @description Set to ``playground`` when the developer console Playground switches the conversation. Refused with 403 on a real conversation, one no Playground session or test credential started.
+             */
+            source?: "playground" | null;
+            /**
              * Use Case Id
-             * @description Channel-manager use case for the new channel (resolves the sender). Required for sms/imessage.
+             * @description The use case for the new channel, which resolves the sender. Required for sms/imessage.
              */
             use_case_id?: string | null;
         };
@@ -25040,6 +25760,81 @@ export interface components {
              */
             tool_type?: string;
         };
+        /**
+         * ToolPerformanceResponse
+         * @description Tool execution totals and a trend, over the calls that carry a tool summary.
+         */
+        ToolPerformanceResponse: {
+            /**
+             * Groups
+             * @description With group_by=service_id, one entry per service with calls in the window, ordered by service_id. A grouped answer holds at most 22,000 points in all (trend points, groups' trend points and breakdown rows); one that would hold more is a 422. Null without group_by.
+             */
+            groups?: components["schemas"]["ServiceToolPerformance"][] | null;
+            /** @description Tool executions in the window */
+            summary: components["schemas"]["ToolPerformanceSummary"];
+            /**
+             * Trend
+             * @description One point per bucket with a tool summary
+             */
+            trend: components["schemas"]["ToolPerformanceTrendPoint"][];
+        };
+        /**
+         * ToolPerformanceSummary
+         * @description Tool executions in the window, over the calls that carry a tool summary.
+         */
+        ToolPerformanceSummary: {
+            /**
+             * Avg Failure Rate Per Call
+             * @description Mean of each call's tool failure rate; null with no tool summaries
+             */
+            avg_failure_rate_per_call?: number | null;
+            /**
+             * Overall Failure Rate
+             * @description total_failed over total_tool_calls; 0.0 with no executions
+             */
+            overall_failure_rate: number;
+            /**
+             * Total Failed
+             * @description Tool executions that failed
+             */
+            total_failed: number;
+            /**
+             * Total Succeeded
+             * @description Tool executions that succeeded
+             */
+            total_succeeded: number;
+            /**
+             * Total Tool Calls
+             * @description Tool executions
+             */
+            total_tool_calls: number;
+        };
+        /**
+         * ToolPerformanceTrendPoint
+         * @description One interval bucket of tool performance.
+         */
+        ToolPerformanceTrendPoint: {
+            /**
+             * Call Count
+             * @description Calls in the bucket with a tool summary
+             */
+            call_count: number;
+            /**
+             * Date
+             * @description Bucket start as an ISO-8601 timestamp string (granularity follows `interval`)
+             */
+            date: string;
+            /**
+             * Total Failed
+             * @description Tool executions in the bucket that failed
+             */
+            total_failed: number;
+            /**
+             * Total Tool Calls
+             * @description Tool executions in the bucket
+             */
+            total_tool_calls: number;
+        };
         /** ToolResolveResponse */
         ToolResolveResponse: {
             /**
@@ -25183,8 +25978,8 @@ export interface components {
          *     moments, and actionable coaching - understanding that exceeds what either
          *     participant had during the call itself.
          *
-         *     **Latency note**: This endpoint reads from the analytics data warehouse.
-         *     Expect 500ms-2s response time, not sub-10ms like transactional endpoints.
+         *     **Latency note**: This endpoint is an analytics read. Expect 500ms-2s
+         *     response time, not sub-10ms like transactional endpoints.
          * @example {
          *       "call_sid": "CA493e4610386f87f43b02102068eb6ad3",
          *       "deep_understanding": "The call failed not because of agent behavior but because of environmental factors - the caller was pulled into a side conversation that the agent could not compete with.",
@@ -25725,6 +26520,10 @@ export interface components {
             }[] | null;
             /** Decision Bearing */
             decision_bearing?: boolean | null;
+            /** @description The dynamic behavior the agent line was rendered with. Null when none was in force. */
+            dynamic_behavior?: components["schemas"]["AppliedBehavior"] | null;
+            /** @description What the caller turn's dynamic behavior decision did. Null when none ran. */
+            dynamic_behavior_decision?: components["schemas"]["BehaviorDecision"] | null;
             /** Emotion Label */
             emotion_label?: string | null;
             /** Emotion Valence */
@@ -25769,6 +26568,11 @@ export interface components {
             modality?: string | null;
             /** Nav Ms */
             nav_ms?: number | null;
+            /**
+             * Packet Id
+             * @description The signal-engine packet the turn answers. Null when none was cut for it.
+             */
+            packet_id?: string | null;
             /** Primary Effect Kind */
             primary_effect_kind?: string | null;
             /** Render Ms */
@@ -25892,6 +26696,11 @@ export interface components {
              * Format: uuid
              */
             request_id: string;
+            /**
+             * Source
+             * @description Set to ``playground`` when the developer console Playground acknowledges the delivery. Refused with 403 on a real conversation, one no Playground session or test credential started.
+             */
+            source?: "playground" | null;
         };
         /** TurnDoneEvent */
         TurnDoneEvent: {
@@ -26066,6 +26875,11 @@ export interface components {
              * @default
              */
             message?: string;
+            /**
+             * Source
+             * @description Set to ``playground`` on every turn the developer console Playground sends, polls included. A Playground turn on a real conversation, one no Playground session or test credential started, is refused with 403.
+             */
+            source?: "playground" | null;
             /**
              * Suppress Filler
              * @description Synchronous callers only: when a turn ends ``background_pending``, omit the filler/acknowledgement text from ``output`` so a batch caller never mistakes the ack for the answer (``output`` is empty; ``background_pending=true`` is the poll-later signal). Answers a ``wait_for_final`` wait collected still come back. ``null`` (default) inherits the channel policy. Ignored with ``poll=true`` (422).
@@ -26357,6 +27171,24 @@ export interface components {
             accepted_context?: components["schemas"]["ContextKeySpec"][] | null;
             /** Agent Id */
             agent_id?: string | null;
+            /**
+             * Allow Unverified Integration Results
+             * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
+             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
+             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
+             *     beside `caller_verification_endpoint_id`.
+             */
+            allow_unverified_integration_results?: boolean | null;
+            /**
+             * Caller Verification Endpoint Id
+             * @description The integration endpoint that verifies this service's callers, on a service with
+             *     `platform_caller_verification` and `allow_unverified_integration_results` false: one of this
+             *     workspace's that declares `declarations.verifies` and never waits for approval under its
+             *     integration's `approval_policy`. `null` clears it, and leaving it out keeps what's stored. Takes effect
+             *     on the next call or turn.
+             */
+            caller_verification_endpoint_id?: string | null;
             /** Channel Type */
             channel_type?: ("voice" | "text") | null;
             /** Context Graph Id */
@@ -26373,7 +27205,22 @@ export interface components {
             is_active?: boolean | null;
             /** Keyterms */
             keyterms?: string[] | null;
+            /**
+             * Medical Emergency Ending
+             * @description How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or
+             *     ``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or
+             *     crisis statement keeps the call open in either.
+             */
+            medical_emergency_ending?: ("stay_on_line" | "end_after_script") | null;
             name?: components["schemas"]["NameString"] | null;
+            /**
+             * Platform Caller Verification
+             * @description Whether the platform verifies a caller who may match a patient record by full name and date of
+             *     birth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient
+             *     record refuses. The service's integration tools run either way, unless one of them verifies its
+             *     callers (`caller_verification_endpoint_id`).
+             */
+            platform_caller_verification?: boolean | null;
             /** Tags */
             tags?: components["schemas"]["ServiceTag"][] | null;
             /** Tool Capacity */
@@ -27249,6 +28096,55 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        VerificationSuccess: components["schemas"]["StatusSuccess"] | components["schemas"]["FieldSuccess"];
+        /**
+         * VerifiesCaller
+         * @description A successful call verifies the caller as one patient: the one its response names. Declaring it
+         *     opens nothing: only a service that names the endpoint its verifier
+         *     (``Service.caller_verification_endpoint_id``) verifies anyone by it.
+         */
+        "VerifiesCaller-Input": {
+            /**
+             * Patient
+             * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of
+             *     the patient the caller verified as, such as ``/patient/id``: the identifier the service's reads
+             *     name the patient by. Only a string there with more than whitespace in it verifies anyone, never a
+             *     number, and never a value the model sent.
+             */
+            patient: string;
+            /**
+             * @description How the response says the caller verified: any 2xx (``http_status``), or a field holding the
+             *     value that means they did (``field``). A response that doesn't say so verifies nobody, whatever
+             *     identifier it holds. The author vouches that it says so only once the caller proved who they are
+             *     (a code checked, a name and date of birth matched), never on a lookup or a code sent, and that
+             *     ``patient`` names the patient the vendor matched, not a copy of something the request sent.
+             */
+            success: components["schemas"]["VerificationSuccess"];
+        };
+        /**
+         * VerifiesCaller
+         * @description A successful call verifies the caller as one patient: the one its response names. Declaring it
+         *     opens nothing: only a service that names the endpoint its verifier
+         *     (``Service.caller_verification_endpoint_id``) verifies anyone by it.
+         */
+        "VerifiesCaller-Output": {
+            /**
+             * Patient
+             * @description RFC 6901 JSON Pointer into the parsed response body, before any template, to the identifier of
+             *     the patient the caller verified as, such as ``/patient/id``: the identifier the service's reads
+             *     name the patient by. Only a string there with more than whitespace in it verifies anyone, never a
+             *     number, and never a value the model sent.
+             */
+            patient: string;
+            /**
+             * @description How the response says the caller verified: any 2xx (``http_status``), or a field holding the
+             *     value that means they did (``field``). A response that doesn't say so verifies nobody, whatever
+             *     identifier it holds. The author vouches that it says so only once the caller proved who they are
+             *     (a code checked, a name and date of birth matched), never on a lookup or a code sent, and that
+             *     ``patient`` names the patient the vendor matched, not a copy of something the request sent.
+             */
+            success: components["schemas"]["VerificationSuccess"];
+        };
         VersionNumber: number;
         /**
          * VersionSet
@@ -27440,7 +28336,7 @@ export interface components {
         };
         /**
          * VoiceJudgeResultRow
-         * @description One call's voice-judge scoring, as stored in the Delta output table.
+         * @description One call's voice-judge scoring.
          */
         VoiceJudgeResultRow: {
             /** Accent Quality Score */
@@ -27521,8 +28417,11 @@ export interface components {
         VoiceSettingsRequest: {
             /** Keyterms */
             keyterms?: string[] | null;
-            /** Language */
-            language?: string | null;
+            /**
+             * Language
+             * @description The language calls are spoken in when the caller's record names none. `multilingual` starts each call in English and follows the language the caller speaks.
+             */
+            language?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko" | "multilingual") | null;
             /**
              * Language Providers
              * @description TTS provider for each call language. Keys must be one of ar, de, en, es, fr, ja, ko, multilingual, pt, zh, with at most 10 entries. An empty map is refused; send null to clear the map.
@@ -27636,6 +28535,8 @@ export interface components {
          *     locally if they need it.
          */
         WorkspaceDataQueryItem: {
+            /** @description What the query's author declares about its calls. A declaration it never made is null. */
+            declarations: components["schemas"]["DataQueryDeclarations"];
             /**
              * Deployed At
              * Format: date-time
@@ -27788,7 +28689,7 @@ export interface components {
             entity_counts: components["schemas"]["EntityStatsSummary"];
             /**
              * Event Read Model Status
-             * @description ready = Lakebase projection returned a row; empty = no summary row; unavailable = read failed.
+             * @description ready = the summary returned a row; empty = no summary row; unavailable = read failed.
              * @default empty
              * @enum {string}
              */
@@ -27800,12 +28701,12 @@ export interface components {
             event_read_model_synced_at?: string | null;
             /**
              * Events 24H
-             * @description Event count from the Lakebase read model; null when the projection is empty or unavailable.
+             * @description Event count from the event summary; null when the summary is empty or unavailable.
              */
             events_24h?: number | null;
             /**
              * Events 7D
-             * @description Event count from the Lakebase read model; null when the projection is empty or unavailable.
+             * @description Event count from the event summary; null when the summary is empty or unavailable.
              */
             events_7d?: number | null;
             /** Sources */
@@ -28785,6 +29686,12 @@ export interface components {
          *     shape — no try/except in the handler.
          */
         src__routes__workspace_data_queries__create_workspace_data_query__Request: {
+            /**
+             * @description What the query's author declares about its calls. A declaration left out is undeclared. A query
+             *     over practice data, such as FAQ articles, locations or hours, declares `reads` of
+             *     `{"patient_in": "none"}`, so the voice agent never counts its result as a patient's record.
+             */
+            declarations?: components["schemas"]["DataQueryDeclarationsBody"];
             /** Description */
             description: string;
             /** Name */
@@ -28860,6 +29767,8 @@ export interface components {
         };
         /** Item */
         src__routes__workspace_data_queries__list_workspace_data_queries__Response__Item: {
+            /** @description What the query's author declares about its calls. A declaration it never made is null. */
+            declarations: components["schemas"]["DataQueryDeclarations"];
             /**
              * Deployed At
              * Format: date-time
@@ -28895,6 +29804,11 @@ export interface components {
          * @description PATCH body — every field optional. Present ⇒ overwrite; absent ⇒ keep.
          */
         src__routes__workspace_data_queries__update_workspace_data_query__Request: {
+            /**
+             * @description The declarations to change. Each one named replaces the stored one (`null` undeclares it), and
+             *     one left out keeps what is stored.
+             */
+            declarations?: components["schemas"]["DataQueryDeclarationsBody"] | null;
             /** Description */
             description?: string | null;
             /** Name */
@@ -30838,6 +31752,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-call-quality-analytics": {
@@ -30847,6 +31770,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -30882,6 +31806,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     call_stats_v1__workspace_id__analytics_calls_get: {
@@ -30915,6 +31848,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-advanced-call-stats": {
@@ -30924,9 +31866,12 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
                 /** @description Filter by call direction: inbound or outbound */
                 direction?: ("inbound" | "outbound") | null;
+                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
+                group_by?: "service_id" | null;
             };
             header?: never;
             path: {
@@ -30942,9 +31887,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AdvancedCallStatsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -30962,6 +31905,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -30976,6 +31928,7 @@ export interface operations {
                 previous_from: string;
                 /** @description End of previous period */
                 previous_to: string;
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31012,6 +31965,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31053,6 +32015,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31096,6 +32067,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31133,6 +32105,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-eval-quality-analytics": {
@@ -31140,7 +32121,10 @@ export interface operations {
             query?: {
                 days?: number;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
+                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
+                group_by?: "service_id" | null;
             };
             header?: never;
             path: {
@@ -31175,6 +32159,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     event_breakdown_v1__workspace_id__analytics_events_get: {
@@ -31208,6 +32201,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-latency-analytics": {
@@ -31217,6 +32219,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31254,6 +32257,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-operator-performance": {
@@ -31263,6 +32275,7 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
             };
             header?: never;
@@ -31297,6 +32310,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31485,7 +32507,10 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
+                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
+                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
+                group_by?: "service_id" | null;
             };
             header?: never;
             path: {
@@ -31501,9 +32526,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ToolPerformanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -31521,6 +32544,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -31553,6 +32585,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
                 };
             };
         };
@@ -32229,6 +33270,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "create-outbound-call": {
@@ -32276,7 +33326,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -32386,15 +33436,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Analytics warehouse query failed */
+            /** @description The read of trace analyses failed. Retry later. */
             502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Analytics warehouse not configured */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -32590,13 +33633,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-            /** @description Analytics warehouse not configured */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -33163,7 +34199,10 @@ export interface operations {
     };
     "create-context_graph-version": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The latest version this write was made from, 0 for a graph with none. When the graph has a different latest version, the write is refused with 409. */
+                expected_latest_version?: number | null;
+            };
             header?: never;
             path: {
                 workspace_id: string;
@@ -33193,7 +34232,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a replace-mode dynamic behavior added or changed (other than disabled) without platform:admin scope. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -33207,14 +34246,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Name already taken. */
+            /** @description The graph's latest version isn't expected_latest_version. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Invalid request body. */
+            /** @description Invalid request body. Dynamic behaviors that are invalid together are listed in detail.dynamic_behaviors, each by its index, id and field. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -33349,7 +34388,10 @@ export interface operations {
     };
     close_conversation_v1__workspace_id__conversations__conversation_id__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Set to ``playground`` when the developer console Playground closes the conversation. Refused with 403 on a real conversation, one no Playground session or test credential started. */
+                source?: "playground" | null;
+            };
             header?: never;
             path: {
                 workspace_id: string;
@@ -33361,6 +34403,13 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A Playground or test-credential session may not close a real conversation */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -33554,7 +34603,7 @@ export interface operations {
                     "text/event-stream": components["schemas"]["TurnStreamEvent"];
                 };
             };
-            /** @description The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active */
+            /** @description The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active, or a Playground or test-credential session on a real conversation */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -33646,7 +34695,7 @@ export interface operations {
                     "text/event-stream": components["schemas"]["TurnStreamEvent"];
                 };
             };
-            /** @description The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active */
+            /** @description The caller may not take this turn, such as an external user without the `conversations:turn` scope, asking for tool calls, or whose session is no longer active, or a Playground or test-credential session on a real conversation */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -36669,7 +37718,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation failure (read-only / bind / parity) */
+            /** @description Validation failure (read-only / warehouse guard / bind / parity) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -36761,7 +37810,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Bind validation failure */
+            /** @description Bind validation failure, or a stored body the warehouse guard refuses */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -37784,7 +38833,10 @@ export interface operations {
     };
     "approve-integration-write": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Set to ``playground`` when the developer console Playground decides the approval. Refused with 403 on a real conversation, one no Playground session or test credential started. */
+                source?: "playground" | null;
+            };
             header?: never;
             path: {
                 workspace_id: string;
@@ -37810,7 +38862,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a Playground or test-credential session on a real conversation. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -37874,7 +38926,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a Playground or test-credential session on a real conversation. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -40474,7 +41526,7 @@ export interface operations {
     "list-prompt-logs": {
         parameters: {
             query?: {
-                /** @description The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's ``world.conversations`` row: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its row. An older call with no such row answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter. */
+                /** @description The ``id`` ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's record: a text conversation's prompt logs carry its id as their ``call_sid``, and a voice call's carry the call SID on its record. An older call with no conversation record answers 404, so filter its logs by ``call_sid``. Mutually exclusive with the ``call_sid`` query parameter. */
                 conversation_id?: string | null;
                 /** @description Direct conversation identifier as stored on the prompt-log event: Twilio CA-SID for voice calls, session_id UUID for text/sim sessions. Most callers should use ``conversation_id`` instead — this is kept for legacy callers and external systems that hold the SID directly. Mutually exclusive with ``conversation_id``. */
                 call_sid?: string | null;
@@ -40538,7 +41590,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Raw world event reads disabled or warehouse unavailable */
+            /** @description Prompt logs couldn't be read right now. Retry later. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -40819,6 +41871,8 @@ export interface operations {
                 service_id?: string[];
                 /** @description Case-insensitive substring match on a conversation run's entity name, caller ID or phone number, applied before pagination. Framework runs carry none of these and are excluded when search is set. Combines with other filters using AND. */
                 search?: components["schemas"]["SearchString"] | null;
+                /** @description Filter by up to 100 conversation IDs, matching each run's ``source_conversation_id``, such as the conversation a Playground session ran. A run with no source conversation (a framework run, or a live call before its conversation is recorded) is excluded. Repeated values are ORed; combines with other filters using AND. */
+                source_conversation_id?: string[];
             };
             header?: never;
             path: {
@@ -41928,7 +42982,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Analytics warehouse not configured or transiently unavailable */
+            /** @description Voice-judge results couldn't be read, so treat this 503 as no answer, not as an empty list. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -44051,6 +45105,39 @@ export interface operations {
             };
         };
     };
+    "list-simulation-suite-run-summaries": {
+        parameters: {
+            query: {
+                suite_run_id: string[];
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSimulationSuiteRunSummariesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "get-simulation-suite-run-results": {
         parameters: {
             query?: never;
@@ -44070,6 +45157,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimulationSuiteRunResultsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "get-simulation-suite-run-performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                suite_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationPerformanceResponse"];
                 };
             };
             /** @description Validation Error */

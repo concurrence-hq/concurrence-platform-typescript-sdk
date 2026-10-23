@@ -7,12 +7,18 @@ type RunsSummaryQuery = NonNullable<
   paths['/v1/{workspace_id}/runs/summary']['get']['parameters']['query']
 >
 
+export type Run = components['schemas']['Run']
+/**
+ * The configuration a run executed with: as its session started, and as it stood after any
+ * change the run made mid-way. A field is null when the session had nothing to record for it.
+ */
+export type RunManifest = components['schemas']['RunManifest']
+
 /**
  * Unified runs — the channel-neutral run backbone.
  *
- * Every agent trajectory is a Run: a conversation run (any channel, from
- * Lakebase `world.conversations`) OR a framework run
- * (claude-agent-sdk / openai-agents, from the Delta `world.runs` MV), federated
+ * Every agent trajectory is a Run: a conversation run (any channel) OR a
+ * framework run (claude-agent-sdk / openai-agents), combined at read time
  * behind one `Run` contract. This resource is the SDK surface for that backbone:
  * list + summary + single-run detail + framework trajectory (reads), plus the
  * run-scoped operator verbs (guidance / takeover / authored-turn / handback /
@@ -26,13 +32,17 @@ type RunsSummaryQuery = NonNullable<
 export class RunsResource extends WorkspaceScopedResource {
   /**
    * Paginated, newest-first list of runs. `kind` / `channel` / `status` /
-   * `serviceId` are multi-value OR-filters (repeat within an axis, AND across
-   * axes); omitted or empty filters leave that axis unfiltered. The API accepts
-   * up to 100 service IDs and filters conversations and live voice runs before
-   * pagination. Historical framework runs have no stored service attribution
-   * and are excluded when a service is selected. `status`
-   * accepts the virtual `live` (running + paused). `continuationToken` is the
-   * opaque cursor from a prior page — round-trip it verbatim.
+   * `serviceId` / `sourceConversationId` are multi-value OR-filters (repeat
+   * within an axis, AND across axes); omitted or empty filters leave that axis
+   * unfiltered. The API accepts up to 100 service IDs and filters conversations
+   * and live voice runs before pagination. Historical framework runs have no
+   * stored service attribution and are excluded when a service is selected.
+   * `sourceConversationId` takes up to 100 conversation IDs, such as the one a
+   * Playground session ran, and matches the conversation each run came from.
+   * Runs with no source conversation (framework runs, and a live call before
+   * its conversation is recorded) are excluded. `status` accepts the virtual
+   * `live` (running + paused). `continuationToken` is the opaque cursor from a
+   * prior page: round-trip it verbatim.
    */
   async list(params?: {
     limit?: number
@@ -41,6 +51,7 @@ export class RunsResource extends WorkspaceScopedResource {
     channel?: RunsListQuery['channel']
     status?: RunsListQuery['status']
     serviceId?: string[]
+    sourceConversationId?: string[]
     sortBy?: string[]
   }) {
     return extractData(
@@ -54,6 +65,7 @@ export class RunsResource extends WorkspaceScopedResource {
             channel: params?.channel,
             status: params?.status,
             service_id: params?.serviceId,
+            source_conversation_id: params?.sourceConversationId,
             sort_by: params?.sortBy,
           },
         },

@@ -13,6 +13,12 @@ export type ConversationTurnStateTransition =
 export type CreateConversationRequest = components['schemas']['CreateConversationRequest']
 export type SwitchChannelRequest = components['schemas']['SwitchChannelRequest']
 export type TurnRequest = components['schemas']['TurnRequest']
+/**
+ * The `source` the developer console Playground sets on its conversation
+ * requests. A Playground request on a real conversation, one no Playground
+ * session or test credential started, gets 403.
+ */
+export type ConversationSource = NonNullable<TurnRequest['source']>
 export type TurnResponse = components['schemas']['TurnResponse']
 export type TurnConversationSnapshot = components['schemas']['TurnConversationSnapshot']
 export type TurnStreamEvent = components['schemas']['TurnStreamEvent']
@@ -143,10 +149,18 @@ export class ConversationsResource extends WorkspaceScopedResource {
     )
   }
 
-  async close(conversationId: string): Promise<void> {
+  /**
+   * Close a conversation.
+   *
+   * Pass `options.source: 'playground'` when the developer console Playground
+   * closes it. The close then throws `PermissionError` (403) on a real
+   * conversation, one no Playground session or test credential started.
+   */
+  async close(conversationId: string, options?: { source?: ConversationSource }): Promise<void> {
     await this.client.DELETE('/v1/{workspace_id}/conversations/{conversation_id}', {
       params: {
         path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+        ...(options?.source !== undefined && { query: { source: options.source } }),
       },
     })
   }
@@ -218,6 +232,10 @@ export class ConversationsResource extends WorkspaceScopedResource {
    * has empty `output` and `tool_calls` (the idle case) — treat that as "keep
    * polling". Poll no more than once every ~5s per conversation.
    *
+   * Pass `options.source: 'playground'` from the developer console Playground,
+   * as on its turns. A Playground poll on a real conversation, one no
+   * Playground session or test credential started, throws `PermissionError` (403).
+   *
    * @example
    * ```ts
    * const res = await client.conversations.pollTurn(convId, { includeToolCalls: true });
@@ -226,9 +244,13 @@ export class ConversationsResource extends WorkspaceScopedResource {
    */
   async pollTurn(
     conversationId: string,
-    options?: { includeToolCalls?: boolean },
+    options?: { includeToolCalls?: boolean; source?: ConversationSource },
   ): Promise<TurnResponse> {
-    return this.createTurn(conversationId, {}, { ...options, poll: true })
+    const { source, ...turnOptions } = options ?? {}
+    return this.createTurn(conversationId, source === undefined ? {} : { source }, {
+      ...turnOptions,
+      poll: true,
+    })
   }
 
   /**
