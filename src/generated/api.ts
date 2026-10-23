@@ -3976,13 +3976,15 @@ export interface paths {
         };
         /**
          * List operators
-         * @description List all operator entities for a workspace.
+         * @description List the operators registered in the workspace.
          */
         get: operations["list-operators"];
         put?: never;
         /**
          * Register an operator
-         * @description Create an operator entity with profile and initial offline status.
+         * @description Register an operator in the workspace. The operator starts offline.
+         *
+         *     An email belongs to one operator per workspace, in any letter case, and is fixed once registered.
          */
         post: operations["create-operator"];
         delete?: never;
@@ -4160,7 +4162,7 @@ export interface paths {
         };
         /**
          * Get an operator
-         * @description Get operator entity with computed state (profile, availability, performance).
+         * @description Get an operator with its profile and availability.
          */
         get: operations["get-operator"];
         put?: never;
@@ -4170,7 +4172,11 @@ export interface paths {
         head?: never;
         /**
          * Update an operator
-         * @description Update operator profile fields or status. Each change writes a world event.
+         * @description Update an operator's profile fields or status. A field that is omitted or null is left unchanged, so a phone number cannot be cleared.
+         *
+         *     An operator's email is fixed once registered: send the registered email or leave it out. Any other email is a 422. To use a different email, register a new operator.
+         *
+         *     Each status or profile change also emits an operator event.
          */
         patch: operations["update-operator"];
         trace?: never;
@@ -11426,6 +11432,7 @@ export interface components {
             /**
              * Email
              * Format: email
+             * @description The operator's email. Unique in the workspace in any letter case, and fixed once registered.
              */
             email: string;
             name: components["schemas"]["NameString"];
@@ -18397,7 +18404,7 @@ export interface components {
             created_at?: string | null;
             /**
              * Email
-             * @description Contact email
+             * @description The operator's email. It is fixed once registered.
              */
             email?: string | null;
             /**
@@ -27115,13 +27122,20 @@ export interface components {
             /** Sync Strategy */
             sync_strategy?: ("manual" | "scheduled" | "webhook" | "continuous") | null;
         };
-        /** UpdateOperatorRequest */
+        /**
+         * UpdateOperatorRequest
+         * @description Fields to change on an operator. A field that is omitted or null is left unchanged.
+         */
         UpdateOperatorRequest: {
             /** Connection Method */
             connection_method?: ("browser" | "phone") | null;
-            /** Email */
+            /**
+             * Email
+             * @description The email the operator was registered with, in any letter case. It is fixed once registered, so any other email is a 422.
+             */
             email?: string | null;
             name?: components["schemas"]["NameString"] | null;
+            /** @description E.164 phone number. An omitted or null number is left unchanged, so a number cannot be cleared. */
             phone_number?: components["schemas"]["PhoneE164"] | null;
             /** Role */
             role?: ("operator" | "supervisor" | "admin") | null;
@@ -40347,6 +40361,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The workspace already has an operator with that email, in any letter case. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -40683,7 +40704,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description The request is invalid, or it names an email other than the one the operator was registered with: an operator's email is fixed once registered. `detail` is a list of field errors for an invalid request and a message for the email. */
             422: {
                 headers: {
                     [name: string]: unknown;

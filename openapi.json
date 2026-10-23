@@ -9953,6 +9953,7 @@
             "type": "string"
           },
           "email": {
+            "description": "The operator's email. Unique in the workspace in any letter case, and fixed once registered.",
             "format": "email",
             "title": "Email",
             "type": "string"
@@ -26127,7 +26128,7 @@
                 "type": "null"
               }
             ],
-            "description": "Contact email",
+            "description": "The operator's email. It is fixed once registered.",
             "title": "Email"
           },
           "id": {
@@ -46208,6 +46209,7 @@
         "type": "object"
       },
       "UpdateOperatorRequest": {
+        "description": "Fields to change on an operator. A field that is omitted or null is left unchanged.",
         "properties": {
           "connection_method": {
             "anyOf": [
@@ -46234,6 +46236,7 @@
                 "type": "null"
               }
             ],
+            "description": "The email the operator was registered with, in any letter case. It is fixed once registered, so any other email is a 422.",
             "title": "Email"
           },
           "name": {
@@ -46254,7 +46257,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "E.164 phone number. An omitted or null number is left unchanged, so a number cannot be cleared."
           },
           "role": {
             "anyOf": [
@@ -71168,7 +71172,7 @@
     },
     "/v1/{workspace_id}/operators": {
       "get": {
-        "description": "List all operator entities for a workspace.",
+        "description": "List the operators registered in the workspace.",
         "operationId": "list-operators",
         "parameters": [
           {
@@ -71230,7 +71234,7 @@
         ]
       },
       "post": {
-        "description": "Create an operator entity with profile and initial offline status.",
+        "description": "Register an operator in the workspace. The operator starts offline.\n\nAn email belongs to one operator per workspace, in any letter case, and is fixed once registered.",
         "operationId": "create-operator",
         "parameters": [
           {
@@ -71270,6 +71274,9 @@
           },
           "403": {
             "description": "Insufficient permissions."
+          },
+          "409": {
+            "description": "The workspace already has an operator with that email, in any letter case."
           },
           "422": {
             "content": {
@@ -71771,7 +71778,7 @@
     },
     "/v1/{workspace_id}/operators/{operator_id}": {
       "get": {
-        "description": "Get operator entity with computed state (profile, availability, performance).",
+        "description": "Get an operator with its profile and availability.",
         "operationId": "get-operator",
         "parameters": [
           {
@@ -71826,7 +71833,7 @@
         ]
       },
       "patch": {
-        "description": "Update operator profile fields or status. Each change writes a world event.",
+        "description": "Update an operator's profile fields or status. A field that is omitted or null is left unchanged, so a phone number cannot be cleared.\n\nAn operator's email is fixed once registered: send the registered email or leave it out. Any other email is a 422. To use a different email, register a new operator.\n\nEach status or profile change also emits an operator event.",
         "operationId": "update-operator",
         "parameters": [
           {
@@ -71882,7 +71889,7 @@
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "The request is invalid, or it names an email other than the one the operator was registered with: an operator's email is fixed once registered. `detail` is a list of field errors for an invalid request and a message for the email."
           }
         },
         "summary": "Update an operator",
