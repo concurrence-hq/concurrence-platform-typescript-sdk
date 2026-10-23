@@ -932,6 +932,74 @@ await client.operators.sendGuidance('operator-id', { text: 'Ask about allergies'
 await client.operators.wrapUp('operator-id', { outcome: 'resolved' })
 ```
 
+### Operator hand-over
+
+Operators is a beta feature. A workspace has to be enabled for it, and any other workspace gets a
+403 (`PermissionError`) from these calls. Ask your Concurrence representative for access.
+
+Hand-over lets a person take over a live conversation. The calls act as the signed-in operator, so
+build the client from that operator's identity token, as in the
+[device code flow](#device-code-flow-cli-and-desktop-apps). A workspace API key gets a 403.
+`operator_id` must be that operator's own id, and the operator needs the `Operator:Update`
+permission (the operator, admin and owner roles).
+
+On a text channel (sms, whatsapp, email, web or imessage) the operator takes over, writes the
+replies one at a time, then hands back:
+
+```typescript
+// operatorToken is the signed-in operator's identity token.
+const operatorClient = new AmigoClient({ apiKey: operatorToken, workspaceId })
+
+// Every run says whether it can be taken over. `run.takeover.reason` says why not.
+const run = await operatorClient.runs.get(runId)
+
+if (run.takeover.eligible) {
+  await operatorClient.runs.takeOver(runId, { operator_id: operatorId, mode: 'takeover' })
+
+  // The reply goes out in place of the agent's next message, and `staged` is true once it is
+  // queued. Call it again for the next reply.
+  const { staged } = await operatorClient.runs.authorTurn(runId, {
+    operator_id: operatorId,
+    text: 'Thanks for waiting. Your refill is ready for pickup.',
+  })
+
+  // The agent picks the conversation back up.
+  await operatorClient.runs.handBack(runId, { operator_id: operatorId })
+}
+```
+
+On a voice run the operator joins by phone. `takeOver` dials the number on the operator's profile
+into the call. Take over with `mode: 'listen'` to listen first, then call `runs.switchMode` with the
+`participant_call_sid` from the response to go live:
+
+```typescript
+const joined = await operatorClient.runs.takeOver(runId, {
+  operator_id: operatorId,
+  mode: 'listen',
+})
+
+if (joined.participant_call_sid) {
+  await operatorClient.runs.switchMode(runId, {
+    operator_id: operatorId,
+    mode: 'takeover',
+    participant_call_sid: joined.participant_call_sid,
+  })
+}
+
+// Message the agent without taking over, or hand the call back.
+await operatorClient.runs.sendGuidance(runId, {
+  operator_id: operatorId,
+  message: 'Ask about allergies',
+})
+await operatorClient.runs.handBack(runId, { operator_id: operatorId })
+```
+
+`authorTurn` is for text runs and returns a 409 on a voice run. A reply is 1 to 4,000 characters.
+
+To keep an operator screen current, `client.events.subscribeToWorkspace` delivers `call.escalated`,
+`operator.registered`, `operator.status_changed`, `operator.joined_call`, `operator.left_call`,
+`operator.mode_changed` and `operator.wrap_up`. See [Real-time event streams](#real-time-event-streams).
+
 ### Triggers (Automations)
 
 ```typescript

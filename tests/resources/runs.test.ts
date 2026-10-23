@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { ConflictError, PermissionError } from '../../src/core/errors.js'
 import { AmigoClient } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -192,5 +193,63 @@ describe('RunsResource', () => {
     const res = await client.runs.takeOver(RUN_ID, { operator_id: 'op-1', mode: 'takeover' })
     expect(res.mode).toBe('takeover')
     expect(res.participant_call_sid).toBe('CA1')
+  })
+
+  describe('authorTurn()', () => {
+    const OPERATOR_ID = '00000000-0000-0000-0000-000000000301'
+    const REPLY = { operator_id: OPERATOR_ID, text: 'Your refill is ready for pickup.' }
+
+    function clientAnswering(answer: (request: Request) => Response | Promise<Response>) {
+      return new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: async (input: string | URL | Request, init?: RequestInit): Promise<Response> =>
+          answer(input instanceof Request ? input : new Request(input, init)),
+      })
+    }
+
+    it('stages the operator reply on a taken-over text run', async () => {
+      let sent: { method: string; pathname: string; body: unknown } | undefined
+      const staging = clientAnswering(async (request) => {
+        sent = {
+          method: request.method,
+          pathname: new URL(request.url).pathname,
+          body: await request.json(),
+        }
+        return Response.json({ run_id: RUN_ID, staged: true })
+      })
+
+      const res = await staging.runs.authorTurn(RUN_ID, REPLY)
+
+      expect(sent).toEqual({
+        method: 'POST',
+        pathname: `${BASE}/runs/${RUN_ID}/authored-turn`,
+        body: REPLY,
+      })
+      expect(res.run_id).toBe(RUN_ID)
+      expect(res.staged).toBe(true)
+    })
+
+    it('throws ConflictError on a voice run', async () => {
+      const detail = 'Voice runs are driven live; author a turn only on non-voice runs'
+      const voice = clientAnswering(() => Response.json({ detail }, { status: 409 }))
+
+      const refused = voice.runs.authorTurn(RUN_ID, REPLY)
+
+      await expect(refused).rejects.toBeInstanceOf(ConflictError)
+      await expect(refused).rejects.toMatchObject({ statusCode: 409, detail })
+    })
+
+    it.each([
+      'Operators is a beta feature that is not enabled for this workspace',
+      'Identity JWT required for this operation',
+    ])('throws PermissionError on a 403 (%s)', async (detail) => {
+      const refusing = clientAnswering(() => Response.json({ detail }, { status: 403 }))
+
+      const refused = refusing.runs.authorTurn(RUN_ID, REPLY)
+
+      await expect(refused).rejects.toBeInstanceOf(PermissionError)
+      await expect(refused).rejects.toMatchObject({ statusCode: 403, detail })
+    })
   })
 })
