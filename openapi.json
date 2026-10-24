@@ -28905,6 +28905,12 @@
             "title": "Id",
             "type": "string"
           },
+          "is_default": {
+            "default": false,
+            "description": "True for a metric's All services default, which the platform creates. It can only be paused or resumed with active, and the post-call evaluation doesn't run it. A standard metric's default can't be deleted; deleting a custom metric's default unassigns the metric.",
+            "title": "Is Default",
+            "type": "boolean"
+          },
           "metric_key": {
             "anyOf": [
               {
@@ -40984,6 +40990,19 @@
             "format": "uuid",
             "title": "Surface Id",
             "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The form's title, so an agent can name the form that came back.",
+            "title": "Title"
           }
         },
         "required": [
@@ -73348,6 +73367,7 @@
     },
     "/v1/{workspace_id}/production-eval-definitions/{definition_id}": {
       "delete": {
+        "description": "Delete a production eval definition.\n\nA standard metric's default (``is_default``) returns 422: pause it instead.\nA custom metric's default can be deleted, which unassigns the metric.",
         "operationId": "delete-production-eval-definition",
         "parameters": [
           {
@@ -73392,7 +73412,7 @@
         ]
       },
       "patch": {
-        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:\nthat kind grades simulation case assertions only.",
+        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:\nthat kind grades simulation case assertions only. A default\n(``is_default``) can only be paused or resumed: a patch that sets any\nother field returns 422.",
         "operationId": "update-production-eval-definition",
         "parameters": [
           {
