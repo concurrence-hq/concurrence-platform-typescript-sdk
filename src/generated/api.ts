@@ -1299,7 +1299,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them.
+         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -3976,13 +3976,15 @@ export interface paths {
         };
         /**
          * List operators
-         * @description List all operator entities for a workspace.
+         * @description List the operators registered in the workspace.
          */
         get: operations["list-operators"];
         put?: never;
         /**
          * Register an operator
-         * @description Create an operator entity with profile and initial offline status.
+         * @description Register an operator in the workspace. The operator starts offline.
+         *
+         *     An email belongs to one operator per workspace, in any letter case, and is fixed once registered.
          */
         post: operations["create-operator"];
         delete?: never;
@@ -4160,7 +4162,7 @@ export interface paths {
         };
         /**
          * Get an operator
-         * @description Get operator entity with computed state (profile, availability, performance).
+         * @description Get an operator with its profile and availability.
          */
         get: operations["get-operator"];
         put?: never;
@@ -4170,7 +4172,11 @@ export interface paths {
         head?: never;
         /**
          * Update an operator
-         * @description Update operator profile fields or status. Each change writes a world event.
+         * @description Update an operator's profile fields or status. A field that is omitted or null is left unchanged, so a phone number cannot be cleared.
+         *
+         *     An operator's email is fixed once registered: send the registered email or leave it out. Any other email is a 422. To use a different email, register a new operator.
+         *
+         *     Each status or profile change also emits an operator event.
          */
         patch: operations["update-operator"];
         trace?: never;
@@ -4742,7 +4748,7 @@ export interface paths {
         put?: never;
         /**
          * Author the next turn on a non-voice run under takeover
-         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. It replaces the agent's next outbound message, exactly once, so the caller receives the operator's words while the agent stays suspended. Repeatable: each call stages the next turn. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. The reply is held for up to 8 hours and sent in place of the agent's next outbound message on the run. A run holds one pending reply, so staging another replaces it. A reply that is never used stays pending, also after a hand back. Addressed by the channel-neutral ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg — use the conference, not an authored turn).
          */
         post: operations["author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post"];
         delete?: never;
@@ -4762,7 +4768,7 @@ export interface paths {
         put?: never;
         /**
          * Send operator guidance to a live run
-         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``admin`` (Operator:Update) and is bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Send text guidance to the agent handling a LIVE run, addressed by the channel-neutral ``run_id``. The agent incorporates it into its next response without the operator taking over. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not a live run in this workspace; 409 if its channel has no live guidance transport yet.
          */
         post: operations["send_run_guidance_v1__workspace_id__runs__run_id__guidance_post"];
         delete?: never;
@@ -4782,7 +4788,7 @@ export interface paths {
         put?: never;
         /**
          * Hand a taken-over run back to the agent
-         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over — the agent resumes. Addressed by ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over — the agent resumes. Addressed by ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
          */
         post: operations["hand_back_run_v1__workspace_id__runs__run_id__handback_post"];
         delete?: never;
@@ -4802,7 +4808,7 @@ export interface paths {
         put?: never;
         /**
          * Switch an operator between listen and takeover on a live run
-         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Toggle the operator between ``listen`` (monitor) and ``takeover`` (drive) on a run they have already joined, addressed by the channel-neutral ``run_id``. For voice this mutes/unmutes the operator's conference participant. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.
          */
         post: operations["switch_run_mode_v1__workspace_id__runs__run_id__switch_mode_post"];
         delete?: never;
@@ -4822,7 +4828,7 @@ export interface paths {
         put?: never;
         /**
          * Take over a live run as operator
-         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``admin`` (Operator:Update), bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.
+         * @description Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.
          */
         post: operations["take_over_run_v1__workspace_id__runs__run_id__takeover_post"];
         delete?: never;
@@ -11426,10 +11432,11 @@ export interface components {
             /**
              * Email
              * Format: email
+             * @description The operator's email. Unique in the workspace in any letter case, and fixed once registered.
              */
             email: string;
             name: components["schemas"]["NameString"];
-            phone_number?: components["schemas"]["PhoneE164"] | null;
+            phone_number?: components["schemas"]["DialE164"] | null;
             /**
              * Role
              * @default operator
@@ -11491,8 +11498,8 @@ export interface components {
              * @description Patient entity UUID in the world model. Must exist in workspace as a person entity. Provide either patient_entity_id or patient_canonical_id.
              */
             patient_entity_id?: string | null;
-            /** @description Destination phone number in E.164 format. */
-            phone_to: components["schemas"]["PhoneE164"];
+            /** @description Destination phone number in E.164 format, the direct number: one with an extension is refused. */
+            phone_to: components["schemas"]["DialE164"];
             /** @description Why the call is being made (e.g. appointment_reminder, follow_up, lab_results). */
             reason: components["schemas"]["NameString"];
             /**
@@ -12954,6 +12961,7 @@ export interface components {
              */
             status: "destroyed";
         };
+        DialE164: string;
         /**
          * DirectionCalls
          * @description One direction's calls in ``by_direction``.
@@ -13583,9 +13591,11 @@ export interface components {
              *     without the field, or JSON that isn't a GraphQL response, such as a gateway's own, leaves the
              *     write's outcome unknown: the vendor may have made it. So does a GraphQL answer with errors
              *     that neither says the mutation was refused or never ran nor holds its result, such as a payload
-             *     nulled by an error below the mutation's field, which came after the write, or an error with no
-             *     path beside ``data``. A field with another value, or a GraphQL error at the mutation's own field,
-             *     with that field null, or in an answer with no ``data``, is a write that didn't happen.
+             *     nulled by an error below the mutation's field, which came after the write, an error with no
+             *     path beside ``data``, or a null ``data`` in a document of more than one mutation, which hides
+             *     what the ones before the failing one did. A field with another value, or a GraphQL error at the
+             *     mutation's own field, with that field null, or in an answer with no ``data``, is a write that
+             *     didn't happen.
              */
             success?: components["schemas"]["WriteSuccess"] | null;
         };
@@ -13607,9 +13617,11 @@ export interface components {
              *     without the field, or JSON that isn't a GraphQL response, such as a gateway's own, leaves the
              *     write's outcome unknown: the vendor may have made it. So does a GraphQL answer with errors
              *     that neither says the mutation was refused or never ran nor holds its result, such as a payload
-             *     nulled by an error below the mutation's field, which came after the write, or an error with no
-             *     path beside ``data``. A field with another value, or a GraphQL error at the mutation's own field,
-             *     with that field null, or in an answer with no ``data``, is a write that didn't happen.
+             *     nulled by an error below the mutation's field, which came after the write, an error with no
+             *     path beside ``data``, or a null ``data`` in a document of more than one mutation, which hides
+             *     what the ones before the failing one did. A field with another value, or a GraphQL error at the
+             *     mutation's own field, with that field null, or in an answer with no ``data``, is a write that
+             *     didn't happen.
              */
             success?: components["schemas"]["WriteSuccess"] | null;
         };
@@ -16213,7 +16225,9 @@ export interface components {
          *     field null, is its resolver refusing, and one below it came after the write, so a payload that
          *     still holds its result wrote. A request that never ran, or a resolver that refused, is a write
          *     that didn't happen. Any other answer with errors leaves the outcome unknown, such as a payload
-         *     GraphQL nulled on the way up, or an error with no path beside ``data``.
+         *     GraphQL nulled on the way up, or an error with no path beside ``data``. So does a null ``data`` in
+         *     a document of more than one mutation: they run in order, and the null hides what the ones before
+         *     the failing one did.
          */
         GraphQLSuccess: {
             /**
@@ -18397,7 +18411,7 @@ export interface components {
             created_at?: string | null;
             /**
              * Email
-             * @description Contact email
+             * @description The operator's email. It is fixed once registered.
              */
             email?: string | null;
             /**
@@ -21624,7 +21638,7 @@ export interface components {
             approved_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
-            forward_to: components["schemas"]["PhoneE164"] | null;
+            forward_to: components["schemas"]["DialE164"] | null;
             /** Warm Transfer */
             warm_transfer: boolean;
         };
@@ -27115,14 +27129,21 @@ export interface components {
             /** Sync Strategy */
             sync_strategy?: ("manual" | "scheduled" | "webhook" | "continuous") | null;
         };
-        /** UpdateOperatorRequest */
+        /**
+         * UpdateOperatorRequest
+         * @description Fields to change on an operator. A field that is omitted or null is left unchanged.
+         */
         UpdateOperatorRequest: {
             /** Connection Method */
             connection_method?: ("browser" | "phone") | null;
-            /** Email */
+            /**
+             * Email
+             * @description The email the operator was registered with, in any letter case. It is fixed once registered, so any other email is a 422.
+             */
             email?: string | null;
             name?: components["schemas"]["NameString"] | null;
-            phone_number?: components["schemas"]["PhoneE164"] | null;
+            /** @description E.164 phone number. An omitted or null number is left unchanged, so a number cannot be cleared. */
+            phone_number?: components["schemas"]["DialE164"] | null;
             /** Role */
             role?: ("operator" | "supervisor" | "admin") | null;
             /** Skills */
@@ -33342,6 +33363,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Internal error. A credential refusal requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Placing the call failed upstream, or its result was lost on the way back; retry with the same idempotency_key */
             502: {
                 headers: {
@@ -33349,7 +33377,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The call could not be placed; retry with the same idempotency_key */
+            /** @description The call could not be placed; retry with the same idempotency_key, after the Retry-After wait when the response carries one */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -40347,6 +40375,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The workspace already has an operator with that email, in any letter case. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -40683,7 +40718,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description The request is invalid, or it names an email other than the one the operator was registered with: an operator's email is fixed once registered. `detail` is a list of field errors for an invalid request and a message for the email. */
             422: {
                 headers: {
                     [name: string]: unknown;
