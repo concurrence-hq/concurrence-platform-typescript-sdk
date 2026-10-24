@@ -1299,7 +1299,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them.
+         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -33363,6 +33363,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Internal error. A credential refusal requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Placing the call failed upstream, or its result was lost on the way back; retry with the same idempotency_key */
             502: {
                 headers: {
@@ -33370,7 +33377,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The call could not be placed; retry with the same idempotency_key */
+            /** @description The call could not be placed; retry with the same idempotency_key, after the Retry-After wait when the response carries one */
             503: {
                 headers: {
                     [name: string]: unknown;
