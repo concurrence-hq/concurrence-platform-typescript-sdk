@@ -4535,7 +4535,13 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Production Eval Definition */
+        /**
+         * Delete Production Eval Definition
+         * @description Delete a production eval definition.
+         *
+         *     A standard metric's default (``is_default``) returns 422: pause it instead.
+         *     A custom metric's default can be deleted, which unassigns the metric.
+         */
         delete: operations["delete-production-eval-definition"];
         options?: never;
         head?: never;
@@ -4548,7 +4554,9 @@ export interface paths {
          *     metric on call_intelligence, else 422. Clearing ``metric_key`` on a metric
          *     eval also returns 422. Any other patch, including ``active: false``,
          *     leaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:
-         *     that kind grades simulation case assertions only.
+         *     that kind grades simulation case assertions only. A default
+         *     (``is_default``) can only be paused or resumed: a patch that sets any
+         *     other field returns 422.
          */
         patch: operations["update-production-eval-definition"];
         trace?: never;
@@ -19566,6 +19574,12 @@ export interface components {
              * Format: uuid
              */
             id?: string;
+            /**
+             * Is Default
+             * @description True for a metric's All services default, which the platform creates. It can only be paused or resumed with active, and the post-call evaluation doesn't run it. A standard metric's default can't be deleted; deleting a custom metric's default unassigns the metric.
+             * @default false
+             */
+            is_default?: boolean;
             /** Metric Key */
             metric_key?: string | null;
             /** Params */
@@ -24817,6 +24831,12 @@ export interface components {
              * Format: uuid
              */
             surface_id: string;
+            /**
+             * Title
+             * @description The form's title, so an agent can name the form that came back.
+             * @default null
+             */
+            title?: string | null;
         };
         /** SurfaceUpdatedEvent */
         SurfaceUpdatedEvent: {
