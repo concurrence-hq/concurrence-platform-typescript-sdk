@@ -284,7 +284,7 @@ credential.
 
 ### Hosts
 
-The defaults are US production. In another region, or on staging, set both
+The defaults are US production. In another region, set both
 base URLs: identity has its own host, and `client.tokens` calls it.
 
 | Environment | `baseUrl`                                      | `identityBaseUrl`                              |
@@ -293,7 +293,6 @@ base URLs: identity has its own host, and `client.tokens` calls it.
 | EU          | `https://platform.api-eu.concurrence.com`      | `https://identity.api-eu.concurrence.com`      |
 | AU          | `https://platform.api-au.concurrence.com`      | `https://identity.api-au.concurrence.com`      |
 | CA          | `https://platform.api-ca.concurrence.com`      | `https://identity.api-ca.concurrence.com`      |
-| Staging     | `https://platform.api-staging.concurrence.com` | `https://identity.api-staging.concurrence.com` |
 
 Device-code login (`loginWithDeviceCode`, `TokenManager`) takes the same
 identity host as its own `identityBaseUrl` option.
