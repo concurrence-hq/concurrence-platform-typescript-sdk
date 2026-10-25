@@ -72,7 +72,8 @@
     "test:coverage": "vitest run --coverage --project unit",
     "typecheck": "tsc --noEmit",
     "typecheck:examples": "tsc --project examples/tsconfig.json --noEmit",
-    "prepublishOnly": "npm run docs:check && npm run build && npm test && npm run test:dist && npm run test:tarball && npm run typecheck && npm run typecheck:examples"
+    "prepublishOnly": "npm run docs:check && npm run build && npm test && npm run test:dist && npm run test:tarball && npm run typecheck && npm run typecheck:examples",
+    "check:staging": "node scripts/check-no-staging.mjs"
   },
   "sideEffects": false,
   "dependencies": {

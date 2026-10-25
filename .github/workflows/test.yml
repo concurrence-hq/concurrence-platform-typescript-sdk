@@ -49,6 +49,9 @@ jobs:
       - name: Check generated API docs
         run: npm run docs:check
 
+      - name: Check no staging host in public surfaces
+        run: node scripts/check-no-staging.mjs
+
       - name: Build
         run: npm run build
 
