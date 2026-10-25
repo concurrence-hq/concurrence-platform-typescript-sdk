@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.120.0] - 2026-10-25
+
+### Features
+
+- add workspace SSO administration resources (ALL-2012) (#488)
+
 ## [0.119.0] - 2026-10-25
 
 ### Features
