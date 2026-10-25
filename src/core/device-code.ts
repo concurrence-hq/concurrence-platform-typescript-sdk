@@ -255,8 +255,12 @@ export function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
   try {
     const parts = jwt.split('.')
     if (parts.length !== 3 || !parts[1]) return null
-    const payload = Buffer.from(parts[1], 'base64url').toString()
-    return JSON.parse(payload) as Record<string, unknown>
+    const encoded = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+    const payload: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    return typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : null
   } catch {
     return null
   }

@@ -96,7 +96,8 @@ describe('decodeJwtPayload', () => {
 describe('loginWithDeviceCode', () => {
   it('uses the pinned device token directly in a browser without refreshing', async () => {
     const headers = new Headers()
-    const fetch = vi.fn()
+    const fetch = vi
+      .fn()
       .mockResolvedValueOnce({ status: 200, ok: true, headers, json: async () => ISSUANCE })
       .mockResolvedValue({ status: 200, ok: true, headers, json: async () => TOKEN })
     vi.stubGlobal('Buffer', undefined)
