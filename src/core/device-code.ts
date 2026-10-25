@@ -142,6 +142,7 @@ async function identityPost(
   path: string,
   body: URLSearchParams,
   fetchFn: typeof globalThis.fetch,
+  signal?: AbortSignal,
 ): Promise<Response> {
   try {
     // redirect: 'manual' is required because the identity service uses HTTP 300
@@ -152,6 +153,7 @@ async function identityPost(
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
       redirect: 'manual',
+      signal,
     })
   } catch (err) {
     throw new NetworkError('Network error contacting identity service', err)
@@ -229,6 +231,7 @@ async function doRefreshToken(
   baseUrl: string,
   params: { refreshToken: string; workspaceId?: string; scope?: string },
   fetchFn: typeof globalThis.fetch,
+  signal?: AbortSignal,
 ): Promise<IdentityTokenResponse> {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
@@ -237,7 +240,7 @@ async function doRefreshToken(
   if (params.workspaceId) body.set('workspace_id', params.workspaceId)
   if (params.scope) body.set('scope', params.scope)
 
-  const res = await identityPost(baseUrl, '/token', body, fetchFn)
+  const res = await identityPost(baseUrl, '/token', body, fetchFn, signal)
 
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as Record<string, string>
@@ -247,6 +250,27 @@ async function doRefreshToken(
     })
   }
   return (await res.json()) as IdentityTokenResponse
+}
+
+const REVOKE_TIMEOUT_MS = 5_000
+
+// RFC 7009: identity answers 200 for any token it is given, so a non-2xx means the
+// revoke did not happen. A 5xx (identity's session store being down) is tried once more.
+async function revokeToken(
+  baseUrl: string,
+  params: { token: string; tokenTypeHint: 'access_token' | 'refresh_token' },
+  fetchFn: typeof globalThis.fetch,
+): Promise<void> {
+  const body = new URLSearchParams({ token: params.token, token_type_hint: params.tokenTypeHint })
+  const post = () =>
+    identityPost(baseUrl, '/revoke', body, fetchFn, AbortSignal.timeout(REVOKE_TIMEOUT_MS))
+  let res = await post()
+  if (res.status >= 500) res = await post()
+  if (!res.ok) {
+    throw new AmigoError(`Identity could not revoke the ${params.tokenTypeHint} (${res.status})`, {
+      statusCode: res.status,
+    })
+  }
 }
 
 // --- JWT decode (no verification — server validates) ---
@@ -508,6 +532,7 @@ export async function loginWithDeviceCode(options: DeviceCodeLoginOptions): Prom
 // --- Token Manager ---
 
 const REFRESH_BUFFER_SECONDS = 60
+const REFRESH_TIMEOUT_MS = 30_000
 
 export interface TokenManagerConfig {
   storage?: TokenStorage
@@ -521,6 +546,10 @@ export class TokenManager {
   private readonly _fetch: typeof globalThis.fetch
   private _cached: StoredCredentials | null = null
   private _refreshPromise: Promise<StoredCredentials> | null = null
+  private _refreshGeneration = -1
+  private _signOutPromise: Promise<void> | null = null
+  private _generation = 0
+  private _storageQueue: Promise<void> = Promise.resolve()
 
   constructor(config: TokenManagerConfig = {}) {
     this._storage = config.storage ?? new FileTokenStorage()
@@ -529,6 +558,9 @@ export class TokenManager {
   }
 
   async store(result: AuthResult): Promise<void> {
+    // An explicit new sign-in starts after any previous sign-out has settled.
+    if (this._signOutPromise) await this._signOutPromise.catch(() => undefined)
+    this._generation += 1
     const creds: StoredCredentials = {
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
@@ -537,46 +569,117 @@ export class TokenManager {
       scope: result.scope,
     }
     this._cached = creds
-    await this._storage.save(creds)
+    await this._useStorage(() => this._storage.save(creds))
   }
 
   async getAccessToken(): Promise<{ token: string; workspaceId: string } | null> {
+    if (this._signOutPromise) return null
+    const generation = this._generation
     const creds = await this._loadCached()
-    if (!creds) return null
+    if (!creds || this._signOutPromise || generation !== this._generation) return null
     if (creds.expires_at - Math.floor(Date.now() / 1000) >= REFRESH_BUFFER_SECONDS) {
       return { token: creds.access_token, workspaceId: creds.workspace_id }
     }
     const refreshed = await this._refresh(creds)
+    if (this._signOutPromise || generation !== this._generation) return null
     return { token: refreshed.access_token, workspaceId: refreshed.workspace_id }
   }
 
   async hasCredentials(): Promise<boolean> {
+    if (this._signOutPromise) return false
     return (await this._loadCached()) !== null
   }
 
+  /** Forgets the credentials on this machine only. The tokens stay valid at identity until they expire; use `signOut()` to end the session. */
   async clear(): Promise<void> {
+    this._generation += 1
     this._cached = null
-    this._refreshPromise = null
-    await this._storage.clear()
+    await this._useStorage(() => this._storage.clear())
+  }
+
+  /**
+   * Requests revocation of the refresh token and access token at Identity, then
+   * forgets them locally. The credentials are cleared even when a request fails, and the
+   * call then rejects, so the caller knows the tokens may still be live.
+   * A successful response confirms request acceptance, not immediate inactivity at
+   * every token consumer.
+   * Services that validate JWTs locally can keep accepting previously issued access
+   * tokens until expiry; sign-out does not guarantee immediate revocation everywhere.
+   */
+  signOut(): Promise<void> {
+    if (this._signOutPromise) return this._signOutPromise
+    const refreshing = this._refreshGeneration === this._generation ? this._refreshPromise : null
+    this._generation += 1
+    this._signOutPromise = this._doSignOut(refreshing).finally(() => {
+      this._signOutPromise = null
+    })
+    return this._signOutPromise
+  }
+
+  private async _doSignOut(refreshing: Promise<StoredCredentials> | null): Promise<void> {
+    // Capture before awaiting storage: an existing refresh can finish during a
+    // load. Joining includes its storage save, so it cannot restore credentials
+    // after the final clear. New refreshes are refused by getAccessToken().
+    try {
+      // Reserve a cold-cache snapshot before any concurrently requested clear.
+      // The snapshot authorizes revocation only; it never repopulates the cache.
+      const current = this._cached ?? (await this._useStorage(() => this._storage.load()))
+      const refreshed = refreshing ? await refreshing.catch(() => null) : null
+      const revocations = new Map<string, 'refresh_token' | 'access_token'>()
+      for (const creds of [current, refreshed]) {
+        if (creds?.refresh_token) revocations.set(creds.refresh_token, 'refresh_token')
+        if (creds?.access_token) revocations.set(creds.access_token, 'access_token')
+      }
+      const results = await Promise.allSettled(
+        [...revocations].map(([token, tokenTypeHint]) =>
+          revokeToken(this._baseUrl, { token, tokenTypeHint }, this._fetch),
+        ),
+      )
+      const failed = results.find((result) => result.status === 'rejected')
+      if (failed) throw failed.reason
+    } finally {
+      await this.clear()
+    }
   }
 
   private async _loadCached(): Promise<StoredCredentials | null> {
     if (this._cached) return this._cached
+    const generation = this._generation
+    await this._storageQueue
+    if (generation !== this._generation) return null
     const loaded = await this._storage.load()
+    if (generation !== this._generation) return null
     if (loaded) this._cached = loaded
     return loaded
   }
 
   private async _refresh(current: StoredCredentials): Promise<StoredCredentials> {
-    if (this._refreshPromise) return this._refreshPromise
-    this._refreshPromise = this._doRefresh(current).finally(() => {
-      this._refreshPromise = null
+    if (this._refreshPromise && this._refreshGeneration === this._generation) {
+      return this._refreshPromise
+    }
+    this._refreshGeneration = this._generation
+    const refreshing = this._doRefresh(current).finally(() => {
+      if (this._refreshPromise === refreshing) this._refreshPromise = null
     })
-    return this._refreshPromise
+    this._refreshPromise = refreshing
+    return refreshing
+  }
+
+  private _useStorage<T>(operation: () => Promise<T>): Promise<T> {
+    // Clear must follow every save already in progress, including an explicit
+    // store(). Keep the queue usable after an error while returning that error
+    // to the initiating operation.
+    const pending = this._storageQueue.then(operation)
+    this._storageQueue = pending.then(
+      () => undefined,
+      () => undefined,
+    )
+    return pending
   }
 
   private async _doRefresh(current: StoredCredentials): Promise<StoredCredentials> {
     if (!current.refresh_token) throw new RefreshTokenExpiredError('No refresh token available')
+    const generation = this._generation
 
     try {
       const response = await doRefreshToken(
@@ -587,6 +690,7 @@ export class TokenManager {
           scope: current.scope,
         },
         this._fetch,
+        AbortSignal.timeout(REFRESH_TIMEOUT_MS),
       )
       const claims = decodeJwtPayload(response.access_token)
       const refreshed: StoredCredentials = {
@@ -596,15 +700,17 @@ export class TokenManager {
         expires_at: (claims?.exp as number) ?? Math.floor(Date.now() / 1000) + response.expires_in,
         scope: response.scope ?? current.scope,
       }
-      this._cached = refreshed
-      await this._storage.save(refreshed)
+      if (generation === this._generation) {
+        this._cached = refreshed
+        await this._useStorage(() => this._storage.save(refreshed))
+      }
       return refreshed
     } catch (err) {
       if (
         err instanceof AmigoError &&
         (err.statusCode === 401 || err.errorCode === 'invalid_grant')
       ) {
-        await this.clear()
+        if (generation === this._generation) await this.clear()
         throw new RefreshTokenExpiredError()
       }
       throw err
