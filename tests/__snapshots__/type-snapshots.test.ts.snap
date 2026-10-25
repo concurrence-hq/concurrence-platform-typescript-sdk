@@ -190,6 +190,7 @@ exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
   "get-skill-references",
   "get-source-history",
   "get-source-overview",
+  "get-staging-workspace-pairing",
   "get-surface",
   "get-surface-availability",
   "get-surface-channel-effectiveness",

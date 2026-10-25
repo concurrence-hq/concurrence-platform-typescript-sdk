@@ -11,6 +11,15 @@ export type StagingPairing = components['schemas']['StagingPairing']
 
 /** Configuration-only service copies between production and a paired staging workspace. */
 export class StagingClonesResource extends WorkspaceScopedResource {
+  /** Read local staging pairing metadata without contacting or authorizing the production source. */
+  async getPairing() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/staging-clones/pairing', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
   /** Preview on the production client, using its source workspace and authority. */
   async previewSource(serviceId: ServiceId | string, body: StagingClonePreviewRequest) {
     return extractData(

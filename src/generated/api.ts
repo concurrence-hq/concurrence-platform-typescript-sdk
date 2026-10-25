@@ -6316,7 +6316,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read the staging workspace's production pairing
+         * @description Requires administrator access to the staging destination. Returns local pairing metadata only; does not contact production or establish current source authority.
+         */
+        get: operations["get-staging-workspace-pairing"];
         /**
          * Pair a staging workspace with a production source
          * @description Requires current administrator access in both environments, including on retries. Stores source identity and creator provenance in the staging workspace, without source credentials. An existing pairing cannot be silently retargeted. Creates no workspace or service copies.
@@ -46559,6 +46563,49 @@ export interface operations {
             };
             /** @description Source response is unavailable, invalid, or too large */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-staging-workspace-pairing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingPairing"];
+                };
+            };
+            /** @description Insufficient destination authority */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workspace has no staging pairing */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not staging, inactive destination, or invalid pairing metadata */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

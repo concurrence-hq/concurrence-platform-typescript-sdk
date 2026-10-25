@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AmigoClient,
   ConflictError,
+  NotFoundError,
   PermissionError,
   ValidationError,
   type StagingCloneApplyRequest,
@@ -82,6 +83,37 @@ const preview = {
 } satisfies StagingClonePreviewResponse
 
 describe('staging clone authority and revision contract', () => {
+  it('reads a local staging pairing without a source credential or request body', async () => {
+    const requests: Request[] = []
+    const staging = new AmigoClient({
+      apiKey: DESTINATION_TOKEN,
+      workspaceId: DESTINATION,
+      baseUrl: STAGING_ORIGIN,
+      fetch: async (input) => {
+        requests.push(new Request(input))
+        return Response.json(pairing)
+      },
+    })
+    expect(await staging.stagingClones.getPairing()).toEqual(pairing)
+    expect(requests).toHaveLength(1)
+    const request = requests[0]!
+    expect(request.method).toBe('GET')
+    expect(request.url).toBe(`${STAGING_ORIGIN}/v1/${DESTINATION}/staging-clones/pairing`)
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${DESTINATION_TOKEN}`)
+    expect(await request.text()).toBe('')
+  })
+
+  it('reports an unpaired workspace as NotFoundError', async () => {
+    const staging = new AmigoClient({
+      apiKey: DESTINATION_TOKEN,
+      workspaceId: DESTINATION,
+      baseUrl: STAGING_ORIGIN,
+      fetch: async () =>
+        Response.json({ detail: 'Workspace has no staging pairing' }, { status: 404 }),
+    })
+    await expect(staging.stagingClones.getPairing()).rejects.toThrow(NotFoundError)
+  })
+
   it('uses production authority only for the source preview', async () => {
     const requests: Request[] = []
     const production = new AmigoClient({

@@ -81349,6 +81349,47 @@
       }
     },
     "/v1/{workspace_id}/staging-clones/pairing": {
+      "get": {
+        "description": "Requires administrator access to the staging destination. Returns local pairing metadata only; does not contact production or establish current source authority.",
+        "operationId": "get-staging-workspace-pairing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingPairing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient destination authority"
+          },
+          "404": {
+            "description": "Workspace has no staging pairing"
+          },
+          "409": {
+            "description": "Not staging, inactive destination, or invalid pairing metadata"
+          }
+        },
+        "summary": "Read the staging workspace's production pairing",
+        "tags": [
+          "Services"
+        ]
+      },
       "put": {
         "description": "Requires current administrator access in both environments, including on retries. Stores source identity and creator provenance in the staging workspace, without source credentials. An existing pairing cannot be silently retargeted. Creates no workspace or service copies.",
         "operationId": "pair-staging-workspace",

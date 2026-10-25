@@ -204,6 +204,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `stagingClones`
 
+- `getPairing`
 - `previewSource`
 - `previewImport`
 - `pairWorkspace`
