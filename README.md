@@ -126,6 +126,8 @@ const client = new AmigoClient({ apiKey: result.accessToken, workspaceId: result
 
 To sign out, call `tokens.signOut()`. It revokes the refresh token and the access token at identity and then removes the stored credentials. It joins any in-flight refresh, revokes its rotated credentials too, and prevents access-token reads during sign-out. Refresh network requests have a 30-second deadline; each revocation attempt has a five-second deadline and retries once on a server error. If identity could not revoke them it rejects, after removing the credentials. `tokens.clear()` only forgets the credentials on this machine; a copied token stays valid until it expires.
 
+Services that validate JWTs locally can keep accepting previously issued access tokens until expiry. Sign-out does not guarantee immediate access-token revocation across every downstream service.
+
 See [`examples/auth/device-code-login.ts`](./examples/auth/device-code-login.ts) for a complete working example.
 
 ### Exchange an API key for a JWT
