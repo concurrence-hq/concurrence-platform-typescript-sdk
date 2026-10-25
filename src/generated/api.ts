@@ -24222,6 +24222,10 @@ export interface components {
             };
             /** Excluded Fields */
             excluded_fields: string[];
+            /** Graph Source Digests */
+            graph_source_digests: {
+                [key: string]: string;
+            };
             /** Graph Version Map */
             graph_version_map: {
                 [key: string]: number;

@@ -39180,6 +39180,13 @@
             "title": "Excluded Fields",
             "type": "array"
           },
+          "graph_source_digests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Graph Source Digests",
+            "type": "object"
+          },
           "graph_version_map": {
             "additionalProperties": {
               "type": "integer"
@@ -39221,6 +39228,7 @@
           "graph_versions",
           "agent_version_map",
           "graph_version_map",
+          "graph_source_digests",
           "unresolved_tools",
           "excluded_fields",
           "source_digest"
