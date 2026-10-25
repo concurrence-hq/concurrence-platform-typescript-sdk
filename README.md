@@ -469,6 +469,9 @@ credential does not substitute for that authority. Pass the human access token
 through `apiKey`. A Console-style proxy must set `identityBaseUrl` to its Identity
 proxy separately from the Platform proxy.
 
+These methods require server support for workspace authentication policies and
+lifecycle endpoints; publishing or upgrading the SDK does not enable those features.
+
 Configure an optional policy with explicit coverage, review the current credential
 inventory, and prepare and test recovery before requesting activation. Recovery
 setup and lifecycle configuration require an independent account sign-in. Owner
