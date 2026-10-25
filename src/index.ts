@@ -140,7 +140,7 @@ export interface AmigoClientConfig {
    * Override the base URL. Defaults to https://platform.api-us.concurrence.com
    *
    * Other regions use `https://platform.api-eu.concurrence.com` (also `-au`,
-   * `-ca`); staging is `https://platform.api-staging.concurrence.com`.
+   * `-ca`).
    *
    * For BFF proxy patterns (e.g., Next.js), point this at your proxy:
    * ```ts
@@ -155,7 +155,7 @@ export interface AmigoClientConfig {
    * https://identity.api-us.concurrence.com.
    *
    * The hosted platform serves identity on its own host, so set both when you
-   * point `baseUrl` at another region or staging:
+   * point `baseUrl` at another region:
    * ```ts
    * new AmigoClient({
    *   baseUrl: 'https://platform.api-eu.concurrence.com',

@@ -48,7 +48,7 @@ async function main() {
     apiKey: tokenResponse.access_token,
     workspaceId,
     // Reuse the same base URL so the JWT goes back to the environment that
-    // issued it. Otherwise a staging-issued token would be sent to production.
+    // issued it. Otherwise a token issued for another environment would be sent to production.
     baseUrl: process.env.AMIGO_BASE_URL,
   })
 
