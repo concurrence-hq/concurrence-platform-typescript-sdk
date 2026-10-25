@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.123.0] - 2026-10-25
+
+### Features
+
+- TokenManager.signOut requests revocation and clears credentials (ALL-1912) (#482)
+
+### Maintenance
+
+- a staging host in a README, doc comment, example or generated type fails the build (ALL-2006) (#493)
+
 ## [0.122.1] - 2026-10-25
 
 ### Documentation
