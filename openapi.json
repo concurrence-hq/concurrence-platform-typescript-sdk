@@ -11335,6 +11335,16 @@
           },
           "slug": {
             "$ref": "#/components/schemas/SlugString"
+          },
+          "staging_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StagingWorkspaceSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -39676,6 +39686,39 @@
           "context_graph_id"
         ],
         "title": "StagingServiceConfiguration",
+        "type": "object"
+      },
+      "StagingWorkspaceSource": {
+        "properties": {
+          "source_region": {
+            "$ref": "#/components/schemas/ProductionRegion"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_token": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Source Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_region",
+          "source_workspace_id",
+          "source_service_id",
+          "source_token"
+        ],
+        "title": "StagingWorkspaceSource",
         "type": "object"
       },
       "StartSessionRequest": {

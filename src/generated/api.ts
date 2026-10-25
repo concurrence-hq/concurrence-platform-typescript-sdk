@@ -12114,6 +12114,7 @@ export interface components {
             backend_org_id?: components["schemas"]["StrippedNonemptyString"] | null;
             name: components["schemas"]["StrippedNonemptyString"];
             slug: components["schemas"]["SlugString"];
+            staging_source?: components["schemas"]["StagingWorkspaceSource"] | null;
         };
         /**
          * CustomTokenExchangeAuthDict
@@ -24456,6 +24457,25 @@ export interface components {
                 [key: string]: components["schemas"]["VersionSet-Output"];
             };
             voice_config?: components["schemas"]["ServiceVoiceConfig-Output"] | null;
+        };
+        /** StagingWorkspaceSource */
+        StagingWorkspaceSource: {
+            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Service Id
+             * Format: uuid
+             */
+            source_service_id: string;
+            /**
+             * Source Token
+             * Format: password
+             */
+            source_token: string;
+            /**
+             * Source Workspace Id
+             * Format: uuid
+             */
+            source_workspace_id: string;
         };
         /** StartSessionRequest */
         StartSessionRequest: {

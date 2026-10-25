@@ -791,6 +791,8 @@ export type {
   StagingPairing,
 } from './resources/staging-clones.js'
 
+export type { StagingWorkspaceSource } from './resources/me.js'
+
 export type { Run, RunManifest } from './resources/runs.js'
 
 /** Voice provider constants and types. */

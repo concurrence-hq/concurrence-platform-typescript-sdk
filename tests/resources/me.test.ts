@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { components } from '../../src/generated/api.js'
-import { AmigoClient } from '../../src/index.js'
+import { AmigoClient, type StagingWorkspaceSource } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
@@ -65,6 +65,33 @@ function recordingFetch(
 }
 
 describe('MeResource', () => {
+  it('keeps production authority in the staging creation body and destination authority in the header', async () => {
+    const source: StagingWorkspaceSource = {
+      source_region: 'eu-central-1',
+      source_workspace_id: '00000000-0000-4000-8000-000000000002',
+      source_service_id: '00000000-0000-4000-8000-000000000003',
+      source_token: 'request-scoped-source-token',
+    }
+    const body = { slug: 'acme-staging', name: 'Acme staging', staging_source: source }
+    let requests = 0
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      baseUrl: 'https://platform.api-staging.concurrence.com',
+      fetch: async (input) => {
+        expect(input).toBeInstanceOf(Request)
+        const request = input as Request
+        expect(request.url).toBe('https://platform.api-staging.concurrence.com/v1/me/workspaces')
+        expect(request.headers.get('Authorization')).toBe(`Bearer ${TEST_API_KEY}`)
+        expect(await request.json()).toEqual(body)
+        requests += 1
+        return Response.json(WORKSPACE_FIXTURE, { status: 201 })
+      },
+    })
+    expect(await client.me.createWorkspace(body)).toEqual(WORKSPACE_FIXTURE)
+    expect(requests).toBe(1)
+  })
+
   it('createWorkspace posts to exactly /v1/me/workspaces with no workspace prefix', async () => {
     // Account-scoped routes must NOT carry a workspace prefix or an
     // ``X-Workspace-Id``-style header derived from the bound
