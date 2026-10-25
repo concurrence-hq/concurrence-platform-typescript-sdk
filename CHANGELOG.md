@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.119.0] - 2026-10-25
+
+### Features
+
+- add typed staging clone resources (ALL-1951) (#487)
+
 ## [0.118.0] - 2026-10-24
 
 ### Maintenance
