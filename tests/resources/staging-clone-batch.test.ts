@@ -58,6 +58,7 @@ function preview(id: string): StagingClonePreviewResponse {
       graph_versions: {},
       agent_version_map: {},
       graph_version_map: {},
+      agent_source_digests: {},
       graph_source_digests: {},
       unresolved_tools: [],
       excluded_fields: ['voice_config'],

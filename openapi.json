@@ -29007,15 +29007,6 @@
         "title": "ProductionEvalType",
         "type": "string"
       },
-      "ProductionRegion": {
-        "enum": [
-          "us-east-1",
-          "ap-southeast-2",
-          "eu-central-1",
-          "ca-central-1"
-        ],
-        "type": "string"
-      },
       "ProgressHint": {
         "additionalProperties": false,
         "description": "How the agent narrates waiting on a tool.\n\n``deterministic=true``: scripted \u2014 ``phrases`` play verbatim in order.\n``deterministic=false``: engine picks \u2014 ``phrases`` are hints.\n``trigger_delay_ms``: milliseconds before first filler (0 = immediate).\n``interval_ms``: milliseconds between subsequent fillers.",
@@ -39089,7 +39080,14 @@
             "type": "string"
           },
           "source_region": {
-            "$ref": "#/components/schemas/ProductionRegion"
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
           },
           "source_service_id": {
             "format": "uuid",
@@ -39159,6 +39157,13 @@
       },
       "StagingClonePlan": {
         "properties": {
+          "agent_source_digests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Agent Source Digests",
+            "type": "object"
+          },
           "agent_version_map": {
             "additionalProperties": {
               "type": "integer"
@@ -39228,6 +39233,7 @@
           "graph_versions",
           "agent_version_map",
           "graph_version_map",
+          "agent_source_digests",
           "graph_source_digests",
           "unresolved_tools",
           "excluded_fields",
@@ -39343,7 +39349,14 @@
             "type": "string"
           },
           "source_region": {
-            "$ref": "#/components/schemas/ProductionRegion"
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
           },
           "source_service_id": {
             "format": "uuid",
@@ -39584,7 +39597,14 @@
             "type": "object"
           },
           "source_region": {
-            "$ref": "#/components/schemas/ProductionRegion"
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
           },
           "source_service_id": {
             "format": "uuid",
@@ -39774,7 +39794,14 @@
             "type": "string"
           },
           "source_region": {
-            "$ref": "#/components/schemas/ProductionRegion"
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
           },
           "source_workspace_id": {
             "format": "uuid",
@@ -39980,7 +40007,14 @@
       "StagingWorkspaceSource": {
         "properties": {
           "source_region": {
-            "$ref": "#/components/schemas/ProductionRegion"
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
           },
           "source_service_id": {
             "format": "uuid",

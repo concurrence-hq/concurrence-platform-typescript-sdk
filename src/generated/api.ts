@@ -19779,8 +19779,6 @@ export interface components {
          * @enum {string}
          */
         ProductionEvalType: "metric";
-        /** @enum {string} */
-        ProductionRegion: "us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1";
         /**
          * ProgressHint
          * @description How the agent narrates waiting on a tool.
@@ -24180,7 +24178,11 @@ export interface components {
              * Format: uuid
              */
             pairing_id: string;
-            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Region
+             * @enum {string}
+             */
+            source_region: "us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1";
             /**
              * Source Service Id
              * Format: uuid
@@ -24212,6 +24214,10 @@ export interface components {
         };
         /** StagingClonePlan */
         StagingClonePlan: {
+            /** Agent Source Digests */
+            agent_source_digests: {
+                [key: string]: string;
+            };
             /** Agent Version Map */
             agent_version_map: {
                 [key: string]: number;
@@ -24314,7 +24320,11 @@ export interface components {
              * Format: uuid
              */
             pairing_id: string;
-            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Region
+             * @enum {string}
+             */
+            source_region: "us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1";
             /**
              * Source Service Id
              * Format: uuid
@@ -24446,7 +24456,11 @@ export interface components {
             resolutions?: {
                 [key: string]: "staging" | "production";
             };
-            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Region
+             * @enum {string}
+             */
+            source_region: "us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1";
             /**
              * Source Service Id
              * Format: uuid
@@ -24556,7 +24570,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Region
+             * @enum {string}
+             */
+            source_region: "us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1";
             /**
              * Source Workspace Id
              * Format: uuid
@@ -24687,7 +24705,11 @@ export interface components {
         };
         /** StagingWorkspaceSource */
         StagingWorkspaceSource: {
-            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Region
+             * @enum {string}
+             */
+            source_region: "us-east-1" | "ap-southeast-2" | "eu-central-1" | "ca-central-1";
             /**
              * Source Service Id
              * Format: uuid

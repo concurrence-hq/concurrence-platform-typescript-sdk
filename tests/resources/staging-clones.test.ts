@@ -78,6 +78,7 @@ const preview = {
     graph_versions: {},
     agent_version_map: {},
     graph_version_map: {},
+    agent_source_digests: {},
     graph_source_digests: {},
     unresolved_tools: ['lookup_patient'],
     excluded_fields: ['voice_config'],
