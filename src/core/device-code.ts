@@ -594,9 +594,11 @@ export class TokenManager {
   }
 
   /**
-   * Ends the session: revokes the refresh token and the access token at identity, then
-   * forgets them locally. The credentials are cleared even when a revoke fails, and the
+   * Requests revocation of the refresh token and access token at Identity, then
+   * forgets them locally. The credentials are cleared even when a request fails, and the
    * call then rejects, so the caller knows the tokens may still be live.
+   * A successful response confirms request acceptance, not immediate inactivity at
+   * every token consumer.
    * Services that validate JWTs locally can keep accepting previously issued access
    * tokens until expiry; sign-out does not guarantee immediate revocation everywhere.
    */
