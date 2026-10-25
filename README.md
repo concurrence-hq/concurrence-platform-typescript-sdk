@@ -287,12 +287,12 @@ credential.
 The defaults are US production. In another region, set both
 base URLs: identity has its own host, and `client.tokens` calls it.
 
-| Environment | `baseUrl`                                      | `identityBaseUrl`                              |
-| ----------- | ---------------------------------------------- | ---------------------------------------------- |
-| US          | `https://platform.api-us.concurrence.com`      | `https://identity.api-us.concurrence.com`      |
-| EU          | `https://platform.api-eu.concurrence.com`      | `https://identity.api-eu.concurrence.com`      |
-| AU          | `https://platform.api-au.concurrence.com`      | `https://identity.api-au.concurrence.com`      |
-| CA          | `https://platform.api-ca.concurrence.com`      | `https://identity.api-ca.concurrence.com`      |
+| Environment | `baseUrl`                                 | `identityBaseUrl`                         |
+| ----------- | ----------------------------------------- | ----------------------------------------- |
+| US          | `https://platform.api-us.concurrence.com` | `https://identity.api-us.concurrence.com` |
+| EU          | `https://platform.api-eu.concurrence.com` | `https://identity.api-eu.concurrence.com` |
+| AU          | `https://platform.api-au.concurrence.com` | `https://identity.api-au.concurrence.com` |
+| CA          | `https://platform.api-ca.concurrence.com` | `https://identity.api-ca.concurrence.com` |
 
 Device-code login (`loginWithDeviceCode`, `TokenManager`) takes the same
 identity host as its own `identityBaseUrl` option.
@@ -459,6 +459,47 @@ const parent = await client.tokens.exchangeClientCredentials({
   scope: EXTERNAL_USER_SESSION_CREATE_SCOPE,
 })
 ```
+
+### Workspace SSO administration
+
+`client.workspaceAuthentication`, `client.ssoLifecycle`, and `client.ssoGrants`
+call the configured `identityBaseUrl` with the client's workspace ID. These
+operations require a current human administrator session; an API key or machine
+credential does not substitute for that authority. Pass the human access token
+through `apiKey`. A Console-style proxy must set `identityBaseUrl` to its Identity
+proxy separately from the Platform proxy.
+
+These methods require server support for workspace authentication policies and
+lifecycle endpoints; publishing or upgrading the SDK does not enable those features.
+
+Configure an optional policy with explicit coverage, review the current credential
+inventory, and prepare and test recovery before requesting activation. Recovery
+setup and lifecycle configuration require an independent account sign-in. Owner
+confirmation, readiness, activation, and ordinary disabling require the configured
+SSO sign-in. Readiness returns blockers and an expiry; activation rechecks current
+server evidence and accepts only `expected_revision`. Use `get()` to read the
+policy after activation.
+
+Recovery codes and provider private keys belong in transient input state, outside
+query caches, URLs, logs, and browser storage. `testRecovery()` consumes one code
+and requires the selected recovery administrator. The standalone
+`recoverWorkspaceAuthentication()` helper accepts the workspace, recovery revision,
+and code without an authenticated client. It disables the policy and invalidates
+the code set; it never signs in, creates membership, or returns a token.
+
+Lifecycle `verify()` and `snapshot()` are previews. Configuration or a successful
+preview alone does not establish enforced access or an offboarding guarantee.
+Managed grants remain separate from independent membership. Before
+`convertIndependent()`, read `independent()` and forward its `updated_at` string
+unchanged as `expected_updated_at`; converting it through `Date` can discard
+precision. The SDK rejects grant revisions outside JavaScript's safe integer range
+instead of rounding them. Server-owned revisions are read-only.
+
+Identity writes are never retried automatically, including after `Retry-After`.
+Read the current state after an uncertain result; reuse the original approval ID
+when retrying a grant approval. Scoped request signals, timeouts, and headers use
+the same `withOptions()` API as other resources. Identity errors preserve status
+and recognized policy conflict codes while omitting arbitrary response details.
 
 ### Agents
 

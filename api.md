@@ -98,6 +98,37 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `createExternalUserSession`
 - `refresh`
 
+### `workspaceAuthentication`
+
+- `get`
+- `configure`
+- `confirmOwner`
+- `credentialInventory`
+- `reviewCredentials`
+- `configureRecovery`
+- `testRecovery`
+- `readiness`
+- `activate`
+- `disable`
+- `recover`
+
+### `ssoLifecycle`
+
+- `getConfiguration`
+- `configure`
+- `verify`
+- `snapshot`
+- `enable`
+- `disable`
+
+### `ssoGrants`
+
+- `list`
+- `approve`
+- `revoke`
+- `independent`
+- `convertIndependent`
+
 ### `agents`
 
 - `create`
