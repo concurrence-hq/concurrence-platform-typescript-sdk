@@ -10,6 +10,8 @@ import {
   type StagingClonePullRequest,
   type StagingCloneReceipt,
   type StagingPairing,
+  type StagingMirrorApplyRequest,
+  type StagingMirrorReceipt,
 } from '../../src/index.js'
 
 const SOURCE = '00000000-0000-4000-8000-000000000001'
@@ -83,6 +85,47 @@ const preview = {
 } satisfies StagingClonePreviewResponse
 
 describe('staging clone authority and revision contract', () => {
+  it('applies the reviewed revisions and explicit conflict choices using staging authority', async () => {
+    const requests: Request[] = []
+    const body = {
+      ...apply,
+      expected_destination_digest: 'b'.repeat(64),
+      operation_id: '00000000-0000-4000-8000-000000000008',
+      resolutions: { '/description': 'production' },
+    } satisfies StagingMirrorApplyRequest
+    const mirrored = {
+      operation_id: body.operation_id,
+      pairing_id: PAIRING,
+      workspace_id: DESTINATION,
+      source_service_id: SERVICE,
+      service_id: CLONE,
+      source_digest: DIGEST,
+      destination_digest: body.expected_destination_digest,
+      created_by_credential_id: AGENT,
+      created_at: pairing.created_at,
+    } satisfies StagingMirrorReceipt
+    const staging = new AmigoClient({
+      apiKey: DESTINATION_TOKEN,
+      workspaceId: DESTINATION,
+      baseUrl: STAGING_ORIGIN,
+      fetch: async (input) => {
+        requests.push(new Request(input))
+        return Response.json(mirrored)
+      },
+    }).withOptions({ headers: { 'X-Request-ID': 'mirror-apply' } })
+    expect(await staging.stagingClones.applyMirror(body)).toEqual(mirrored)
+    expect(await staging.stagingClones.applyMirror(body)).toEqual(mirrored)
+    expect(requests).toHaveLength(2)
+    for (const request of requests) {
+      expect(request.url).toBe(`${STAGING_ORIGIN}/v1/${DESTINATION}/staging-clones/mirror`)
+      expect(request.method).toBe('POST')
+      expect(request.headers.get('Authorization')).toBe(`Bearer ${DESTINATION_TOKEN}`)
+      expect(request.headers.get('X-Request-ID')).toBe('mirror-apply')
+      expect(await request.json()).toEqual(body)
+    }
+    expect(JSON.stringify(mirrored)).not.toContain(SOURCE_TOKEN)
+  })
+
   it('reads a mirror proposal through staging authority without storing or returning the production token', async () => {
     const requests: Request[] = []
     const proposal = {

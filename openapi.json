@@ -39526,6 +39526,102 @@
         "title": "StagingGraphConfiguration",
         "type": "object"
       },
+      "StagingMirrorApplyRequest": {
+        "properties": {
+          "destination_workspace_id": {
+            "format": "uuid",
+            "title": "Destination Workspace Id",
+            "type": "string"
+          },
+          "expected_destination_digest": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Destination Digest",
+            "type": "string"
+          },
+          "expected_source_digest": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Source Digest",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "resolutions": {
+            "maxProperties": 500,
+            "patternProperties": {
+              "^/": {
+                "enum": [
+                  "staging",
+                  "production"
+                ],
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "maxLength": 4096,
+              "minLength": 1
+            },
+            "title": "Resolutions",
+            "type": "object"
+          },
+          "source_region": {
+            "$ref": "#/components/schemas/ProductionRegion"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_token": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Source Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          },
+          "tool_mapping": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "maxProperties": 500,
+            "propertyNames": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "title": "Tool Mapping",
+            "type": "object"
+          }
+        },
+        "required": [
+          "destination_workspace_id",
+          "pairing_id",
+          "source_region",
+          "source_workspace_id",
+          "source_service_id",
+          "source_token",
+          "expected_source_digest",
+          "expected_destination_digest",
+          "operation_id"
+        ],
+        "title": "StagingMirrorApplyRequest",
+        "type": "object"
+      },
       "StagingMirrorProposal": {
         "properties": {
           "configuration": {
@@ -39590,6 +39686,66 @@
           "new_graph_versions"
         ],
         "title": "StagingMirrorProposal",
+        "type": "object"
+      },
+      "StagingMirrorReceipt": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_credential_id": {
+            "format": "uuid",
+            "title": "Created By Credential Id",
+            "type": "string"
+          },
+          "destination_digest": {
+            "title": "Destination Digest",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source_digest": {
+            "title": "Source Digest",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "pairing_id",
+          "workspace_id",
+          "source_service_id",
+          "service_id",
+          "source_digest",
+          "destination_digest",
+          "created_by_credential_id",
+          "created_at"
+        ],
+        "title": "StagingMirrorReceipt",
         "type": "object"
       },
       "StagingPairing": {
@@ -81606,6 +81762,65 @@
           }
         },
         "summary": "List original import receipts in a paired staging workspace",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/mirror": {
+      "post": {
+        "description": "Requires current administrator access in both environments and the reviewed source and destination fingerprints. Resolves every conflict explicitly, then commits service configuration, dependency versions and provenance together. Identical retries preserve the original operation receipt and later staging edits. Production credentials remain request-scoped.",
+        "operationId": "apply-staging-service-mirror",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingMirrorApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingMirrorReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source, destination, or authoring authority"
+          },
+          "404": {
+            "description": "Source service or destination configuration reference not found"
+          },
+          "409": {
+            "description": "Source, destination, conflict resolution, or operation provenance changed"
+          },
+          "422": {
+            "description": "Configuration fails destination authoring checks"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Apply a reviewed production configuration update to staging",
         "tags": [
           "Services"
         ]

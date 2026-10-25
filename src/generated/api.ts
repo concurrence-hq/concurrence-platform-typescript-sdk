@@ -6329,6 +6329,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/staging-clones/mirror": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a reviewed production configuration update to staging
+         * @description Requires current administrator access in both environments and the reviewed source and destination fingerprints. Resolves every conflict explicitly, then commits service configuration, dependency versions and provenance together. Identical retries preserve the original operation receipt and later staging edits. Production credentials remain request-scoped.
+         */
+        post: operations["apply-staging-service-mirror"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/staging-clones/mirror-preview": {
         parameters: {
             query?: never;
@@ -24397,6 +24417,52 @@ export interface components {
             /** Topology Description */
             topology_description?: string | null;
         };
+        /** StagingMirrorApplyRequest */
+        StagingMirrorApplyRequest: {
+            /**
+             * Destination Workspace Id
+             * Format: uuid
+             */
+            destination_workspace_id: string;
+            /** Expected Destination Digest */
+            expected_destination_digest: string;
+            /** Expected Source Digest */
+            expected_source_digest: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Pairing Id
+             * Format: uuid
+             */
+            pairing_id: string;
+            /** Resolutions */
+            resolutions?: {
+                [key: string]: "staging" | "production";
+            };
+            source_region: components["schemas"]["ProductionRegion"];
+            /**
+             * Source Service Id
+             * Format: uuid
+             */
+            source_service_id: string;
+            /**
+             * Source Token
+             * Format: password
+             */
+            source_token: string;
+            /**
+             * Source Workspace Id
+             * Format: uuid
+             */
+            source_workspace_id: string;
+            /** Tool Mapping */
+            tool_mapping?: {
+                [key: string]: components["schemas"]["_ToolName"];
+            };
+        };
         /** StagingMirrorProposal */
         StagingMirrorProposal: {
             /** Configuration */
@@ -24426,6 +24492,48 @@ export interface components {
             service_id: string;
             /** Source Digest */
             source_digest: string;
+        };
+        /** StagingMirrorReceipt */
+        StagingMirrorReceipt: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By Credential Id
+             * Format: uuid
+             */
+            created_by_credential_id: string;
+            /** Destination Digest */
+            destination_digest: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Pairing Id
+             * Format: uuid
+             */
+            pairing_id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Source Digest */
+            source_digest: string;
+            /**
+             * Source Service Id
+             * Format: uuid
+             */
+            source_service_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
         };
         /** StagingPairing */
         StagingPairing: {
@@ -46774,6 +46882,67 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "apply-staging-service-mirror": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingMirrorApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingMirrorReceipt"];
+                };
+            };
+            /** @description Insufficient source, destination, or authoring authority */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source service or destination configuration reference not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source, destination, conflict resolution, or operation provenance changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Configuration fails destination authoring checks */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source response is unavailable, invalid, or too large */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

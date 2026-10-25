@@ -794,6 +794,8 @@ export type {
   StagingSourceServicesParams,
   StagingCloneImportsParams,
   StagingMirrorProposal,
+  StagingMirrorApplyRequest,
+  StagingMirrorReceipt,
   StagingCloneBatchRequest,
   StagingCloneBatchResult,
 } from './resources/staging-clones.js'

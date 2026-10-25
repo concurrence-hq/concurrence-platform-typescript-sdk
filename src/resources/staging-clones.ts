@@ -19,6 +19,8 @@ export type StagingPairing = components['schemas']['StagingPairing']
 export type StagingSourceServices = components['schemas']['StagingSourceServices']
 export type StagingCloneImports = components['schemas']['StagingCloneImports']
 export type StagingMirrorProposal = components['schemas']['StagingMirrorProposal']
+export type StagingMirrorApplyRequest = components['schemas']['StagingMirrorApplyRequest']
+export type StagingMirrorReceipt = components['schemas']['StagingMirrorReceipt']
 export type StagingSourceServicesParams =
   operations['list-staging-clone-source-services']['parameters']['query']
 export type StagingCloneImportsParams =
@@ -187,6 +189,20 @@ export class StagingClonesResource extends WorkspaceScopedResource {
   async previewMirror(body: StagingClonePullRequest) {
     return extractData(
       await this.client.POST('/v1/{workspace_id}/staging-clones/mirror-preview', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /**
+   * Apply both reviewed fingerprints and an explicit choice for every conflict.
+   * Reuse the operation ID and request after an ambiguous response; the latest
+   * identical operation returns its original receipt without resetting staging edits.
+   */
+  async applyMirror(body: StagingMirrorApplyRequest) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/staging-clones/mirror', {
         params: { path: { workspace_id: this.workspaceId } },
         body,
       }),

@@ -11,6 +11,7 @@ exports[`Generated type snapshots > keeps exported type names stable 1`] = `
 
 exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
 [
+  "apply-staging-service-mirror",
   "approve-external-write-proposal",
   "approve-integration-write",
   "approve-surface",
