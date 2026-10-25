@@ -6340,7 +6340,7 @@ export interface paths {
         put?: never;
         /**
          * Apply a reviewed production configuration update to staging
-         * @description Requires current administrator access in both environments and the reviewed source and destination fingerprints. Resolves every conflict explicitly, then commits service configuration, dependency versions and provenance together. Identical retries preserve the original operation receipt and later staging edits. Production credentials remain request-scoped.
+         * @description Requires current administrator access in both environments and the reviewed source and destination fingerprints. Resolves every conflict explicitly, then commits service configuration, dependency versions and provenance together. Identical retries of the latest mirror preserve its receipt and later staging edits; retries after another mirror require a new preview. Production credentials remain request-scoped.
          */
         post: operations["apply-staging-service-mirror"];
         delete?: never;

@@ -197,8 +197,9 @@ export class StagingClonesResource extends WorkspaceScopedResource {
 
   /**
    * Apply both reviewed fingerprints and an explicit choice for every conflict.
-   * Reuse the operation ID and request after an ambiguous response; the latest
-   * identical operation returns its original receipt without resetting staging edits.
+   * Reuse the operation ID and request after an ambiguous response. An identical
+   * retry of the latest mirror preserves its receipt and later staging edits.
+   * After another mirror, preview again before retrying.
    */
   async applyMirror(body: StagingMirrorApplyRequest) {
     return extractData(
