@@ -202,6 +202,22 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `delete`
 - `listVoiceJudgeResults`
 
+### `stagingClones`
+
+- `importAll`
+- `importBatchService`
+- `listSourceServices`
+- `listSourceServicesAutoPaging`
+- `listImports`
+- `listImportsAutoPaging`
+- `getPairing`
+- `previewSource`
+- `previewImport`
+- `previewMirror`
+- `applyMirror`
+- `pairWorkspace`
+- `importService`
+
 ### `contextGraphs`
 
 - `create`

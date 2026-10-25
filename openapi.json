@@ -10397,7 +10397,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -11335,6 +11335,16 @@
           },
           "slug": {
             "$ref": "#/components/schemas/SlugString"
+          },
+          "staging_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StagingWorkspaceSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -33724,7 +33734,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -38995,6 +39005,1045 @@
         "title": "SqlQueryResponse",
         "type": "object"
       },
+      "StagingAgentConfiguration": {
+        "description": "Agent-version configuration proposed for staging.",
+        "properties": {
+          "background": {
+            "$ref": "#/components/schemas/BackgroundString",
+            "default": ""
+          },
+          "behaviors": {
+            "items": {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Behaviors",
+            "type": "array"
+          },
+          "communication_patterns": {
+            "items": {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Communication Patterns",
+            "type": "array"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/Identity"
+          },
+          "initials": {
+            "default": "",
+            "maxLength": 10,
+            "title": "Initials",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "voice_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoiceConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "identity"
+        ],
+        "title": "StagingAgentConfiguration",
+        "type": "object"
+      },
+      "StagingCloneApplyRequest": {
+        "properties": {
+          "destination_workspace_id": {
+            "format": "uuid",
+            "title": "Destination Workspace Id",
+            "type": "string"
+          },
+          "expected_source_digest": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Source Digest",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "source_region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_token": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Source Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          },
+          "tool_mapping": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "maxProperties": 500,
+            "propertyNames": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "title": "Tool Mapping",
+            "type": "object"
+          }
+        },
+        "required": [
+          "destination_workspace_id",
+          "pairing_id",
+          "source_region",
+          "source_workspace_id",
+          "source_service_id",
+          "source_token",
+          "expected_source_digest"
+        ],
+        "title": "StagingCloneApplyRequest",
+        "type": "object"
+      },
+      "StagingCloneImports": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StagingCloneReceipt"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "StagingCloneImports",
+        "type": "object"
+      },
+      "StagingClonePlan": {
+        "properties": {
+          "agent_source_digests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Agent Source Digests",
+            "type": "object"
+          },
+          "agent_version_map": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Agent Version Map",
+            "type": "object"
+          },
+          "agent_versions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StagingAgentConfiguration"
+            },
+            "title": "Agent Versions",
+            "type": "object"
+          },
+          "excluded_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Fields",
+            "type": "array"
+          },
+          "graph_source_digests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Graph Source Digests",
+            "type": "object"
+          },
+          "graph_version_map": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Graph Version Map",
+            "type": "object"
+          },
+          "graph_versions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StagingGraphConfiguration"
+            },
+            "title": "Graph Versions",
+            "type": "object"
+          },
+          "service": {
+            "$ref": "#/components/schemas/StagingServiceConfiguration"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source_digest": {
+            "title": "Source Digest",
+            "type": "string"
+          },
+          "unresolved_tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_id",
+          "service",
+          "agent_versions",
+          "graph_versions",
+          "agent_version_map",
+          "graph_version_map",
+          "agent_source_digests",
+          "graph_source_digests",
+          "unresolved_tools",
+          "excluded_fields",
+          "source_digest"
+        ],
+        "title": "StagingClonePlan",
+        "type": "object"
+      },
+      "StagingClonePreviewRequest": {
+        "properties": {
+          "destination_workspace_id": {
+            "format": "uuid",
+            "title": "Destination Workspace Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "tool_mapping": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "maxProperties": 500,
+            "propertyNames": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "title": "Tool Mapping",
+            "type": "object"
+          }
+        },
+        "required": [
+          "destination_workspace_id",
+          "pairing_id"
+        ],
+        "title": "StagingClonePreviewRequest",
+        "type": "object"
+      },
+      "StagingClonePreviewResponse": {
+        "properties": {
+          "agent_name": {
+            "title": "Agent Name",
+            "type": "string"
+          },
+          "destination_workspace_id": {
+            "format": "uuid",
+            "title": "Destination Workspace Id",
+            "type": "string"
+          },
+          "graph_name": {
+            "title": "Graph Name",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/StagingClonePlan"
+          },
+          "source_agent_id": {
+            "format": "uuid",
+            "title": "Source Agent Id",
+            "type": "string"
+          },
+          "source_context_graph_id": {
+            "format": "uuid",
+            "title": "Source Context Graph Id",
+            "type": "string"
+          },
+          "source_region": {
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_workspace_id",
+          "source_service_id",
+          "source_agent_id",
+          "source_context_graph_id",
+          "source_region",
+          "destination_workspace_id",
+          "pairing_id",
+          "agent_name",
+          "graph_name",
+          "plan"
+        ],
+        "title": "StagingClonePreviewResponse",
+        "type": "object"
+      },
+      "StagingClonePullRequest": {
+        "properties": {
+          "destination_workspace_id": {
+            "format": "uuid",
+            "title": "Destination Workspace Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "source_region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_token": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Source Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          },
+          "tool_mapping": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "maxProperties": 500,
+            "propertyNames": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "title": "Tool Mapping",
+            "type": "object"
+          }
+        },
+        "required": [
+          "destination_workspace_id",
+          "pairing_id",
+          "source_region",
+          "source_workspace_id",
+          "source_service_id",
+          "source_token"
+        ],
+        "title": "StagingClonePullRequest",
+        "type": "object"
+      },
+      "StagingCloneReceipt": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "context_graph_id": {
+            "format": "uuid",
+            "title": "Context Graph Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_credential_id": {
+            "format": "uuid",
+            "title": "Created By Credential Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source_digest": {
+            "title": "Source Digest",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pairing_id",
+          "workspace_id",
+          "source_service_id",
+          "service_id",
+          "agent_id",
+          "context_graph_id",
+          "source_digest",
+          "created_by_credential_id",
+          "created_at"
+        ],
+        "title": "StagingCloneReceipt",
+        "type": "object"
+      },
+      "StagingGraphConfiguration": {
+        "description": "Graph-version configuration proposed for staging.",
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/DescriptionString",
+            "default": ""
+          },
+          "dynamic_behaviors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DynamicBehavior"
+                },
+                "maxItems": 254,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the\nlatest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.\nAdding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it\nor removing it doesn't.",
+            "title": "Dynamic Behaviors"
+          },
+          "global_action_guidelines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Global Action Guidelines",
+            "type": "array"
+          },
+          "global_boundary_constraints": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Global Boundary Constraints",
+            "type": "array"
+          },
+          "global_intra_state_navigation_guidelines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Global Intra State Navigation Guidelines",
+            "type": "array"
+          },
+          "new_user_initial_state": {
+            "title": "New User Initial State",
+            "type": "string"
+          },
+          "returning_user_initial_state": {
+            "title": "Returning User Initial State",
+            "type": "string"
+          },
+          "states": {
+            "items": {
+              "$ref": "#/components/schemas/ContextGraphState-Output"
+            },
+            "title": "States",
+            "type": "array"
+          },
+          "terminal_state": {
+            "title": "Terminal State",
+            "type": "string"
+          },
+          "topology_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topology Description"
+          }
+        },
+        "required": [
+          "states",
+          "new_user_initial_state",
+          "returning_user_initial_state",
+          "terminal_state"
+        ],
+        "title": "StagingGraphConfiguration",
+        "type": "object"
+      },
+      "StagingMirrorApplyRequest": {
+        "properties": {
+          "destination_workspace_id": {
+            "format": "uuid",
+            "title": "Destination Workspace Id",
+            "type": "string"
+          },
+          "expected_destination_digest": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Destination Digest",
+            "type": "string"
+          },
+          "expected_source_digest": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Source Digest",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "resolutions": {
+            "maxProperties": 500,
+            "patternProperties": {
+              "^/": {
+                "enum": [
+                  "staging",
+                  "production"
+                ],
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "maxLength": 4096,
+              "minLength": 1
+            },
+            "title": "Resolutions",
+            "type": "object"
+          },
+          "source_region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_token": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Source Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          },
+          "tool_mapping": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "maxProperties": 500,
+            "propertyNames": {
+              "$ref": "#/components/schemas/_ToolName"
+            },
+            "title": "Tool Mapping",
+            "type": "object"
+          }
+        },
+        "required": [
+          "destination_workspace_id",
+          "pairing_id",
+          "source_region",
+          "source_workspace_id",
+          "source_service_id",
+          "source_token",
+          "expected_source_digest",
+          "expected_destination_digest",
+          "operation_id"
+        ],
+        "title": "StagingMirrorApplyRequest",
+        "type": "object"
+      },
+      "StagingMirrorProposal": {
+        "properties": {
+          "configuration": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Configuration",
+            "type": "object"
+          },
+          "conflicts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "current_configuration": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Current Configuration",
+            "type": "object"
+          },
+          "destination_digest": {
+            "title": "Destination Digest",
+            "type": "string"
+          },
+          "incoming_configuration": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Incoming Configuration",
+            "type": "object"
+          },
+          "new_agent_versions": {
+            "title": "New Agent Versions",
+            "type": "integer"
+          },
+          "new_graph_versions": {
+            "title": "New Graph Versions",
+            "type": "integer"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source_digest": {
+            "title": "Source Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "source_digest",
+          "destination_digest",
+          "current_configuration",
+          "incoming_configuration",
+          "configuration",
+          "conflicts",
+          "new_agent_versions",
+          "new_graph_versions"
+        ],
+        "title": "StagingMirrorProposal",
+        "type": "object"
+      },
+      "StagingMirrorReceipt": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_credential_id": {
+            "format": "uuid",
+            "title": "Created By Credential Id",
+            "type": "string"
+          },
+          "destination_digest": {
+            "title": "Destination Digest",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "pairing_id": {
+            "format": "uuid",
+            "title": "Pairing Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source_digest": {
+            "title": "Source Digest",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "pairing_id",
+          "workspace_id",
+          "source_service_id",
+          "service_id",
+          "source_digest",
+          "destination_digest",
+          "created_by_credential_id",
+          "created_at"
+        ],
+        "title": "StagingMirrorReceipt",
+        "type": "object"
+      },
+      "StagingPairing": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_credential_id": {
+            "format": "uuid",
+            "title": "Created By Credential Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "source_region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "source_workspace_id",
+          "source_region",
+          "created_by_credential_id",
+          "created_at"
+        ],
+        "title": "StagingPairing",
+        "type": "object"
+      },
+      "StagingServiceConfiguration": {
+        "description": "Inactive service configuration proposed for staging.",
+        "properties": {
+          "accepted_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextKeySpec"
+            },
+            "maxItems": 100,
+            "title": "Accepted Context",
+            "type": "array"
+          },
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "allow_unverified_integration_results": {
+            "default": false,
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "title": "Allow Unverified Integration Results",
+            "type": "boolean"
+          },
+          "caller_verification_endpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The integration endpoint that verifies this service's callers, on a service with\n`platform_caller_verification` and `allow_unverified_integration_results` false. The endpoint has to\nbe one of this workspace's, declare `declarations.verifies`, and never wait for approval under its\nintegration's `approval_policy`. A successful call verifies the caller as the one patient its response\nnames there, once per conversation. The reads of that integration that declare the patient they read\nrefuse until then, and then run only for that patient, and the agent may share what they return.\nNaming one needs `Service.update`.",
+            "title": "Caller Verification Endpoint Id"
+          },
+          "channel_type": {
+            "default": "voice",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Channel Type",
+            "type": "string"
+          },
+          "context_graph_id": {
+            "format": "uuid",
+            "title": "Context Graph Id",
+            "type": "string"
+          },
+          "demo_mode": {
+            "default": false,
+            "description": "Internal. Only a platform admin can set this.",
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "description": {
+            "$ref": "#/components/schemas/DescriptionString",
+            "default": ""
+          },
+          "environment": {
+            "default": "production",
+            "enum": [
+              "sandbox",
+              "production"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "keyterms": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Keyterms",
+            "type": "array"
+          },
+          "medical_emergency_ending": {
+            "default": "stay_on_line",
+            "description": "How a voice call ends after a medical emergency's script: ``stay_on_line`` (the default) or\n``end_after_script``, which plays the authored closing line and then ends the call. A self-harm or\ncrisis statement keeps the call open in either.",
+            "enum": [
+              "stay_on_line",
+              "end_after_script"
+            ],
+            "title": "Medical Emergency Ending",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "platform_caller_verification": {
+            "default": true,
+            "description": "Whether the platform verifies a caller who may match a patient record by full name and date of\nbirth. Off, the agent never asks a caller to verify, and every platform tool that reads a patient\nrecord refuses. The service's integration tools run either way, unless one of them verifies its\ncallers (`caller_verification_endpoint_id`).",
+            "title": "Platform Caller Verification",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceTag"
+            },
+            "maxItems": 50,
+            "title": "Tags",
+            "type": "array"
+          },
+          "tool_capacity": {
+            "default": 3,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Tool Capacity",
+            "type": "integer"
+          },
+          "version_sets": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VersionSet-Output"
+            },
+            "default": {},
+            "title": "Version Sets",
+            "type": "object"
+          },
+          "voice_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceVoiceConfig-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "agent_id",
+          "context_graph_id"
+        ],
+        "title": "StagingServiceConfiguration",
+        "type": "object"
+      },
+      "StagingSourceServices": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/src__services__staging_clone_catalog__StagingSourceServices__Item"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "source_region": {
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_workspace_id",
+          "source_region",
+          "items",
+          "has_more"
+        ],
+        "title": "StagingSourceServices",
+        "type": "object"
+      },
+      "StagingWorkspaceSource": {
+        "properties": {
+          "source_region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_service_id": {
+            "format": "uuid",
+            "title": "Source Service Id",
+            "type": "string"
+          },
+          "source_token": {
+            "format": "password",
+            "maxLength": 16384,
+            "minLength": 1,
+            "title": "Source Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_region",
+          "source_workspace_id",
+          "source_service_id",
+          "source_token"
+        ],
+        "title": "StagingWorkspaceSource",
+        "type": "object"
+      },
       "StartSessionRequest": {
         "properties": {
           "canonical_id": {
@@ -41636,7 +42685,7 @@
         "type": "object"
       },
       "TextAgentMessageEvent": {
-        "description": "An agent text turn pushed live to the conversation's stream \u2014 the outbox of the\ndurable text-conversation actor (text-conversation-actor Stage A).\n\nWhere ``TextBackgroundResultEvent`` surfaces the raw tool card,\nthis carries the agent's *narrated* response (the turn the actor produces after\nre-entering on a background completion or other off-request signal), so a\nclient watching the conversation renders it as a normal agent message with no polling\nand no user turn. ``conversation_id`` is the durable conversation UUID (web-only).",
+        "description": "An agent text turn pushed live to the conversation's stream \u2014 the outbox of the\ndurable text-conversation actor (text-conversation-actor Stage A).\n\nWhere ``TextBackgroundResultEvent`` surfaces the raw tool card,\nthis carries the agent's *narrated* response: every turn the actor sends, whether it\nanswers a user turn or follows a background completion or other off-request signal, so\na client watching the conversation renders it as a normal agent message with no polling.\n``conversation_id`` is the durable conversation UUID (web-only).",
         "properties": {
           "conversation_id": {
             "format": "uuid",
@@ -46546,7 +47595,7 @@
                 "type": "null"
               }
             ],
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results"
           },
           "caller_verification_endpoint_id": {
@@ -49830,7 +50879,7 @@
         "type": "object"
       },
       "VoiceSettingsRequest": {
-        "description": "Voice experience control plane \u2014 PM-facing, high-level controls.\n\nControls the caller experience without exposing engineering internals.\nEmotion detection, filler speech, model selection, and buffer tuning\nare always-on internals managed by engineering.",
+        "description": "Voice experience control plane \u2014 PM-facing, high-level controls.\n\nControls the caller experience without exposing engineering internals.\nEmotion detection, filler speech, and buffer tuning are always-on\ninternals managed by engineering.",
         "properties": {
           "keyterms": {
             "anyOf": [
@@ -49954,6 +51003,18 @@
               }
             ],
             "title": "Stt Provider"
+          },
+          "text_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Model"
           },
           "tone": {
             "anyOf": [
@@ -50098,6 +51159,17 @@
             ],
             "title": "Stt Provider"
           },
+          "text_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Model"
+          },
           "tone": {
             "anyOf": [
               {
@@ -50171,7 +51243,8 @@
           "post_call_analysis_enabled",
           "stt_provider",
           "tts_provider",
-          "tts_config"
+          "tts_config",
+          "text_model"
         ],
         "title": "VoiceSettingsResponse",
         "type": "object"
@@ -51097,6 +52170,11 @@
       },
       "_ToolMockValue": {
         "maxLength": 16384,
+        "type": "string"
+      },
+      "_ToolName": {
+        "maxLength": 256,
+        "minLength": 1,
         "type": "string"
       },
       "_VolumePath": {
@@ -53487,6 +54565,25 @@
         ],
         "title": "Response",
         "type": "object"
+      },
+      "src__services__staging_clone_catalog__StagingSourceServices__Item": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Item",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -54652,7 +55749,7 @@
     },
     "/v1/me/workspaces": {
       "post": {
-        "description": "Create a new workspace and attach the authenticated caller as the owner.",
+        "description": "Create a workspace and attach the authenticated caller as owner. On staging, staging_source creates a stable production pairing using fresh source administrator authority. Retries preserve the original workspace and require its original creator and current owner access. Source credentials are not retained.",
         "operationId": "create-my-workspace",
         "requestBody": {
           "content": {
@@ -54678,11 +55775,17 @@
           "403": {
             "description": "Missing the workspaces:write scope (developer grant) or unsupported principal type."
           },
+          "404": {
+            "description": "Production source service or active destination not found."
+          },
           "409": {
-            "description": "Workspace slug already taken."
+            "description": "Workspace slug, source pairing, or destination state conflicts."
           },
           "422": {
             "description": "Invalid request body."
+          },
+          "502": {
+            "description": "Production source unavailable or invalid."
           },
           "503": {
             "description": "Identity service unavailable."
@@ -55214,7 +56317,7 @@
     },
     "/v1/{workspace_id}/agent-runs/harness-context": {
       "get": {
-        "description": "The retrievable CONTEXT edge of the world-model harness: identity + reference instructions, world scope, tool descriptors, guardrails, and an MCP write-policy summary. It shares the HarnessContext schema with the hosted harness but is not byte-identical to a hosted render. PHI-free (the API-run projection carries no scoped entities or rendered caller prose).",
+        "description": "The retrievable CONTEXT edge of the world-model harness: identity + reference instructions, world scope, tool descriptors, guardrails, and an MCP write-policy summary. PHI-free (the API-run projection carries no scoped entities or rendered caller prose).",
         "operationId": "get_harness_context_v1__workspace_id__agent_runs_harness_context_get",
         "parameters": [
           {
@@ -75308,7 +76411,7 @@
     },
     "/v1/{workspace_id}/services": {
       "get": {
-        "description": "List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph. Requires `Service.view` permission.",
+        "description": "List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph, or by `allow_unverified_integration_results` to list the services that have that bypass on. Requires `Service.view` permission.",
         "operationId": "list-services",
         "parameters": [
           {
@@ -75423,6 +76526,24 @@
               "description": "Only services on this context graph. Each version set pins a version of its service's context graph.",
               "title": "Context Graph Id"
             }
+          },
+          {
+            "description": "Only services whose `allow_unverified_integration_results` bypass is on (`true`) or off (`false`). A service\nthat never set it reads off. `true` lists the services that have the bypass on.",
+            "in": "query",
+            "name": "allow_unverified_integration_results",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only services whose `allow_unverified_integration_results` bypass is on (`true`) or off (`false`). A service\nthat never set it reads off. `true` lists the services that have the bypass on.",
+              "title": "Allow Unverified Integration Results"
+            }
           }
         ],
         "responses": {
@@ -75462,7 +76583,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -75636,7 +76757,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
@@ -75698,6 +76819,79 @@
           }
         },
         "summary": "Update a service",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/services/{service_id}/staging-clone-preview": {
+      "post": {
+        "description": "Requires Workspace.update in a production source workspace. Returns an inactive configuration proposal, explicit version mappings, unresolved tools and excluded fields. Does not create destination resources or establish destination authority. Authored text is retained; embedded sensitive text is not redacted.",
+        "operationId": "preview-staging-service-clone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingClonePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingClonePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source authority"
+          },
+          "404": {
+            "description": "Service not found"
+          },
+          "409": {
+            "description": "Source environment or configuration cannot be cloned"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview a service configuration for staging",
         "tags": [
           "Services"
         ]
@@ -76810,7 +78004,7 @@
         ]
       },
       "put": {
-        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID \u2014 determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
+        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID \u2014 determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n- **text_model**: The model that writes the agent's replies on voice\n  calls (default: the platform's). An id the platform doesn't serve in\n  this region is refused with a 422.\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
         "operationId": "update-voice-settings",
         "parameters": [
           {
@@ -80486,6 +81680,496 @@
         ]
       }
     },
+    "/v1/{workspace_id}/staging-clones/import": {
+      "post": {
+        "description": "Requires current administrator access in both environments. Fetches the source again and compares its digest with the preview before an atomic initial copy. Copies are inactive sandbox services. Retries retain prior copies and staging edits; changed source configuration requires mirroring. Authored text is retained; embedded sensitive text is not redacted.",
+        "operationId": "import-staging-service-clone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingCloneApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingCloneReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source, destination, or authoring authority"
+          },
+          "404": {
+            "description": "Source service not found"
+          },
+          "409": {
+            "description": "Source revision, pairing, destination, or clone provenance conflict"
+          },
+          "422": {
+            "description": "Configuration fails destination authoring checks"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Import a production service into its paired staging workspace",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/imports": {
+      "get": {
+        "description": "Requires administrator access on a staging deployment. Returns historical import receipts ordered by source service ID, without configuration or production credentials. Does not contact production or assert that copied services still exist or match their original configuration.",
+        "operationId": "list-staging-clone-imports",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingCloneImports"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient destination authority"
+          },
+          "409": {
+            "description": "Not staging, inactive destination, or invalid pairing/import provenance"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List original import receipts in a paired staging workspace",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/mirror": {
+      "post": {
+        "description": "Requires current administrator access in both environments and the reviewed source and destination fingerprints. Resolves every conflict explicitly, then commits service configuration, dependency versions and provenance together. Identical retries of the latest mirror preserve its receipt and later staging edits; retries after another mirror require a new preview. Production credentials remain request-scoped.",
+        "operationId": "apply-staging-service-mirror",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingMirrorApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingMirrorReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source, destination, or authoring authority"
+          },
+          "404": {
+            "description": "Source service or destination configuration reference not found"
+          },
+          "409": {
+            "description": "Source, destination, conflict resolution, or operation provenance changed"
+          },
+          "422": {
+            "description": "Configuration fails destination authoring checks"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Apply a reviewed production configuration update to staging",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/mirror-preview": {
+      "post": {
+        "description": "Requires current administrator access in both environments. Returns a three-way configuration proposal, conflicts and source/destination revision fingerprints without persisting changes. Staging overrides are retained; production credentials remain request-scoped.",
+        "operationId": "preview-staging-service-mirror",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingClonePullRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingMirrorProposal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source, destination, or authoring authority"
+          },
+          "404": {
+            "description": "Source service not found"
+          },
+          "409": {
+            "description": "Environment, pairing, import provenance, or source conflict"
+          },
+          "422": {
+            "description": "Configuration fails destination authoring checks"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Review production configuration changes against a staging copy",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/pairing": {
+      "get": {
+        "description": "Requires administrator access to the staging destination. Returns local pairing metadata only; does not contact production or establish current source authority.",
+        "operationId": "get-staging-workspace-pairing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingPairing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient destination authority"
+          },
+          "404": {
+            "description": "Workspace has no staging pairing"
+          },
+          "409": {
+            "description": "Not staging, inactive destination, or invalid pairing metadata"
+          }
+        },
+        "summary": "Read the staging workspace's production pairing",
+        "tags": [
+          "Services"
+        ]
+      },
+      "put": {
+        "description": "Requires current administrator access in both environments, including on retries. Stores source identity and creator provenance in the staging workspace, without source credentials. An existing pairing cannot be silently retargeted. Creates no workspace or service copies.",
+        "operationId": "pair-staging-workspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingClonePullRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingPairing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source or destination authority"
+          },
+          "404": {
+            "description": "Source service not found"
+          },
+          "409": {
+            "description": "Inactive destination, incompatible pairing, or source configuration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Pair a staging workspace with a production source",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/preview": {
+      "post": {
+        "description": "Requires administrator access to the staging destination and current administrator credentials for the production source. The source token is request-scoped and is not stored or returned. Fetches only from the selected production region, without redirects. Does not create resources or validate staging tools. Authored text is retained; embedded sensitive text is not redacted.",
+        "operationId": "preview-staging-service-import",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingClonePullRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingClonePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source or destination authority"
+          },
+          "404": {
+            "description": "Source service not found"
+          },
+          "409": {
+            "description": "Environment, destination, or source configuration cannot be cloned"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Preview importing a production service into staging",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/source-services": {
+      "get": {
+        "description": "Requires administrator access on a production deployment. Returns only active service IDs and names, ordered by ID, from the authenticated workspace. Does not return configuration or establish a snapshot across pages; a later preview rechecks the source.",
+        "operationId": "list-staging-clone-source-services",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingSourceServices"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source authority"
+          },
+          "409": {
+            "description": "Not production"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List production services available for staging copies",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
     "/v1/{workspace_id}/surfaces": {
       "get": {
         "description": "List surfaces with pagination and optional filters.\n\nPermissions: viewer, member, admin, owner (surfaces:read)",
@@ -81598,7 +83282,7 @@
     },
     "/v1/{workspace_id}/traces:export": {
       "post": {
-        "description": "Export the workspace's durable trace spans over a time window as OpenTelemetry Protocol (OTLP/HTTP JSON) spans: ``gen_ai.*`` tool-call spans and the per-call voice-isolation ``voice.*`` infra spans (allocate / media-attach / reap). Read-only; `Audit:View` permission required; dark behind ``OTEL_TRACE_EXPORT_ENABLED`` (404 when off). Paginated PULL API \u2014 extract ``.resourceSpans`` before forwarding to an OTLP collector. Attributes are an allowlist of tool-call + infra metadata; the raw tool-result ``error`` text is NOT exported (PHI-safe by construction).",
+        "description": "Export the workspace's durable trace spans over a time window as OpenTelemetry Protocol (OTLP/HTTP JSON) spans: ``gen_ai.*`` tool-call spans and the per-call voice-isolation ``voice.*`` infra spans (allocate / media-attach / reap). Read-only; `Audit:View` permission required. Paginated PULL API \u2014 extract ``.resourceSpans`` before forwarding to an OTLP collector. Attributes are an allowlist of tool-call + infra metadata; the raw tool-result ``error`` text is NOT exported (PHI-safe by construction).",
         "operationId": "export_traces_v1__workspace_id__traces_export_post",
         "parameters": [
           {

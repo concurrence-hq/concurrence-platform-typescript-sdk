@@ -1,6 +1,8 @@
 import type { components } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
+export type StagingWorkspaceSource = components['schemas']['StagingWorkspaceSource']
+
 /**
  * Account-scoped operations for the authenticated identity.
  *

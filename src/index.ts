@@ -50,6 +50,7 @@ import { OperatorsResource } from './resources/operators.js'
 import { PromptLogsResource } from './resources/prompt-logs.js'
 import { TriggersResource } from './resources/triggers.js'
 import { ServicesResource } from './resources/services.js'
+import { StagingClonesResource } from './resources/staging-clones.js'
 import { ContextGraphsResource } from './resources/context-graphs.js'
 import { DataSourcesResource } from './resources/data-sources.js'
 import { WorldResource } from './resources/world.js'
@@ -224,6 +225,7 @@ export class AmigoClient {
   readonly promptLogs!: PromptLogsResource
   readonly triggers!: TriggersResource
   readonly services!: ServicesResource
+  readonly stagingClones!: StagingClonesResource
   readonly contextGraphs!: ContextGraphsResource
   readonly dataSources!: DataSourcesResource
   readonly world!: WorldResource
@@ -500,6 +502,7 @@ export class AmigoClient {
     mutable.promptLogs = new PromptLogsResource(client, workspaceId)
     mutable.triggers = new TriggersResource(client, workspaceId)
     mutable.services = new ServicesResource(client, workspaceId)
+    mutable.stagingClones = new StagingClonesResource(client, workspaceId)
     mutable.contextGraphs = new ContextGraphsResource(client, workspaceId)
     mutable.dataSources = new DataSourcesResource(client, workspaceId)
     mutable.world = new WorldResource(client, workspaceId)
@@ -778,6 +781,26 @@ export type {
   VoiceJudgeResult,
   VoiceJudgeResultListResponse,
 } from './resources/services.js'
+
+export type {
+  StagingClonePreviewRequest,
+  StagingClonePreviewResponse,
+  StagingClonePullRequest,
+  StagingCloneApplyRequest,
+  StagingCloneReceipt,
+  StagingPairing,
+  StagingSourceServices,
+  StagingCloneImports,
+  StagingSourceServicesParams,
+  StagingCloneImportsParams,
+  StagingMirrorProposal,
+  StagingMirrorApplyRequest,
+  StagingMirrorReceipt,
+  StagingCloneBatchRequest,
+  StagingCloneBatchResult,
+} from './resources/staging-clones.js'
+
+export type { StagingWorkspaceSource } from './resources/me.js'
 
 export type { Run, RunManifest } from './resources/runs.js'
 

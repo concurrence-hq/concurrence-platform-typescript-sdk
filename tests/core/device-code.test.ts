@@ -66,6 +66,16 @@ const TOKEN = {
 // --- decodeJwtPayload ---
 
 describe('decodeJwtPayload', () => {
+  it('decodes UTF-8 claims in browsers without a Node Buffer global', () => {
+    const claims = { sub: 'e1', workspace_id: 'ws1', name: 'Montréal 東京' }
+    const jwt = makeJwt(claims)
+    vi.stubGlobal('Buffer', undefined)
+    try {
+      expect(decodeJwtPayload(jwt)).toEqual(claims)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('decodes a valid JWT payload', () => {
     const jwt = makeJwt({ sub: 'e1', workspace_id: 'ws1', exp: 1700000000 })
     expect(decodeJwtPayload(jwt)).toEqual({ sub: 'e1', workspace_id: 'ws1', exp: 1700000000 })
@@ -84,6 +94,22 @@ describe('decodeJwtPayload', () => {
 // --- loginWithDeviceCode ---
 
 describe('loginWithDeviceCode', () => {
+  it('uses the pinned device token directly in a browser without refreshing', async () => {
+    const headers = new Headers()
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 200, ok: true, headers, json: async () => ISSUANCE })
+      .mockResolvedValue({ status: 200, ok: true, headers, json: async () => TOKEN })
+    vi.stubGlobal('Buffer', undefined)
+    try {
+      const result = await loginWithDeviceCode({ workspaceId: 'ws1', onCode: vi.fn(), fetch })
+      expect(result.workspaceId).toBe('ws1')
+      expect(result.accessToken).toBe(TOKEN.access_token)
+      expect(fetch).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('completes full login flow', async () => {
     const onCode = vi.fn()
     const result = await loginWithDeviceCode({
