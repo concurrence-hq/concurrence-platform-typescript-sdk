@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.122.1] - 2026-10-25
+
+### Documentation
+
+- the baseUrl docs no longer name a staging host (ALL-2006) (#490)
+
 ## [0.122.0] - 2026-10-25
 
 ### Maintenance
