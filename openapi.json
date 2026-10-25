@@ -21798,6 +21798,59 @@
         "title": "Identity",
         "type": "object"
       },
+      "IdentityLifecycleActionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_id": {
+            "format": "uuid",
+            "title": "Configuration Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "format": "uuid",
+            "title": "Configuration Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configuration_id",
+          "configuration_revision"
+        ],
+        "title": "IdentityLifecycleActionRequest",
+        "type": "object"
+      },
+      "IdentityLifecycleActionResponse": {
+        "properties": {
+          "action_id": {
+            "format": "uuid",
+            "title": "Action Id",
+            "type": "string"
+          },
+          "configuration_id": {
+            "format": "uuid",
+            "title": "Configuration Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "format": "uuid",
+            "title": "Configuration Revision",
+            "type": "string"
+          },
+          "connection_id": {
+            "format": "uuid",
+            "title": "Connection Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "connection_id",
+          "configuration_id",
+          "configuration_revision"
+        ],
+        "title": "IdentityLifecycleActionResponse",
+        "type": "object"
+      },
       "IdentityMetrics": {
         "properties": {
           "active_api_keys": {
@@ -81343,6 +81396,133 @@
           }
         },
         "summary": "Create a skill",
+        "tags": [
+          "Skills"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/skills/identity-lifecycle/{connection_id}": {
+      "get": {
+        "operationId": "get-identity-lifecycle-action",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityLifecycleActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Administrator permission required."
+          },
+          "404": {
+            "description": "Lifecycle action not found in this workspace."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read an Identity lifecycle action",
+        "tags": [
+          "Skills"
+        ]
+      },
+      "put": {
+        "description": "Administrator-only, idempotent action binding for one workspace SSO connection. Use the returned action_id in an existing cron trigger with an empty input_template. Identity validates the saved configuration and revision when the action runs. Pause the trigger or disable the Identity lifecycle configuration to stop reconciliation.",
+        "operationId": "put-identity-lifecycle-action",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityLifecycleActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityLifecycleActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Administrator permission required."
+          },
+          "409": {
+            "description": "Action slug occupied or a related update is in progress."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save an Identity lifecycle action",
         "tags": [
           "Skills"
         ]

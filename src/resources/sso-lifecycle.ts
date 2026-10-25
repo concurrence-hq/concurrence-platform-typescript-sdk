@@ -1,3 +1,4 @@
+import { ConfigurationError } from '../core/errors.js'
 import { IdentityResource } from './identity/base.js'
 
 export interface ConfigureSsoLifecycle {
@@ -47,8 +48,70 @@ export interface EnableSsoLifecycle extends SsoLifecycleRevision {
   binding_id: string
 }
 
+export interface SsoLifecycleStatusConfiguration extends Omit<
+  SsoLifecycleConfiguration,
+  'workspace_id' | 'connection_id'
+> {
+  connection_revision: string
+}
+
+export interface SsoLifecycleAuthority {
+  generation_id: string
+  generation_number: number
+  observed_at: string
+  valid_until: string
+}
+
+export interface SsoLifecycleBindingStatus {
+  binding_id: string
+  entity_id: string
+  state: 'active' | 'inactive' | 'unavailable'
+  reason: string
+  /** Only currently accepted active/inactive evidence carries authority. */
+  authority: SsoLifecycleAuthority | null
+}
+
+export interface SsoLifecycleStatus {
+  workspace_id: string
+  connection_id: string
+  connection_revision: string
+  connection_enabled: boolean
+  configuration: SsoLifecycleStatusConfiguration | null
+  items: SsoLifecycleBindingStatus[]
+  has_more: boolean
+  continuation_token: unknown
+}
+
+export interface GetSsoLifecycleStatus {
+  limit?: number
+  continuation_token?: unknown
+  sort_by?: ('+created_at' | '-created_at')[]
+}
+
 /** Tenant-specific provider configuration. Previews do not establish enforced access. */
 export class SsoLifecycleResource extends IdentityResource {
+  /** Read accepted authority per binding. A successful run is not global freshness. */
+  async getStatus(query: GetSsoLifecycleStatus = {}): Promise<SsoLifecycleStatus> {
+    const result = await this.request<SsoLifecycleStatus>(
+      'GET',
+      'sso/lifecycle/status',
+      undefined,
+      {
+        query: { ...query },
+      },
+    )
+    for (const item of result.items) {
+      if (
+        item.authority &&
+        (!Number.isSafeInteger(item.authority.generation_number) ||
+          item.authority.generation_number <= 0)
+      ) {
+        throw new ConfigurationError('Lifecycle generation cannot be represented safely')
+      }
+    }
+    return result
+  }
+
   getConfiguration(): Promise<SsoLifecycleConfiguration> {
     return this.request('GET', 'sso/lifecycle/configuration')
   }

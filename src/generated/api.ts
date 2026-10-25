@@ -6215,6 +6215,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/skills/identity-lifecycle/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an Identity lifecycle action */
+        get: operations["get-identity-lifecycle-action"];
+        /**
+         * Save an Identity lifecycle action
+         * @description Administrator-only, idempotent action binding for one workspace SSO connection. Use the returned action_id in an existing cron trigger with an empty input_template. Identity validates the saved configuration and revision when the action runs. Pause the trigger or disable the Identity lifecycle configuration to stop reconciliation.
+         */
+        put: operations["put-identity-lifecycle-action"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/skills/{skill_id}": {
         parameters: {
             query?: never;
@@ -16565,6 +16586,42 @@ export interface components {
             relationship_to_developer?: components["schemas"]["RelationshipToDeveloper"];
             /** Role */
             role: string;
+        };
+        /** IdentityLifecycleActionRequest */
+        IdentityLifecycleActionRequest: {
+            /**
+             * Configuration Id
+             * Format: uuid
+             */
+            configuration_id: string;
+            /**
+             * Configuration Revision
+             * Format: uuid
+             */
+            configuration_revision: string;
+        };
+        /** IdentityLifecycleActionResponse */
+        IdentityLifecycleActionResponse: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /**
+             * Configuration Id
+             * Format: uuid
+             */
+            configuration_id: string;
+            /**
+             * Configuration Revision
+             * Format: uuid
+             */
+            configuration_revision: string;
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
         };
         /** IdentityMetrics */
         IdentityMetrics: {
@@ -46495,6 +46552,102 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "get-identity-lifecycle-action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityLifecycleActionResponse"];
+                };
+            };
+            /** @description Administrator permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lifecycle action not found in this workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "put-identity-lifecycle-action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityLifecycleActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityLifecycleActionResponse"];
+                };
+            };
+            /** @description Administrator permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Action slug occupied or a related update is in progress. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

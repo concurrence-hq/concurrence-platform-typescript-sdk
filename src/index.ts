@@ -49,6 +49,10 @@ export type { AgentRunFramework } from './resources/agent-runs.js'
 import { RunsResource } from './resources/runs.js'
 import { SkillsResource } from './resources/skills.js'
 import { ActionsResource } from './resources/actions.js'
+export type {
+  IdentityLifecycleActionRequest,
+  IdentityLifecycleActionResponse,
+} from './resources/actions.js'
 import { OperatorsResource } from './resources/operators.js'
 import { PromptLogsResource } from './resources/prompt-logs.js'
 import { TriggersResource } from './resources/triggers.js'

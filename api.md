@@ -114,6 +114,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `ssoLifecycle`
 
+- `getStatus`
 - `getConfiguration`
 - `configure`
 - `verify`
@@ -170,6 +171,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `actions`
 
+- `putIdentityLifecycle`
+- `getIdentityLifecycle`
 - `create`
 - `list`
 - `listAutoPaging`
