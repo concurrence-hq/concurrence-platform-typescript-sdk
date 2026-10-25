@@ -6,6 +6,11 @@ import type { ListParams } from '../core/utils.js'
 export interface ListServicesParams extends ListParams {
   search?: string
   type?: string
+  /**
+   * Only services whose `allow_unverified_integration_results` bypass is on (`true`) or off
+   * (`false`). A service that never set it reads off.
+   */
+  allow_unverified_integration_results?: boolean
 }
 
 export type ListVoiceJudgeResultsParams = NonNullable<

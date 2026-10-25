@@ -187,6 +187,29 @@ describe('ServicesResource', () => {
     expect(result.has_more).toBe(false)
   })
 
+  it('lists services, forwarding the allow_unverified_integration_results filter', async () => {
+    let captured: URL | undefined
+    const filterClient = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input: string | URL | Request, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init)
+        captured = new URL(request.url)
+        return Response.json({
+          items: [SERVICE_FIXTURE],
+          has_more: false,
+          continuation_token: null,
+        })
+      },
+    })
+
+    const result = await filterClient.services.list({ allow_unverified_integration_results: true })
+
+    expect(captured?.pathname).toBe(`${BASE}/services`)
+    expect(captured?.searchParams.get('allow_unverified_integration_results')).toBe('true')
+    expect(result.items).toHaveLength(1)
+  })
+
   it('gets a service by id', async () => {
     const result = await client.services.get(SERVICE_ID)
     expect(result.id).toBe(SERVICE_ID)

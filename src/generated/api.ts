@@ -529,7 +529,7 @@ export interface paths {
         };
         /**
          * Fetch the neutral session-bootstrap context for a service
-         * @description The retrievable CONTEXT edge of the world-model harness: identity + reference instructions, world scope, tool descriptors, guardrails, and an MCP write-policy summary. It shares the HarnessContext schema with the hosted harness but is not byte-identical to a hosted render. PHI-free (the API-run projection carries no scoped entities or rendered caller prose).
+         * @description The retrievable CONTEXT edge of the world-model harness: identity + reference instructions, world scope, tool descriptors, guardrails, and an MCP write-policy summary. PHI-free (the API-run projection carries no scoped entities or rendered caller prose).
          */
         get: operations["get_harness_context_v1__workspace_id__agent_runs_harness_context_get"];
         put?: never;
@@ -4964,13 +4964,13 @@ export interface paths {
         };
         /**
          * List services
-         * @description List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph. Requires `Service.view` permission.
+         * @description List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph, or by `allow_unverified_integration_results` to list the services that have that bypass on. Requires `Service.view` permission.
          */
         get: operations["list-services"];
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -4993,7 +4993,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.
+         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5405,6 +5405,9 @@ export interface paths {
          *     - **volume**: Volume multiplier (0.0-1.0)
          *     - **language**: The language calls are spoken in (default ``en``), or
          *       ``multilingual`` to follow the language the caller speaks
+         *     - **text_model**: The model that writes the agent's replies on voice
+         *       calls (default: the platform's). An id the platform doesn't serve in
+         *       this region is refused with a 422.
          *
          *     **Speech Recognition Boost**
          *     - **keyterms**: Exact words the speech recognition engine should
@@ -6581,7 +6584,7 @@ export interface paths {
         put?: never;
         /**
          * Export gen_ai.* + voice.* traces as OTLP/JSON
-         * @description Export the workspace's durable trace spans over a time window as OpenTelemetry Protocol (OTLP/HTTP JSON) spans: ``gen_ai.*`` tool-call spans and the per-call voice-isolation ``voice.*`` infra spans (allocate / media-attach / reap). Read-only; `Audit:View` permission required; dark behind ``OTEL_TRACE_EXPORT_ENABLED`` (404 when off). Paginated PULL API — extract ``.resourceSpans`` before forwarding to an OTLP collector. Attributes are an allowlist of tool-call + infra metadata; the raw tool-result ``error`` text is NOT exported (PHI-safe by construction).
+         * @description Export the workspace's durable trace spans over a time window as OpenTelemetry Protocol (OTLP/HTTP JSON) spans: ``gen_ai.*`` tool-call spans and the per-call voice-isolation ``voice.*`` infra spans (allocate / media-attach / reap). Read-only; `Audit:View` permission required. Paginated PULL API — extract ``.resourceSpans`` before forwarding to an OTLP collector. Attributes are an allowlist of tool-call + infra metadata; the raw tool-result ``error`` text is NOT exported (PHI-safe by construction).
          */
         post: operations["export_traces_v1__workspace_id__traces_export_post"];
         delete?: never;
@@ -11624,7 +11627,8 @@ export interface components {
              *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
              *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
-             *     beside `caller_verification_endpoint_id`.
+             *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
+             *     off needs `Service.update`. Every change is audited.
              * @default false
              */
             allow_unverified_integration_results?: boolean;
@@ -21682,7 +21686,8 @@ export interface components {
              *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
              *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
-             *     beside `caller_verification_endpoint_id`.
+             *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
+             *     off needs `Service.update`. Every change is audited.
              * @default false
              */
             allow_unverified_integration_results?: boolean;
@@ -25152,10 +25157,10 @@ export interface components {
          *     durable text-conversation actor (text-conversation-actor Stage A).
          *
          *     Where ``TextBackgroundResultEvent`` surfaces the raw tool card,
-         *     this carries the agent's *narrated* response (the turn the actor produces after
-         *     re-entering on a background completion or other off-request signal), so a
-         *     client watching the conversation renders it as a normal agent message with no polling
-         *     and no user turn. ``conversation_id`` is the durable conversation UUID (web-only).
+         *     this carries the agent's *narrated* response: every turn the actor sends, whether it
+         *     answers a user turn or follows a background completion or other off-request signal, so
+         *     a client watching the conversation renders it as a normal agent message with no polling.
+         *     ``conversation_id`` is the durable conversation UUID (web-only).
          */
         TextAgentMessageEvent: {
             /**
@@ -27218,7 +27223,8 @@ export interface components {
              *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
              *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
-             *     beside `caller_verification_endpoint_id`.
+             *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
+             *     off needs `Service.update`. Every change is audited.
              */
             allow_unverified_integration_results?: boolean | null;
             /**
@@ -28452,8 +28458,8 @@ export interface components {
          * @description Voice experience control plane — PM-facing, high-level controls.
          *
          *     Controls the caller experience without exposing engineering internals.
-         *     Emotion detection, filler speech, model selection, and buffer tuning
-         *     are always-on internals managed by engineering.
+         *     Emotion detection, filler speech, and buffer tuning are always-on
+         *     internals managed by engineering.
          */
         VoiceSettingsRequest: {
             /** Keyterms */
@@ -28480,6 +28486,8 @@ export interface components {
             speed?: number | null;
             /** Stt Provider */
             stt_provider?: ("deepgram" | "openai" | "cartesia") | null;
+            /** Text Model */
+            text_model?: string | null;
             /** Tone */
             tone?: string | null;
             /** Tts Config */
@@ -28516,6 +28524,8 @@ export interface components {
             speed: number | null;
             /** Stt Provider */
             stt_provider: ("deepgram" | "openai" | "cartesia") | null;
+            /** Text Model */
+            text_model: string | null;
             /** Tone */
             tone: string | null;
             /** Tts Config */
@@ -42602,6 +42612,11 @@ export interface operations {
                 agent_id?: string | null;
                 /** @description Only services on this context graph. Each version set pins a version of its service's context graph. */
                 context_graph_id?: string | null;
+                /**
+                 * @description Only services whose `allow_unverified_integration_results` bypass is on (`true`) or off (`false`). A service
+                 *     that never set it reads off. `true` lists the services that have the bypass on.
+                 */
+                allow_unverified_integration_results?: boolean | null;
             };
             header?: never;
             path: {

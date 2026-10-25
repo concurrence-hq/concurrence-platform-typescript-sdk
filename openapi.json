@@ -10397,7 +10397,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -33724,7 +33724,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -41636,7 +41636,7 @@
         "type": "object"
       },
       "TextAgentMessageEvent": {
-        "description": "An agent text turn pushed live to the conversation's stream \u2014 the outbox of the\ndurable text-conversation actor (text-conversation-actor Stage A).\n\nWhere ``TextBackgroundResultEvent`` surfaces the raw tool card,\nthis carries the agent's *narrated* response (the turn the actor produces after\nre-entering on a background completion or other off-request signal), so a\nclient watching the conversation renders it as a normal agent message with no polling\nand no user turn. ``conversation_id`` is the durable conversation UUID (web-only).",
+        "description": "An agent text turn pushed live to the conversation's stream \u2014 the outbox of the\ndurable text-conversation actor (text-conversation-actor Stage A).\n\nWhere ``TextBackgroundResultEvent`` surfaces the raw tool card,\nthis carries the agent's *narrated* response: every turn the actor sends, whether it\nanswers a user turn or follows a background completion or other off-request signal, so\na client watching the conversation renders it as a normal agent message with no polling.\n``conversation_id`` is the durable conversation UUID (web-only).",
         "properties": {
           "conversation_id": {
             "format": "uuid",
@@ -46546,7 +46546,7 @@
                 "type": "null"
               }
             ],
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results"
           },
           "caller_verification_endpoint_id": {
@@ -49830,7 +49830,7 @@
         "type": "object"
       },
       "VoiceSettingsRequest": {
-        "description": "Voice experience control plane \u2014 PM-facing, high-level controls.\n\nControls the caller experience without exposing engineering internals.\nEmotion detection, filler speech, model selection, and buffer tuning\nare always-on internals managed by engineering.",
+        "description": "Voice experience control plane \u2014 PM-facing, high-level controls.\n\nControls the caller experience without exposing engineering internals.\nEmotion detection, filler speech, and buffer tuning are always-on\ninternals managed by engineering.",
         "properties": {
           "keyterms": {
             "anyOf": [
@@ -49954,6 +49954,18 @@
               }
             ],
             "title": "Stt Provider"
+          },
+          "text_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Model"
           },
           "tone": {
             "anyOf": [
@@ -50098,6 +50110,17 @@
             ],
             "title": "Stt Provider"
           },
+          "text_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Model"
+          },
           "tone": {
             "anyOf": [
               {
@@ -50171,7 +50194,8 @@
           "post_call_analysis_enabled",
           "stt_provider",
           "tts_provider",
-          "tts_config"
+          "tts_config",
+          "text_model"
         ],
         "title": "VoiceSettingsResponse",
         "type": "object"
@@ -55214,7 +55238,7 @@
     },
     "/v1/{workspace_id}/agent-runs/harness-context": {
       "get": {
-        "description": "The retrievable CONTEXT edge of the world-model harness: identity + reference instructions, world scope, tool descriptors, guardrails, and an MCP write-policy summary. It shares the HarnessContext schema with the hosted harness but is not byte-identical to a hosted render. PHI-free (the API-run projection carries no scoped entities or rendered caller prose).",
+        "description": "The retrievable CONTEXT edge of the world-model harness: identity + reference instructions, world scope, tool descriptors, guardrails, and an MCP write-policy summary. PHI-free (the API-run projection carries no scoped entities or rendered caller prose).",
         "operationId": "get_harness_context_v1__workspace_id__agent_runs_harness_context_get",
         "parameters": [
           {
@@ -75308,7 +75332,7 @@
     },
     "/v1/{workspace_id}/services": {
       "get": {
-        "description": "List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph. Requires `Service.view` permission.",
+        "description": "List services in a workspace with pagination. Filter by `agent_id` or `context_graph_id` to list the services on an agent or context graph, or by `allow_unverified_integration_results` to list the services that have that bypass on. Requires `Service.view` permission.",
         "operationId": "list-services",
         "parameters": [
           {
@@ -75423,6 +75447,24 @@
               "description": "Only services on this context graph. Each version set pins a version of its service's context graph.",
               "title": "Context Graph Id"
             }
+          },
+          {
+            "description": "Only services whose `allow_unverified_integration_results` bypass is on (`true`) or off (`false`). A service\nthat never set it reads off. `true` lists the services that have the bypass on.",
+            "in": "query",
+            "name": "allow_unverified_integration_results",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only services whose `allow_unverified_integration_results` bypass is on (`true`) or off (`false`). A service\nthat never set it reads off. `true` lists the services that have the bypass on.",
+              "title": "Allow Unverified Integration Results"
+            }
           }
         ],
         "responses": {
@@ -75462,7 +75504,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, and `Service.update` to name a `caller_verification_endpoint_id`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -75636,7 +75678,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
@@ -76810,7 +76852,7 @@
         ]
       },
       "put": {
-        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID \u2014 determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
+        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID \u2014 determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n- **text_model**: The model that writes the agent's replies on voice\n  calls (default: the platform's). An id the platform doesn't serve in\n  this region is refused with a 422.\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
         "operationId": "update-voice-settings",
         "parameters": [
           {
@@ -81598,7 +81640,7 @@
     },
     "/v1/{workspace_id}/traces:export": {
       "post": {
-        "description": "Export the workspace's durable trace spans over a time window as OpenTelemetry Protocol (OTLP/HTTP JSON) spans: ``gen_ai.*`` tool-call spans and the per-call voice-isolation ``voice.*`` infra spans (allocate / media-attach / reap). Read-only; `Audit:View` permission required; dark behind ``OTEL_TRACE_EXPORT_ENABLED`` (404 when off). Paginated PULL API \u2014 extract ``.resourceSpans`` before forwarding to an OTLP collector. Attributes are an allowlist of tool-call + infra metadata; the raw tool-result ``error`` text is NOT exported (PHI-safe by construction).",
+        "description": "Export the workspace's durable trace spans over a time window as OpenTelemetry Protocol (OTLP/HTTP JSON) spans: ``gen_ai.*`` tool-call spans and the per-call voice-isolation ``voice.*`` infra spans (allocate / media-attach / reap). Read-only; `Audit:View` permission required. Paginated PULL API \u2014 extract ``.resourceSpans`` before forwarding to an OTLP collector. Attributes are an allowlist of tool-call + infra metadata; the raw tool-result ``error`` text is NOT exported (PHI-safe by construction).",
         "operationId": "export_traces_v1__workspace_id__traces_export_post",
         "parameters": [
           {
