@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.121.0] - 2026-10-25
+
+### Features
+
+- expose lifecycle status and scheduling bindings (ALL-2015) (#489)
+
 ## [0.120.0] - 2026-10-25
 
 ### Features
