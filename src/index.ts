@@ -793,6 +793,8 @@ export type {
   StagingCloneImports,
   StagingSourceServicesParams,
   StagingCloneImportsParams,
+  StagingCloneBatchRequest,
+  StagingCloneBatchResult,
 } from './resources/staging-clones.js'
 
 export type { StagingWorkspaceSource } from './resources/me.js'

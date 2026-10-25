@@ -1,5 +1,13 @@
 import type { components, operations } from '../generated/api.js'
 import type { ServiceId } from '../core/branded-types.js'
+import {
+  AuthenticationError,
+  ConfigurationError,
+  ConflictError,
+  NotFoundError,
+  PermissionError,
+  ValidationError,
+} from '../core/errors.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export type StagingClonePreviewRequest = components['schemas']['StagingClonePreviewRequest']
@@ -15,8 +23,110 @@ export type StagingSourceServicesParams =
 export type StagingCloneImportsParams =
   operations['list-staging-clone-imports']['parameters']['query']
 
+export type StagingCloneBatchRequest = Omit<
+  StagingClonePullRequest,
+  'source_service_id' | 'destination_workspace_id'
+>
+export type StagingCloneBatchResult = {
+  source_service: StagingSourceServices['items'][number]
+} & (
+  | { status: 'imported'; receipt: StagingCloneReceipt }
+  | { status: 'needs_tools'; unresolved_tools: string[] }
+  | { status: 'failed'; reason: 'conflict' | 'validation' | 'not_found' | 'unavailable' }
+)
+
 /** Configuration-only service copies between production and a paired staging workspace. */
 export class StagingClonesResource extends WorkspaceScopedResource {
+  /**
+   * Import enumerated production services into this paired staging workspace,
+   * yielding one result at a time. Requires separate source and destination
+   * clients and current authority in both environments. No credentials are stored.
+   *
+   * Each service is previewed and imported through the normal revision checks.
+   * Tool mappings apply to the whole run; `needs_tools` identifies services to
+   * retry after supplying staging replacements. A service failure leaves earlier
+   * imports intact. Authorization failures stop the run. Breaking iteration or
+   * aborting prevents subsequent work; an already committed import is retained.
+   *
+   * Discovery is paginated, not a workspace-wide snapshot. Retrying reauthorizes
+   * each enumerated service and preserves original receipts and staging edits.
+   */
+  async *importAll(
+    source: StagingClonesResource,
+    body: StagingCloneBatchRequest,
+    signal?: AbortSignal,
+  ): AsyncGenerator<StagingCloneBatchResult> {
+    signal?.throwIfAborted()
+    const destination = signal ? this.withOptions({ signal }) : this
+    const production = signal ? source.withOptions({ signal }) : source
+    const pairing = await destination.getPairing()
+    if (
+      pairing.workspace_id !== this.workspaceId ||
+      pairing.id !== body.pairing_id ||
+      pairing.source_workspace_id !== body.source_workspace_id ||
+      pairing.source_region !== body.source_region
+    ) {
+      throw new ConfigurationError('The staging pairing does not match the requested source')
+    }
+    let continuation_token: unknown
+    do {
+      signal?.throwIfAborted()
+      const page = await production.listSourceServices({ limit: 200, continuation_token })
+      if (
+        page.source_workspace_id !== body.source_workspace_id ||
+        page.source_region !== body.source_region
+      ) {
+        throw new ConfigurationError('The production client does not match the requested source')
+      }
+      for (const service of page.items) {
+        signal?.throwIfAborted()
+        const result = await destination.importBatchService(service, body, signal)
+        yield result
+      }
+      continuation_token = page.has_more ? page.continuation_token : undefined
+    } while (continuation_token !== undefined && continuation_token !== null)
+  }
+
+  private async importBatchService(
+    service: StagingSourceServices['items'][number],
+    body: StagingCloneBatchRequest,
+    signal?: AbortSignal,
+  ): Promise<StagingCloneBatchResult> {
+    const request = {
+      ...body,
+      source_service_id: service.id,
+      destination_workspace_id: this.workspaceId,
+    }
+    try {
+      const preview = await this.previewImport(request)
+      if (preview.plan.unresolved_tools.length) {
+        return {
+          source_service: service,
+          status: 'needs_tools',
+          unresolved_tools: preview.plan.unresolved_tools,
+        }
+      }
+      signal?.throwIfAborted()
+      const receipt = await this.importService({
+        ...request,
+        expected_source_digest: preview.plan.source_digest,
+      })
+      return { source_service: service, status: 'imported', receipt }
+    } catch (error) {
+      signal?.throwIfAborted()
+      if (error instanceof AuthenticationError || error instanceof PermissionError) throw error
+      const reason =
+        error instanceof ConflictError
+          ? 'conflict'
+          : error instanceof ValidationError
+            ? 'validation'
+            : error instanceof NotFoundError
+              ? 'not_found'
+              : 'unavailable'
+      return { source_service: service, status: 'failed', reason }
+    }
+  }
+
   /** List source service names and IDs on a production client with current administrator authority. */
   async listSourceServices(params?: StagingSourceServicesParams) {
     return extractData(

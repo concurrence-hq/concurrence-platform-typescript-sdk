@@ -204,6 +204,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `stagingClones`
 
+- `importAll`
+- `importBatchService`
 - `listSourceServices`
 - `listSourceServicesAutoPaging`
 - `listImports`
