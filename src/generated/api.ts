@@ -6316,10 +6316,33 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Clone Imports */
+        /**
+         * List original import receipts in a paired staging workspace
+         * @description Requires administrator access on a staging deployment. Returns historical import receipts ordered by source service ID, without configuration or production credentials. Does not contact production or assert that copied services still exist or match their original configuration.
+         */
         get: operations["list-staging-clone-imports"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/staging-clones/mirror-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review production configuration changes against a staging copy
+         * @description Requires current administrator access in both environments. Returns a three-way configuration proposal, conflicts and source/destination revision fingerprints without persisting changes. Staging overrides are retained; production credentials remain request-scoped.
+         */
+        post: operations["preview-staging-service-mirror"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6377,7 +6400,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Source Services */
+        /**
+         * List production services available for staging copies
+         * @description Requires administrator access on a production deployment. Returns only active service IDs and names, ordered by ID, from the authenticated workspace. Does not return configuration or establish a snapshot across pages; a later preview rechecks the source.
+         */
         get: operations["list-staging-clone-source-services"];
         put?: never;
         post?: never;
@@ -24370,6 +24396,36 @@ export interface components {
             terminal_state: string;
             /** Topology Description */
             topology_description?: string | null;
+        };
+        /** StagingMirrorProposal */
+        StagingMirrorProposal: {
+            /** Configuration */
+            configuration: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Conflicts */
+            conflicts: string[];
+            /** Current Configuration */
+            current_configuration: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Destination Digest */
+            destination_digest: string;
+            /** Incoming Configuration */
+            incoming_configuration: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** New Agent Versions */
+            new_agent_versions: number;
+            /** New Graph Versions */
+            new_graph_versions: number;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Source Digest */
+            source_digest: string;
         };
         /** StagingPairing */
         StagingPairing: {
@@ -46696,6 +46752,20 @@ export interface operations {
                     "application/json": components["schemas"]["StagingCloneImports"];
                 };
             };
+            /** @description Insufficient destination authority */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not staging, inactive destination, or invalid pairing/import provenance */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -46704,6 +46774,67 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "preview-staging-service-mirror": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingClonePullRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingMirrorProposal"];
+                };
+            };
+            /** @description Insufficient source, destination, or authoring authority */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Environment, pairing, import provenance, or source conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Configuration fails destination authoring checks */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source response is unavailable, invalid, or too large */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -46898,6 +47029,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["StagingSourceServices"];
                 };
+            };
+            /** @description Insufficient source authority */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not production */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

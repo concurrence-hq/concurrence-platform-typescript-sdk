@@ -18,6 +18,7 @@ export type StagingCloneReceipt = components['schemas']['StagingCloneReceipt']
 export type StagingPairing = components['schemas']['StagingPairing']
 export type StagingSourceServices = components['schemas']['StagingSourceServices']
 export type StagingCloneImports = components['schemas']['StagingCloneImports']
+export type StagingMirrorProposal = components['schemas']['StagingMirrorProposal']
 export type StagingSourceServicesParams =
   operations['list-staging-clone-source-services']['parameters']['query']
 export type StagingCloneImportsParams =
@@ -176,6 +177,16 @@ export class StagingClonesResource extends WorkspaceScopedResource {
   async previewImport(body: StagingClonePullRequest) {
     return extractData(
       await this.client.POST('/v1/{workspace_id}/staging-clones/preview', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Review incoming production changes against a staging copy without writing; conflicts retain staging values. */
+  async previewMirror(body: StagingClonePullRequest) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/staging-clones/mirror-preview', {
         params: { path: { workspace_id: this.workspaceId } },
         body,
       }),

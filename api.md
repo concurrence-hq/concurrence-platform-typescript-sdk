@@ -213,6 +213,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getPairing`
 - `previewSource`
 - `previewImport`
+- `previewMirror`
 - `pairWorkspace`
 - `importService`
 

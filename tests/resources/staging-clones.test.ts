@@ -83,6 +83,40 @@ const preview = {
 } satisfies StagingClonePreviewResponse
 
 describe('staging clone authority and revision contract', () => {
+  it('reads a mirror proposal through staging authority without storing or returning the production token', async () => {
+    const requests: Request[] = []
+    const proposal = {
+      service_id: CLONE,
+      source_digest: DIGEST,
+      destination_digest: 'b'.repeat(64),
+      current_configuration: { name: 'Staging name' },
+      incoming_configuration: { name: 'Production name' },
+      configuration: { name: 'Staging name' },
+      conflicts: ['/name'],
+      new_agent_versions: 0,
+      new_graph_versions: 1,
+    }
+    const staging = new AmigoClient({
+      apiKey: DESTINATION_TOKEN,
+      workspaceId: DESTINATION,
+      baseUrl: STAGING_ORIGIN,
+      fetch: async (input) => {
+        requests.push(new Request(input))
+        return Response.json(proposal)
+      },
+    }).withOptions({ headers: { 'X-Request-ID': 'mirror-preview' } })
+    const result = await staging.stagingClones.previewMirror(pull)
+    expect(result).toEqual(proposal)
+    expect(JSON.stringify(result)).not.toContain(SOURCE_TOKEN)
+    expect(requests).toHaveLength(1)
+    const request = requests[0]!
+    expect(request.url).toBe(`${STAGING_ORIGIN}/v1/${DESTINATION}/staging-clones/mirror-preview`)
+    expect(request.method).toBe('POST')
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${DESTINATION_TOKEN}`)
+    expect(request.headers.get('X-Request-ID')).toBe('mirror-preview')
+    expect(await request.json()).toEqual(pull)
+  })
+
   it('paginates source discovery on the production client with opaque continuation tokens', async () => {
     const requests: Request[] = []
     const items = [

@@ -39526,6 +39526,72 @@
         "title": "StagingGraphConfiguration",
         "type": "object"
       },
+      "StagingMirrorProposal": {
+        "properties": {
+          "configuration": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Configuration",
+            "type": "object"
+          },
+          "conflicts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "current_configuration": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Current Configuration",
+            "type": "object"
+          },
+          "destination_digest": {
+            "title": "Destination Digest",
+            "type": "string"
+          },
+          "incoming_configuration": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Incoming Configuration",
+            "type": "object"
+          },
+          "new_agent_versions": {
+            "title": "New Agent Versions",
+            "type": "integer"
+          },
+          "new_graph_versions": {
+            "title": "New Graph Versions",
+            "type": "integer"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source_digest": {
+            "title": "Source Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "source_digest",
+          "destination_digest",
+          "current_configuration",
+          "incoming_configuration",
+          "configuration",
+          "conflicts",
+          "new_agent_versions",
+          "new_graph_versions"
+        ],
+        "title": "StagingMirrorProposal",
+        "type": "object"
+      },
       "StagingPairing": {
         "properties": {
           "created_at": {
@@ -81477,6 +81543,7 @@
     },
     "/v1/{workspace_id}/staging-clones/imports": {
       "get": {
+        "description": "Requires administrator access on a staging deployment. Returns historical import receipts ordered by source service ID, without configuration or production credentials. Does not contact production or assert that copied services still exist or match their original configuration.",
         "operationId": "list-staging-clone-imports",
         "parameters": [
           {
@@ -81521,6 +81588,12 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "description": "Insufficient destination authority"
+          },
+          "409": {
+            "description": "Not staging, inactive destination, or invalid pairing/import provenance"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -81532,7 +81605,66 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Clone Imports",
+        "summary": "List original import receipts in a paired staging workspace",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/mirror-preview": {
+      "post": {
+        "description": "Requires current administrator access in both environments. Returns a three-way configuration proposal, conflicts and source/destination revision fingerprints without persisting changes. Staging overrides are retained; production credentials remain request-scoped.",
+        "operationId": "preview-staging-service-mirror",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingClonePullRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingMirrorProposal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Insufficient source, destination, or authoring authority"
+          },
+          "404": {
+            "description": "Source service not found"
+          },
+          "409": {
+            "description": "Environment, pairing, import provenance, or source conflict"
+          },
+          "422": {
+            "description": "Configuration fails destination authoring checks"
+          },
+          "502": {
+            "description": "Source response is unavailable, invalid, or too large"
+          }
+        },
+        "summary": "Review production configuration changes against a staging copy",
         "tags": [
           "Services"
         ]
@@ -81713,6 +81845,7 @@
     },
     "/v1/{workspace_id}/staging-clones/source-services": {
       "get": {
+        "description": "Requires administrator access on a production deployment. Returns only active service IDs and names, ordered by ID, from the authenticated workspace. Does not return configuration or establish a snapshot across pages; a later preview rechecks the source.",
         "operationId": "list-staging-clone-source-services",
         "parameters": [
           {
@@ -81757,6 +81890,12 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "description": "Insufficient source authority"
+          },
+          "409": {
+            "description": "Not production"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -81768,7 +81907,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Source Services",
+        "summary": "List production services available for staging copies",
         "tags": [
           "Services"
         ]

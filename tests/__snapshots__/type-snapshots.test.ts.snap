@@ -292,6 +292,7 @@ exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
   "pause-trigger",
   "preview-staging-service-clone",
   "preview-staging-service-import",
+  "preview-staging-service-mirror",
   "promote-simulation-session",
   "provision-workspace",
   "put-entity-enrichment",
