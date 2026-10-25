@@ -514,6 +514,55 @@ describe('TokenManager', () => {
       }
     })
 
+    it('stores a newer explicit sign-in after sign-out settles with a revocation failure', async () => {
+      const started = deferred<void>()
+      const response = deferred<Response>()
+      const fetch: typeof globalThis.fetch = vi.fn(async () => {
+        started.resolve()
+        return response.promise
+      })
+      const mgr = new TokenManager({ storage, fetch })
+      await mgr.store(validResult)
+      const signingOut = mgr.signOut().catch((error: unknown) => error)
+      await started.promise
+      const next = {
+        ...validResult,
+        accessToken: 'next-access',
+        refreshToken: 'next-refresh',
+        workspaceId: 'ws2',
+      }
+      const stored = mgr.store(next).then(
+        () => true,
+        () => false,
+      )
+      response.resolve(new Response('{}', { status: 500 }))
+
+      expect(await signingOut).toBeInstanceOf(AmigoError)
+      expect(await stored).toBe(true)
+      expect(await mgr.getAccessToken()).toEqual({ token: next.accessToken, workspaceId: 'ws2' })
+      expect((await storage.load())?.refresh_token).toBe(next.refreshToken)
+    })
+
+    it('revokes a cold-cache stored session even when local clear starts concurrently', async () => {
+      await storage.save({
+        access_token: validResult.accessToken,
+        refresh_token: validResult.refreshToken,
+        workspace_id: validResult.workspaceId,
+        expires_at: validResult.expiresAt,
+      })
+      const fetch = mockFetch(200, {})
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      const signingOut = mgr.signOut()
+      const clearing = mgr.clear()
+      await Promise.all([signingOut, clearing])
+
+      expect(revokeCalls(fetch)).toEqual([
+        ['https://id.test/revoke', 'refresh_token', validResult.refreshToken],
+        ['https://id.test/revoke', 'access_token', validResult.accessToken],
+      ])
+      expect(await storage.load()).toBeNull()
+    })
+
     it('does not let a stale refresh failure clear a newer explicit sign-in', async () => {
       const started = deferred<void>()
       const response = deferred<Response>()
