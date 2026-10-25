@@ -1,4 +1,4 @@
-import type { components } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
 import type { ServiceId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
@@ -8,9 +8,41 @@ export type StagingClonePullRequest = components['schemas']['StagingClonePullReq
 export type StagingCloneApplyRequest = components['schemas']['StagingCloneApplyRequest']
 export type StagingCloneReceipt = components['schemas']['StagingCloneReceipt']
 export type StagingPairing = components['schemas']['StagingPairing']
+export type StagingSourceServices = components['schemas']['StagingSourceServices']
+export type StagingCloneImports = components['schemas']['StagingCloneImports']
+export type StagingSourceServicesParams =
+  operations['list-staging-clone-source-services']['parameters']['query']
+export type StagingCloneImportsParams =
+  operations['list-staging-clone-imports']['parameters']['query']
 
 /** Configuration-only service copies between production and a paired staging workspace. */
 export class StagingClonesResource extends WorkspaceScopedResource {
+  /** List source service names and IDs on a production client with current administrator authority. */
+  async listSourceServices(params?: StagingSourceServicesParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/staging-clones/source-services', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  listSourceServicesAutoPaging(params?: StagingSourceServicesParams) {
+    return this.iteratePaginatedList((pageParams) => this.listSourceServices(pageParams), params)
+  }
+
+  /** Read original local import receipts; this does not reauthorize production or assert current copy state. */
+  async listImports(params?: StagingCloneImportsParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/staging-clones/imports', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  listImportsAutoPaging(params?: StagingCloneImportsParams) {
+    return this.iteratePaginatedList((pageParams) => this.listImports(pageParams), params)
+  }
+
   /** Read local staging pairing metadata without contacting or authorizing the production source. */
   async getPairing() {
     return extractData(

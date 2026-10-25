@@ -266,6 +266,8 @@ exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
   "list-simulation-suites",
   "list-skills",
   "list-source-events",
+  "list-staging-clone-imports",
+  "list-staging-clone-source-services",
   "list-surface-review-queue",
   "list-surfaces",
   "list-tool-catalog",

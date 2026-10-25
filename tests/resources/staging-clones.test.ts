@@ -83,6 +83,82 @@ const preview = {
 } satisfies StagingClonePreviewResponse
 
 describe('staging clone authority and revision contract', () => {
+  it('paginates source discovery on the production client with opaque continuation tokens', async () => {
+    const requests: Request[] = []
+    const items = [
+      { id: SERVICE, name: 'First service' },
+      { id: CLONE, name: 'Second service' },
+    ]
+    const production = new AmigoClient({
+      apiKey: SOURCE_TOKEN,
+      workspaceId: SOURCE,
+      baseUrl: SOURCE_ORIGIN,
+      fetch: async (input) => {
+        requests.push(new Request(input))
+        const page = requests.length - 1
+        return Response.json({
+          source_workspace_id: SOURCE,
+          source_region: 'eu-central-1',
+          items: [items[page]],
+          has_more: page === 0,
+          continuation_token: page === 0 ? 'opaque-next-page' : null,
+        })
+      },
+    })
+    const result = []
+    for await (const item of production.stagingClones.listSourceServicesAutoPaging({ limit: 1 })) {
+      result.push(item)
+    }
+    expect(result).toEqual(items)
+    expect(requests).toHaveLength(2)
+    for (const request of requests) {
+      const url = new URL(request.url)
+      expect(url.origin).toBe(SOURCE_ORIGIN)
+      expect(url.pathname).toBe(`/v1/${SOURCE}/staging-clones/source-services`)
+      expect(url.searchParams.get('limit')).toBe('1')
+      expect(request.headers.get('Authorization')).toBe(`Bearer ${SOURCE_TOKEN}`)
+      expect(request.method).toBe('GET')
+      expect(await request.text()).toBe('')
+    }
+    expect(new URL(requests[0]!.url).searchParams.has('continuation_token')).toBe(false)
+    expect(new URL(requests[1]!.url).searchParams.get('continuation_token')).toBe(
+      'opaque-next-page',
+    )
+  })
+
+  it('paginates original staging receipts without sending source authority', async () => {
+    const requests: Request[] = []
+    const second = { ...receipt, source_service_id: AGENT, service_id: GRAPH }
+    const staging = new AmigoClient({
+      apiKey: DESTINATION_TOKEN,
+      workspaceId: DESTINATION,
+      baseUrl: STAGING_ORIGIN,
+      fetch: async (input) => {
+        requests.push(new Request(input))
+        return Response.json({
+          items: [requests.length === 1 ? receipt : second],
+          has_more: requests.length === 1,
+          continuation_token: requests.length === 1 ? 1 : null,
+        })
+      },
+    }).withOptions({ headers: { 'X-Request-ID': 'resume-clones' } })
+    const result = []
+    for await (const item of staging.stagingClones.listImportsAutoPaging({ limit: 1 }))
+      result.push(item)
+    expect(result).toEqual([receipt, second])
+    expect(requests).toHaveLength(2)
+    for (const request of requests) {
+      const url = new URL(request.url)
+      expect(url.origin).toBe(STAGING_ORIGIN)
+      expect(url.pathname).toBe(`/v1/${DESTINATION}/staging-clones/imports`)
+      expect(request.headers.get('Authorization')).toBe(`Bearer ${DESTINATION_TOKEN}`)
+      expect(request.headers.get('X-Request-ID')).toBe('resume-clones')
+      expect(await request.text()).toBe('')
+      expect(request.url).not.toContain(SOURCE_TOKEN)
+    }
+    expect(new URL(requests[1]!.url).searchParams.get('continuation_token')).toBe('1')
+  })
+
   it('reads a local staging pairing without a source credential or request body', async () => {
     const requests: Request[] = []
     const staging = new AmigoClient({

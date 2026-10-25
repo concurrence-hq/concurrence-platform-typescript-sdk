@@ -204,6 +204,10 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `stagingClones`
 
+- `listSourceServices`
+- `listSourceServicesAutoPaging`
+- `listImports`
+- `listImportsAutoPaging`
 - `getPairing`
 - `previewSource`
 - `previewImport`

@@ -39133,6 +39133,30 @@
         "title": "StagingCloneApplyRequest",
         "type": "object"
       },
+      "StagingCloneImports": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StagingCloneReceipt"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "StagingCloneImports",
+        "type": "object"
+      },
       "StagingClonePlan": {
         "properties": {
           "agent_version_map": {
@@ -39686,6 +39710,41 @@
           "context_graph_id"
         ],
         "title": "StagingServiceConfiguration",
+        "type": "object"
+      },
+      "StagingSourceServices": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/src__services__staging_clone_catalog__StagingSourceServices__Item"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "source_region": {
+            "title": "Source Region",
+            "type": "string"
+          },
+          "source_workspace_id": {
+            "format": "uuid",
+            "title": "Source Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_workspace_id",
+          "source_region",
+          "items",
+          "has_more"
+        ],
+        "title": "StagingSourceServices",
         "type": "object"
       },
       "StagingWorkspaceSource": {
@@ -54242,6 +54301,25 @@
         ],
         "title": "Response",
         "type": "object"
+      },
+      "src__services__staging_clone_catalog__StagingSourceServices__Item": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Item",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -55407,7 +55485,7 @@
     },
     "/v1/me/workspaces": {
       "post": {
-        "description": "Create a new workspace and attach the authenticated caller as the owner.",
+        "description": "Create a workspace and attach the authenticated caller as owner. On staging, staging_source creates a stable production pairing using fresh source administrator authority. Retries preserve the original workspace and require its original creator and current owner access. Source credentials are not retained.",
         "operationId": "create-my-workspace",
         "requestBody": {
           "content": {
@@ -55433,11 +55511,17 @@
           "403": {
             "description": "Missing the workspaces:write scope (developer grant) or unsupported principal type."
           },
+          "404": {
+            "description": "Production source service or active destination not found."
+          },
           "409": {
-            "description": "Workspace slug already taken."
+            "description": "Workspace slug, source pairing, or destination state conflicts."
           },
           "422": {
             "description": "Invalid request body."
+          },
+          "502": {
+            "description": "Production source unavailable or invalid."
           },
           "503": {
             "description": "Identity service unavailable."
@@ -81391,6 +81475,69 @@
         ]
       }
     },
+    "/v1/{workspace_id}/staging-clones/imports": {
+      "get": {
+        "operationId": "list-staging-clone-imports",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingCloneImports"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Clone Imports",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
     "/v1/{workspace_id}/staging-clones/pairing": {
       "get": {
         "description": "Requires administrator access to the staging destination. Returns local pairing metadata only; does not contact production or establish current source authority.",
@@ -81559,6 +81706,69 @@
           }
         },
         "summary": "Preview importing a production service into staging",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/staging-clones/source-services": {
+      "get": {
+        "operationId": "list-staging-clone-source-services",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingSourceServices"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Source Services",
         "tags": [
           "Services"
         ]

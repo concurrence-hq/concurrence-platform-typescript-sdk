@@ -789,6 +789,10 @@ export type {
   StagingCloneApplyRequest,
   StagingCloneReceipt,
   StagingPairing,
+  StagingSourceServices,
+  StagingCloneImports,
+  StagingSourceServicesParams,
+  StagingCloneImportsParams,
 } from './resources/staging-clones.js'
 
 export type { StagingWorkspaceSource } from './resources/me.js'

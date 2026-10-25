@@ -319,7 +319,7 @@ export interface paths {
         put?: never;
         /**
          * Create a workspace under the authenticated identity
-         * @description Create a new workspace and attach the authenticated caller as the owner.
+         * @description Create a workspace and attach the authenticated caller as owner. On staging, staging_source creates a stable production pairing using fresh source administrator authority. Retries preserve the original workspace and require its original creator and current owner access. Source credentials are not retained.
          */
         post: operations["create-my-workspace"];
         delete?: never;
@@ -6309,6 +6309,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/staging-clones/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Clone Imports */
+        get: operations["list-staging-clone-imports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/staging-clones/pairing": {
         parameters: {
             query?: never;
@@ -6347,6 +6364,23 @@ export interface paths {
          * @description Requires administrator access to the staging destination and current administrator credentials for the production source. The source token is request-scoped and is not stored or returned. Fetches only from the selected production region, without redirects. Does not create resources or validate staging tools. Authored text is retained; embedded sensitive text is not redacted.
          */
         post: operations["preview-staging-service-import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/staging-clones/source-services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Source Services */
+        get: operations["list-staging-clone-source-services"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -24121,6 +24155,15 @@ export interface components {
                 [key: string]: components["schemas"]["_ToolName"];
             };
         };
+        /** StagingCloneImports */
+        StagingCloneImports: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["StagingCloneReceipt"][];
+        };
         /** StagingClonePlan */
         StagingClonePlan: {
             /** Agent Version Map */
@@ -24457,6 +24500,22 @@ export interface components {
                 [key: string]: components["schemas"]["VersionSet-Output"];
             };
             voice_config?: components["schemas"]["ServiceVoiceConfig-Output"] | null;
+        };
+        /** StagingSourceServices */
+        StagingSourceServices: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["src__services__staging_clone_catalog__StagingSourceServices__Item"][];
+            /** Source Region */
+            source_region: string;
+            /**
+             * Source Workspace Id
+             * Format: uuid
+             */
+            source_workspace_id: string;
         };
         /** StagingWorkspaceSource */
         StagingWorkspaceSource: {
@@ -30522,6 +30581,16 @@ export interface components {
              */
             workspace_id: string;
         };
+        /** Item */
+        src__services__staging_clone_catalog__StagingSourceServices__Item: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -31316,7 +31385,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Workspace slug already taken. */
+            /** @description Production source service or active destination not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workspace slug, source pairing, or destination state conflicts. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -31325,6 +31401,13 @@ export interface operations {
             };
             /** @description Invalid request body. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Production source unavailable or invalid. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -46590,6 +46673,40 @@ export interface operations {
             };
         };
     };
+    "list-staging-clone-imports": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingCloneImports"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "get-staging-workspace-pairing": {
         parameters: {
             query?: never;
@@ -46756,6 +46873,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "list-staging-clone-source-services": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingSourceServices"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
