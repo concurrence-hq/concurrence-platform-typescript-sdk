@@ -545,7 +545,7 @@ export class TokenManager {
   private _refreshGeneration = -1
   private _signOutPromise: Promise<void> | null = null
   private _generation = 0
-  private _storageWrite: Promise<void> = Promise.resolve()
+  private _storageQueue: Promise<void> = Promise.resolve()
 
   constructor(config: TokenManagerConfig = {}) {
     this._storage = config.storage ?? new FileTokenStorage()
@@ -555,7 +555,7 @@ export class TokenManager {
 
   async store(result: AuthResult): Promise<void> {
     // An explicit new sign-in starts after any previous sign-out has settled.
-    if (this._signOutPromise) await this._signOutPromise
+    if (this._signOutPromise) await this._signOutPromise.catch(() => undefined)
     this._generation += 1
     const creds: StoredCredentials = {
       access_token: result.accessToken,
@@ -565,7 +565,7 @@ export class TokenManager {
       scope: result.scope,
     }
     this._cached = creds
-    await this._writeStorage(() => this._storage.save(creds))
+    await this._useStorage(() => this._storage.save(creds))
   }
 
   async getAccessToken(): Promise<{ token: string; workspaceId: string } | null> {
@@ -590,7 +590,7 @@ export class TokenManager {
   async clear(): Promise<void> {
     this._generation += 1
     this._cached = null
-    await this._writeStorage(() => this._storage.clear())
+    await this._useStorage(() => this._storage.clear())
   }
 
   /**
@@ -613,7 +613,9 @@ export class TokenManager {
     // load. Joining includes its storage save, so it cannot restore credentials
     // after the final clear. New refreshes are refused by getAccessToken().
     try {
-      const current = await this._loadCached()
+      // Reserve a cold-cache snapshot before any concurrently requested clear.
+      // The snapshot authorizes revocation only; it never repopulates the cache.
+      const current = this._cached ?? (await this._useStorage(() => this._storage.load()))
       const refreshed = refreshing ? await refreshing.catch(() => null) : null
       const revocations = new Map<string, 'refresh_token' | 'access_token'>()
       for (const creds of [current, refreshed]) {
@@ -635,7 +637,7 @@ export class TokenManager {
   private async _loadCached(): Promise<StoredCredentials | null> {
     if (this._cached) return this._cached
     const generation = this._generation
-    await this._storageWrite
+    await this._storageQueue
     if (generation !== this._generation) return null
     const loaded = await this._storage.load()
     if (generation !== this._generation) return null
@@ -655,12 +657,15 @@ export class TokenManager {
     return refreshing
   }
 
-  private _writeStorage(write: () => Promise<void>): Promise<void> {
+  private _useStorage<T>(operation: () => Promise<T>): Promise<T> {
     // Clear must follow every save already in progress, including an explicit
     // store(). Keep the queue usable after an error while returning that error
     // to the initiating operation.
-    const pending = this._storageWrite.then(write)
-    this._storageWrite = pending.catch(() => undefined)
+    const pending = this._storageQueue.then(operation)
+    this._storageQueue = pending.then(
+      () => undefined,
+      () => undefined,
+    )
     return pending
   }
 
@@ -689,7 +694,7 @@ export class TokenManager {
       }
       if (generation === this._generation) {
         this._cached = refreshed
-        await this._writeStorage(() => this._storage.save(refreshed))
+        await this._useStorage(() => this._storage.save(refreshed))
       }
       return refreshed
     } catch (err) {
