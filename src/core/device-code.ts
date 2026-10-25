@@ -231,6 +231,7 @@ async function doRefreshToken(
   baseUrl: string,
   params: { refreshToken: string; workspaceId?: string; scope?: string },
   fetchFn: typeof globalThis.fetch,
+  signal?: AbortSignal,
 ): Promise<IdentityTokenResponse> {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
@@ -239,7 +240,7 @@ async function doRefreshToken(
   if (params.workspaceId) body.set('workspace_id', params.workspaceId)
   if (params.scope) body.set('scope', params.scope)
 
-  const res = await identityPost(baseUrl, '/token', body, fetchFn)
+  const res = await identityPost(baseUrl, '/token', body, fetchFn, signal)
 
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as Record<string, string>
@@ -527,6 +528,7 @@ export async function loginWithDeviceCode(options: DeviceCodeLoginOptions): Prom
 // --- Token Manager ---
 
 const REFRESH_BUFFER_SECONDS = 60
+const REFRESH_TIMEOUT_MS = 30_000
 
 export interface TokenManagerConfig {
   storage?: TokenStorage
@@ -540,8 +542,10 @@ export class TokenManager {
   private readonly _fetch: typeof globalThis.fetch
   private _cached: StoredCredentials | null = null
   private _refreshPromise: Promise<StoredCredentials> | null = null
+  private _refreshGeneration = -1
   private _signOutPromise: Promise<void> | null = null
   private _generation = 0
+  private _storageWrite: Promise<void> = Promise.resolve()
 
   constructor(config: TokenManagerConfig = {}) {
     this._storage = config.storage ?? new FileTokenStorage()
@@ -552,6 +556,7 @@ export class TokenManager {
   async store(result: AuthResult): Promise<void> {
     // An explicit new sign-in starts after any previous sign-out has settled.
     if (this._signOutPromise) await this._signOutPromise
+    this._generation += 1
     const creds: StoredCredentials = {
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
@@ -560,7 +565,7 @@ export class TokenManager {
       scope: result.scope,
     }
     this._cached = creds
-    await this._storage.save(creds)
+    await this._writeStorage(() => this._storage.save(creds))
   }
 
   async getAccessToken(): Promise<{ token: string; workspaceId: string } | null> {
@@ -585,7 +590,7 @@ export class TokenManager {
   async clear(): Promise<void> {
     this._generation += 1
     this._cached = null
-    await this._storage.clear()
+    await this._writeStorage(() => this._storage.clear())
   }
 
   /**
@@ -595,18 +600,18 @@ export class TokenManager {
    */
   signOut(): Promise<void> {
     if (this._signOutPromise) return this._signOutPromise
+    const refreshing = this._refreshGeneration === this._generation ? this._refreshPromise : null
     this._generation += 1
-    this._signOutPromise = this._doSignOut().finally(() => {
+    this._signOutPromise = this._doSignOut(refreshing).finally(() => {
       this._signOutPromise = null
     })
     return this._signOutPromise
   }
 
-  private async _doSignOut(): Promise<void> {
+  private async _doSignOut(refreshing: Promise<StoredCredentials> | null): Promise<void> {
     // Capture before awaiting storage: an existing refresh can finish during a
     // load. Joining includes its storage save, so it cannot restore credentials
     // after the final clear. New refreshes are refused by getAccessToken().
-    const refreshing = this._refreshPromise
     try {
       const current = await this._loadCached()
       const refreshed = refreshing ? await refreshing.catch(() => null) : null
@@ -630,6 +635,8 @@ export class TokenManager {
   private async _loadCached(): Promise<StoredCredentials | null> {
     if (this._cached) return this._cached
     const generation = this._generation
+    await this._storageWrite
+    if (generation !== this._generation) return null
     const loaded = await this._storage.load()
     if (generation !== this._generation) return null
     if (loaded) this._cached = loaded
@@ -637,11 +644,24 @@ export class TokenManager {
   }
 
   private async _refresh(current: StoredCredentials): Promise<StoredCredentials> {
-    if (this._refreshPromise) return this._refreshPromise
-    this._refreshPromise = this._doRefresh(current).finally(() => {
-      this._refreshPromise = null
+    if (this._refreshPromise && this._refreshGeneration === this._generation) {
+      return this._refreshPromise
+    }
+    this._refreshGeneration = this._generation
+    const refreshing = this._doRefresh(current).finally(() => {
+      if (this._refreshPromise === refreshing) this._refreshPromise = null
     })
-    return this._refreshPromise
+    this._refreshPromise = refreshing
+    return refreshing
+  }
+
+  private _writeStorage(write: () => Promise<void>): Promise<void> {
+    // Clear must follow every save already in progress, including an explicit
+    // store(). Keep the queue usable after an error while returning that error
+    // to the initiating operation.
+    const pending = this._storageWrite.then(write)
+    this._storageWrite = pending.catch(() => undefined)
+    return pending
   }
 
   private async _doRefresh(current: StoredCredentials): Promise<StoredCredentials> {
@@ -657,6 +677,7 @@ export class TokenManager {
           scope: current.scope,
         },
         this._fetch,
+        AbortSignal.timeout(REFRESH_TIMEOUT_MS),
       )
       const claims = decodeJwtPayload(response.access_token)
       const refreshed: StoredCredentials = {
@@ -668,7 +689,7 @@ export class TokenManager {
       }
       if (generation === this._generation) {
         this._cached = refreshed
-        await this._storage.save(refreshed)
+        await this._writeStorage(() => this._storage.save(refreshed))
       }
       return refreshed
     } catch (err) {
@@ -676,7 +697,7 @@ export class TokenManager {
         err instanceof AmigoError &&
         (err.statusCode === 401 || err.errorCode === 'invalid_grant')
       ) {
-        await this.clear()
+        if (generation === this._generation) await this.clear()
         throw new RefreshTokenExpiredError()
       }
       throw err
