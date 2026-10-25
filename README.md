@@ -124,7 +124,7 @@ await tokens.store(result)
 const client = new AmigoClient({ apiKey: result.accessToken, workspaceId: result.workspaceId })
 ```
 
-To sign out, call `tokens.signOut()`. It revokes the refresh token and the access token at identity and then removes the stored credentials. If identity could not revoke them it rejects, after removing the credentials. `tokens.clear()` only forgets the credentials on this machine; a copied token stays valid until it expires.
+To sign out, call `tokens.signOut()`. It revokes the refresh token and the access token at identity and then removes the stored credentials. It joins any in-flight refresh, revokes its rotated credentials too, and prevents access-token reads during sign-out. If identity could not revoke them it rejects, after removing the credentials. `tokens.clear()` only forgets the credentials on this machine; a copied token stays valid until it expires.
 
 See [`examples/auth/device-code-login.ts`](./examples/auth/device-code-login.ts) for a complete working example.
 

@@ -540,6 +540,8 @@ export class TokenManager {
   private readonly _fetch: typeof globalThis.fetch
   private _cached: StoredCredentials | null = null
   private _refreshPromise: Promise<StoredCredentials> | null = null
+  private _signOutPromise: Promise<void> | null = null
+  private _generation = 0
 
   constructor(config: TokenManagerConfig = {}) {
     this._storage = config.storage ?? new FileTokenStorage()
@@ -548,6 +550,8 @@ export class TokenManager {
   }
 
   async store(result: AuthResult): Promise<void> {
+    // An explicit new sign-in starts after any previous sign-out has settled.
+    if (this._signOutPromise) await this._signOutPromise
     const creds: StoredCredentials = {
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
@@ -560,23 +564,27 @@ export class TokenManager {
   }
 
   async getAccessToken(): Promise<{ token: string; workspaceId: string } | null> {
+    if (this._signOutPromise) return null
+    const generation = this._generation
     const creds = await this._loadCached()
-    if (!creds) return null
+    if (!creds || this._signOutPromise || generation !== this._generation) return null
     if (creds.expires_at - Math.floor(Date.now() / 1000) >= REFRESH_BUFFER_SECONDS) {
       return { token: creds.access_token, workspaceId: creds.workspace_id }
     }
     const refreshed = await this._refresh(creds)
+    if (this._signOutPromise || generation !== this._generation) return null
     return { token: refreshed.access_token, workspaceId: refreshed.workspace_id }
   }
 
   async hasCredentials(): Promise<boolean> {
+    if (this._signOutPromise) return false
     return (await this._loadCached()) !== null
   }
 
   /** Forgets the credentials on this machine only. The tokens stay valid at identity until they expire; use `signOut()` to end the session. */
   async clear(): Promise<void> {
+    this._generation += 1
     this._cached = null
-    this._refreshPromise = null
     await this._storage.clear()
   }
 
@@ -585,24 +593,45 @@ export class TokenManager {
    * forgets them locally. The credentials are cleared even when a revoke fails, and the
    * call then rejects, so the caller knows the tokens may still be live.
    */
-  async signOut(): Promise<void> {
-    const creds = await this._loadCached()
-    if (!creds) return
-    const revocations = [
-      { token: creds.refresh_token, tokenTypeHint: 'refresh_token' as const },
-      { token: creds.access_token, tokenTypeHint: 'access_token' as const },
-    ].filter(({ token }) => token)
-    const results = await Promise.allSettled(
-      revocations.map((revocation) => revokeToken(this._baseUrl, revocation, this._fetch)),
-    )
-    await this.clear()
-    const failed = results.find((result) => result.status === 'rejected')
-    if (failed) throw failed.reason
+  signOut(): Promise<void> {
+    if (this._signOutPromise) return this._signOutPromise
+    this._generation += 1
+    this._signOutPromise = this._doSignOut().finally(() => {
+      this._signOutPromise = null
+    })
+    return this._signOutPromise
+  }
+
+  private async _doSignOut(): Promise<void> {
+    // Capture before awaiting storage: an existing refresh can finish during a
+    // load. Joining includes its storage save, so it cannot restore credentials
+    // after the final clear. New refreshes are refused by getAccessToken().
+    const refreshing = this._refreshPromise
+    try {
+      const current = await this._loadCached()
+      const refreshed = refreshing ? await refreshing.catch(() => null) : null
+      const revocations = new Map<string, 'refresh_token' | 'access_token'>()
+      for (const creds of [current, refreshed]) {
+        if (creds?.refresh_token) revocations.set(creds.refresh_token, 'refresh_token')
+        if (creds?.access_token) revocations.set(creds.access_token, 'access_token')
+      }
+      const results = await Promise.allSettled(
+        [...revocations].map(([token, tokenTypeHint]) =>
+          revokeToken(this._baseUrl, { token, tokenTypeHint }, this._fetch),
+        ),
+      )
+      const failed = results.find((result) => result.status === 'rejected')
+      if (failed) throw failed.reason
+    } finally {
+      await this.clear()
+    }
   }
 
   private async _loadCached(): Promise<StoredCredentials | null> {
     if (this._cached) return this._cached
+    const generation = this._generation
     const loaded = await this._storage.load()
+    if (generation !== this._generation) return null
     if (loaded) this._cached = loaded
     return loaded
   }
@@ -617,6 +646,7 @@ export class TokenManager {
 
   private async _doRefresh(current: StoredCredentials): Promise<StoredCredentials> {
     if (!current.refresh_token) throw new RefreshTokenExpiredError('No refresh token available')
+    const generation = this._generation
 
     try {
       const response = await doRefreshToken(
@@ -636,8 +666,10 @@ export class TokenManager {
         expires_at: (claims?.exp as number) ?? Math.floor(Date.now() / 1000) + response.expires_in,
         scope: response.scope ?? current.scope,
       }
-      this._cached = refreshed
-      await this._storage.save(refreshed)
+      if (generation === this._generation) {
+        this._cached = refreshed
+        await this._storage.save(refreshed)
+      }
       return refreshed
     } catch (err) {
       if (
