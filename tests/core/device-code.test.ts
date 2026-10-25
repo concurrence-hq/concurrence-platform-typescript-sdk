@@ -324,6 +324,14 @@ describe('TokenManager', () => {
   })
 
   describe('signOut', () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void
+      const promise = new Promise<T>((done) => {
+        resolve = done
+      })
+      return { promise, resolve }
+    }
+
     function revokeCalls(fetch: typeof globalThis.fetch) {
       return (fetch as ReturnType<typeof vi.fn>).mock.calls.map(([url, init]) => {
         const body = new URLSearchParams((init as RequestInit).body as string)
@@ -363,6 +371,88 @@ describe('TokenManager', () => {
       const fetch = mockFetch(200, {})
       await new TokenManager({ storage, fetch }).signOut()
       expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('waits for an in-flight refresh and revokes the rotated credentials without returning them', async () => {
+      const started = deferred<void>()
+      const response = deferred<Response>()
+      const rotatedToken = makeJwt({
+        sub: 'e1',
+        workspace_id: 'ws1',
+        exp: Math.floor(Date.now() / 1000) + 900,
+      })
+      const revoked: string[] = []
+      const fetch: typeof globalThis.fetch = vi.fn(async (url, init) => {
+        if (String(url).endsWith('/token')) {
+          started.resolve()
+          return response.promise
+        }
+        revoked.push(new URLSearchParams(String(init?.body)).get('token') ?? '')
+        return new Response('{}', { status: 200 })
+      })
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 10 })
+      const pendingAuth = mgr.getAccessToken()
+      await started.promise
+      const signingOut = mgr.signOut()
+      response.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: rotatedToken,
+            refresh_token: 'rt_rotated',
+            token_type: 'Bearer',
+            expires_in: 900,
+          }),
+        ),
+      )
+      await signingOut
+
+      expect(await pendingAuth).toBeNull()
+      expect(revoked).toContain('rt_rotated')
+      expect(revoked).toContain(rotatedToken)
+      expect(revoked).toContain(validResult.accessToken)
+      expect(await storage.load()).toBeNull()
+      expect(await mgr.hasCredentials()).toBe(false)
+    })
+
+    it('does not clear storage before a refresh save finishes', async () => {
+      const saveStarted = deferred<void>()
+      const saveAllowed = deferred<void>()
+      const underlyingSave = storage.save.bind(storage)
+      vi.spyOn(storage, 'save').mockImplementation(async (credentials) => {
+        if (credentials.refresh_token === 'rt_rotated') {
+          saveStarted.resolve()
+          await saveAllowed.promise
+        }
+        await underlyingSave(credentials)
+      })
+      const fetch: typeof globalThis.fetch = vi.fn(
+        async (url) =>
+          new Response(
+            JSON.stringify(
+              String(url).endsWith('/token')
+                ? {
+                    access_token: validResult.accessToken,
+                    refresh_token: 'rt_rotated',
+                    token_type: 'Bearer',
+                    expires_in: 900,
+                  }
+                : {},
+            ),
+          ),
+      )
+      const mgr = new TokenManager({ storage, identityBaseUrl: 'https://id.test', fetch })
+      await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 10 })
+      const pendingAuth = mgr.getAccessToken()
+      await saveStarted.promise
+      const signingOut = mgr.signOut()
+      expect(await mgr.getAccessToken()).toBeNull()
+      saveAllowed.resolve()
+      await signingOut
+
+      expect(await pendingAuth).toBeNull()
+      expect(await storage.load()).toBeNull()
+      expect(await mgr.hasCredentials()).toBe(false)
     })
 
     it('tries a 5xx once more', async () => {
