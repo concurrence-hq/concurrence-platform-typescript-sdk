@@ -477,6 +477,43 @@ describe('TokenManager', () => {
       expect(await mgr.hasCredentials()).toBe(false)
     })
 
+    it('finishes sign-out when an in-flight refresh reaches its network deadline', async () => {
+      const started = deferred<void>()
+      const response = deferred<Response>()
+      const deadline = new AbortController()
+      const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValueOnce(deadline.signal)
+      const fetch: typeof globalThis.fetch = vi.fn(async (url, init) => {
+        if (!String(url).endsWith('/token')) return new Response('{}')
+        started.resolve()
+        return new Promise<Response>((resolve, reject) => {
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(new TypeError('refresh timed out')),
+            { once: true },
+          )
+          void response.promise.then(resolve)
+        })
+      })
+      const mgr = new TokenManager({ storage, fetch })
+      await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 10 })
+      const pendingAuth = mgr.getAccessToken().catch(() => null)
+      await started.promise
+      let completed = false
+      const signingOut = mgr.signOut().then(() => {
+        completed = true
+      })
+      try {
+        deadline.abort()
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        expect(completed).toBe(true)
+        expect(await storage.load()).toBeNull()
+      } finally {
+        response.resolve(new Response(JSON.stringify(TOKEN)))
+        await Promise.allSettled([pendingAuth, signingOut])
+        timeout.mockRestore()
+      }
+    })
+
     it('does not let a stale refresh failure clear a newer explicit sign-in', async () => {
       const started = deferred<void>()
       const response = deferred<Response>()
