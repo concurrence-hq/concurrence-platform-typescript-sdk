@@ -1,6 +1,6 @@
 {
   "name": "@amigo-ai/platform-sdk",
-  "version": "0.121.0",
+  "version": "0.122.0",
   "description": "Official TypeScript SDK for the Amigo Platform API",
   "publishConfig": {
     "access": "public",

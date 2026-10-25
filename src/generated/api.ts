@@ -1676,7 +1676,7 @@ export interface paths {
         put?: never;
         /**
          * Create a context graph version
-         * @description Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward. Omitting `dynamic_behaviors` keeps the latest version's.
+         * @description Create a new version of a context graph. Version number is auto-incremented. Requires `ContextGraph.create` permission for the first version and `ContextGraph.update` permission afterward. `dynamic_behaviors` is deprecated: a version carries none, so it takes only `[]`.
          */
         post: operations["create-context_graph-version"];
         delete?: never;
@@ -2086,6 +2086,118 @@ export interface paths {
         put?: never;
         /** Invoke Workspace Data Query */
         post: operations["invoke-workspace-data-query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/dynamic-behavior-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dynamic behavior sets
+         * @description List the workspace's dynamic behavior sets with pagination, without their versions. Sets that aren't archived by default. Filter by name text, tag, or the service whose version sets pin them. Requires `DynamicBehaviorSet.view` permission.
+         */
+        get: operations["list-dynamic-behavior-sets"];
+        put?: never;
+        /**
+         * Create a dynamic behavior set
+         * @description Create a set with its version 1, together. The name is unique among the workspace's sets that aren't archived, whatever the case. `id` is optional, and setting it needs the `platform:admin` scope: an import that derives it from the source's id gets a 409 instead of a second set when it creates the set again. A replace-mode first version needs the `platform:admin` scope too. Requires `DynamicBehaviorSet.create` permission.
+         */
+        post: operations["create-dynamic-behavior-set"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/dynamic-behavior-sets/{set_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a dynamic behavior set
+         * @description Retrieve a set, without its versions, with the number of its latest version. Requires `DynamicBehaviorSet.view` permission.
+         */
+        get: operations["get-dynamic-behavior-set"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a dynamic behavior set
+         * @description Change a set's name, tags or archive state without a new version. A field left out stays as it is. A set is never deleted: `archived: true` takes it out of the default list and gives its name back, and is refused (409, naming the services) while a version set pins it. Requires `DynamicBehaviorSet.update` permission, and `DynamicBehaviorSet.delete` to archive.
+         */
+        patch: operations["update-dynamic-behavior-set"];
+        trace?: never;
+    };
+    "/v1/{workspace_id}/dynamic-behavior-sets/{set_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a dynamic behavior set's usage
+         * @description List the services whose version sets pin the set, with each pinning version set, the version it runs, whether the pin is enabled and its states. A pinned set cannot be archived. Requires `DynamicBehaviorSet.view` permission.
+         */
+        get: operations["get-dynamic-behavior-set-usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/dynamic-behavior-sets/{set_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dynamic behavior set versions
+         * @description List a set's versions, newest first, with pagination. Requires `DynamicBehaviorSet.view` permission.
+         */
+        get: operations["list-dynamic-behavior-set-versions"];
+        put?: never;
+        /**
+         * Create a dynamic behavior set version
+         * @description Write the set's next version. `expected_latest_version` is the latest version the write was made from; when the set has moved on, or another write took the next number first, nothing is stored and the response is a 409. A version never changes, and no service runs it until its version set pins it. A replace-mode version needs the `platform:admin` scope. Requires `DynamicBehaviorSet.update` permission.
+         */
+        post: operations["create-dynamic-behavior-set-version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/dynamic-behavior-sets/{set_id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a dynamic behavior set version
+         * @description Retrieve one version of a set, as it was written. Requires `DynamicBehaviorSet.view` permission.
+         */
+        get: operations["get-dynamic-behavior-set-version"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4970,7 +5082,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid. Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -4993,7 +5105,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. Requires `Service.update` permission.
+         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5057,7 +5169,7 @@ export interface paths {
         get?: never;
         /**
          * Upsert a service version set
-         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated.
+         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. Pinning a replace-mode version, or changing its pin, needs `platform:admin`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.
          */
         put: operations["upsert-service-version-set"];
         post?: never;
@@ -5300,7 +5412,8 @@ export interface paths {
          * @description Update the workspace metric definitions.
          *
          *     Partial updates supported — only provided fields are changed.
-         *     The definitions list is replaced entirely when provided.
+         *     The definitions list is replaced entirely when provided, and a ``null``
+         *     resets it to the built-in defaults.
          *
          *     A custom ai_query metric needs an output set whenever the save adds it or
          *     changes its type, prompt, labels or range: categorical requires a
@@ -5375,6 +5488,10 @@ export interface paths {
          * @description Update the workspace retention policy.
          *
          *     Partial updates supported — only provided fields are changed.
+         *     A ``null`` for a retention period or ``legal_hold`` is refused with a 422, so an
+         *     active legal hold or a retention period is never cleared by one. Release a hold
+         *     with ``legal_hold: false``; the update is recorded in the audit log. A ``null``
+         *     ``legal_hold_reason`` clears the reason and leaves the hold as it is.
          *     Advisory in v1: policy is stored and displayed but no automated
          *     deletion is performed. Legal hold overrides all retention.
          *
@@ -8358,6 +8475,12 @@ export interface components {
             mode: components["schemas"]["DynamicBehaviorMode"];
             /** Name */
             name: string;
+            /**
+             * Version
+             * @description The version of the behavior this reply ran with. Null on a reply recorded before behaviors were versioned.
+             * @default null
+             */
+            version?: number | null;
         };
         /**
          * AppliedRate
@@ -8738,6 +8861,12 @@ export interface components {
              */
             behavior_id?: string | null;
             /**
+             * Behavior Version
+             * @description The version of the behavior in force. Null where none is, and before behaviors were versioned.
+             * @default null
+             */
+            behavior_version?: number | null;
+            /**
              * Candidate Count
              * @description How many behaviors the decision chose between, ``none`` aside.
              * @default 0
@@ -8749,6 +8878,12 @@ export interface components {
              * @default null
              */
             chosen_id?: string | null;
+            /**
+             * Chosen Version
+             * @description The version of the behavior the model chose. Null where it chose none, and before behaviors were versioned.
+             * @default null
+             */
+            chosen_version?: number | null;
             /**
              * Cited Message Indexes
              * @description The messages the decision read the turn from: the agent's line before the turn, then the caller's.
@@ -8763,7 +8898,7 @@ export interface components {
             confidence?: number | null;
             /**
              * Context Graph Version
-             * @description The context graph version whose behaviors were offered.
+             * @description The context graph version the conversation ran when the decision was made.
              */
             context_graph_version: number;
             /**
@@ -10648,7 +10783,9 @@ export interface components {
             description: string;
             /**
              * Dynamic Behaviors
-             * @description The version's dynamic behaviors, in authored order. Empty on a version saved before they existed.
+             * @deprecated
+             * @description Deprecated: always empty. Dynamic behaviors are in the dynamic behavior sets library, pinned on a service's
+             *     version set.
              */
             dynamic_behaviors: components["schemas"]["DynamicBehavior"][];
             /** Global Action Guidelines */
@@ -11496,10 +11633,9 @@ export interface components {
             description?: components["schemas"]["DescriptionString"];
             /**
              * Dynamic Behaviors
-             * @description The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the
-             *     latest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.
-             *     Adding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it
-             *     or removing it doesn't.
+             * @deprecated
+             * @description Deprecated: a context graph version carries no dynamic behaviors, so this takes only ``[]`` and can be left
+             *     out. Author behaviors in the dynamic behavior sets library and pin them on a service's version set.
              */
             dynamic_behaviors?: components["schemas"]["DynamicBehavior"][] | null;
             /**
@@ -11616,6 +11752,69 @@ export interface components {
              * @enum {string}
              */
             sync_strategy?: "manual" | "scheduled" | "webhook" | "continuous";
+        };
+        /**
+         * CreateDynamicBehaviorSetRequest
+         * @description A new set, written with its first version.
+         */
+        CreateDynamicBehaviorSetRequest: {
+            /** @description Version 1, written with the set. */
+            first_version: components["schemas"]["CreateDynamicBehaviorSetVersionRequest"];
+            /**
+             * Id
+             * @description The set's id, unique across workspaces. Omitted, the platform generates it; setting it needs the
+             *     ``platform:admin`` scope. A client that derives it from something stable, as an import does from its
+             *     workspace's id and the source's id, gets a conflict instead of a second set when it creates the set again.
+             */
+            id?: string | null;
+            /**
+             * Name
+             * @description What authors call it. Unique in the workspace among sets that aren't archived, whatever the case. It never
+             *     reaches a prompt.
+             */
+            name: string;
+            /**
+             * Tags
+             * @description Labels for authors. They never reach a prompt.
+             */
+            tags?: string[];
+        };
+        /**
+         * CreateDynamicBehaviorSetVersionRequest
+         * @description The next version of a set, or the first version of a new one.
+         */
+        CreateDynamicBehaviorSetVersionRequest: {
+            /**
+             * Condition
+             * @description When it applies, in terms of what the client wants or says. It describes the behavior to the selector.
+             */
+            condition: string;
+            /**
+             * Examples
+             * @description Things a client says when it applies. The selector reads them; the reply never does.
+             */
+            examples?: string[];
+            /**
+             * Instruction
+             * @description The guidance the reply follows while the behavior is in force. The selector never reads it. Null: the
+             *     behavior is decided and recorded, and changes no reply.
+             */
+            instruction?: string | null;
+            /**
+             * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
+             *     guidelines, while boundary constraints, guardrails and safety rules stay. A replace-mode version needs an
+             *     instruction, and writing one needs ``platform:admin``.
+             * @default add
+             */
+            mode?: components["schemas"]["DynamicBehaviorMode"];
+            /** @description What changed, for the people reading the set's history. It never reaches a prompt. */
+            note?: components["schemas"]["DescriptionString"] | null;
+            /**
+             * Sticky Turns
+             * @description The fewest caller turns it stays in force once applied, counting the turn it was applied on.
+             * @default 1
+             */
+            sticky_turns?: number;
         };
         /** CreateOperatorRequest */
         CreateOperatorRequest: {
@@ -13254,7 +13453,7 @@ export interface components {
         };
         /**
          * DynamicBehavior
-         * @description One authored behavior on a context graph version.
+         * @description One authored behavior: embedded on a context graph version, or resolved from a library set version.
          */
         DynamicBehavior: {
             /**
@@ -13278,7 +13477,7 @@ export interface components {
              * Id
              * Format: uuid
              * @description Stable across versions: the same behavior keeps its id in every version that carries it. The client
-             *     generates it.
+             *     generates it. A resolved behavior carries its library set's id.
              */
             id: string;
             /**
@@ -13318,6 +13517,12 @@ export interface components {
              * @default []
              */
             tags?: string[];
+            /**
+             * Version
+             * @description The version of the library set this was resolved from. Null on a behavior embedded on a context graph
+             *     version.
+             */
+            version?: number | null;
         };
         /**
          * DynamicBehaviorDecidedEvent
@@ -13337,6 +13542,129 @@ export interface components {
         DynamicBehaviorMode: "add" | "replace";
         /** @enum {string} */
         DynamicBehaviorOutcome: "applied" | "kept" | "held" | "none" | "below_floor" | "failed" | "skipped" | "superseded";
+        /** DynamicBehaviorSetListResponse */
+        DynamicBehaviorSetListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["DynamicBehaviorSetResponse"][];
+        };
+        /**
+         * DynamicBehaviorSetResponse
+         * @description A set in the library, without its versions.
+         */
+        DynamicBehaviorSetResponse: {
+            /**
+             * Archived At
+             * @description When it was archived. Null: not archived.
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Latest Version */
+            latest_version: number;
+            /** Name */
+            name: string;
+            /** Tags */
+            tags: string[];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /** DynamicBehaviorSetUsageResponse */
+        DynamicBehaviorSetUsageResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /**
+             * Items
+             * @description The services whose version sets pin the set, by name.
+             */
+            items: components["schemas"]["PinningService"][];
+        };
+        /** DynamicBehaviorSetVersionListResponse */
+        DynamicBehaviorSetVersionListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /**
+             * Items
+             * @description Newest version first.
+             */
+            items: components["schemas"]["DynamicBehaviorSetVersionResponse"][];
+        };
+        /**
+         * DynamicBehaviorSetVersionResponse
+         * @description One version of a set, as it was written.
+         */
+        DynamicBehaviorSetVersionResponse: {
+            /**
+             * Condition
+             * @description When it applies, in terms of what the client wants or says. It describes the behavior to the selector.
+             */
+            condition: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Examples
+             * @description Things a client says when it applies. The selector reads them; the reply never does.
+             */
+            examples?: string[];
+            /**
+             * Instruction
+             * @description The guidance the reply follows while the behavior is in force. The selector never reads it. Null: the
+             *     behavior is decided and recorded, and changes no reply.
+             */
+            instruction?: string | null;
+            /**
+             * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
+             *     guidelines, while boundary constraints, guardrails and safety rules stay. A replace-mode version needs an
+             *     instruction, and writing one needs ``platform:admin``.
+             * @default add
+             */
+            mode?: components["schemas"]["DynamicBehaviorMode"];
+            /** @description What changed, for the people reading the set's history. It never reaches a prompt. */
+            note?: components["schemas"]["DescriptionString"] | null;
+            /**
+             * Set Id
+             * Format: uuid
+             */
+            set_id: string;
+            /**
+             * Sticky Turns
+             * @description The fewest caller turns it stays in force once applied, counting the turn it was applied on.
+             * @default 1
+             */
+            sticky_turns?: number;
+            /** Version */
+            version: number;
+        };
         /** @enum {string} */
         DynamicBehaviorSkip: "emergency_floor" | "person_request" | "empathy_hold" | "suspended" | "no_candidates";
         /** EagerEvalResponse */
@@ -16910,6 +17238,12 @@ export interface components {
         InternalServiceConfigResponse: {
             agent_version: components["schemas"]["AgentVersion"];
             context_graph_version: components["schemas"]["ContextGraphVersion"];
+            /**
+             * Dynamic Behaviors
+             * @description The dynamic behaviors the version set pins, resolved: one per pin in pin order. ``id`` is the library set's id
+             *     and ``version`` the pinned version; ``enabled`` and ``states`` come from the pin, the rest from that version.
+             */
+            dynamic_behaviors: components["schemas"]["DynamicBehavior"][];
             service: components["schemas"]["Service"];
         };
         /** InternalSkillResponse */
@@ -17786,7 +18120,9 @@ export interface components {
          * MetricSettingsRequest
          * @description Partial update — only provided fields are changed.
          *
-         *     The definitions list is replaced entirely when provided.
+         *     The definitions list is replaced entirely when provided. A ``null`` resets
+         *     it to the built-in defaults: every custom definition and every change to a
+         *     built-in is dropped.
          *     Built-in metrics can be deactivated (active=false) or have their
          *     freshness_sla_minutes changed, but their key cannot be reused
          *     for custom metrics.
@@ -19553,6 +19889,41 @@ export interface components {
              */
             total_calls: number;
         };
+        /** PinningService */
+        PinningService: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Name
+             * @description The version set that pins the set.
+             */
+            name: string;
+            /** Version Sets */
+            version_sets: components["schemas"]["PinningVersionSet"][];
+        };
+        /** PinningVersionSet */
+        PinningVersionSet: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Name
+             * @description The version set that pins the set.
+             */
+            name: string;
+            /**
+             * States
+             * @description The states it applies in. Empty: every one.
+             */
+            states: string[];
+            /**
+             * Version
+             * @description The version of the set it runs.
+             */
+            version: number;
+        };
         /** PipelineErrorEvent */
         PipelineErrorEvent: {
             /**
@@ -20722,21 +21093,29 @@ export interface components {
              */
             workspace_id: string;
         };
-        /** RetentionPolicyRequest */
+        /**
+         * RetentionPolicyRequest
+         * @description Change the retention policy. Only the fields sent change, and a field left out keeps its stored value.
+         *
+         *     A retention period or ``legal_hold`` sent as ``null`` is refused with a 422, so neither is cleared by
+         *     accident. Release a legal hold with ``legal_hold: false``. ``legal_hold_reason`` is the one field a
+         *     ``null`` clears.
+         */
         RetentionPolicyRequest: {
             /** Audit Log Days */
-            audit_log_days?: number | null;
+            audit_log_days?: number;
             /** Call Recordings Days */
-            call_recordings_days?: number | null;
+            call_recordings_days?: number;
             /** Call Transcripts Days */
-            call_transcripts_days?: number | null;
+            call_transcripts_days?: number;
             /** Legal Hold */
-            legal_hold?: boolean | null;
+            legal_hold?: boolean;
+            /** Legal Hold Reason */
             legal_hold_reason?: components["schemas"]["DescriptionString"] | null;
             /** Phi Data Days */
-            phi_data_days?: number | null;
+            phi_data_days?: number;
             /** World Events Days */
-            world_events_days?: number | null;
+            world_events_days?: number;
         };
         /** RetentionPolicyResponse */
         RetentionPolicyResponse: {
@@ -21172,7 +21551,7 @@ export interface components {
             decider_kind?: components["schemas"]["DeciderKind"] | null;
             /**
              * @description ``sha256:`` over the template and fixed text each dynamic behavior decision renders from. Null on
-             *     gpt_realtime, which runs no dynamic behavior, and when the graph version has no enabled one.
+             *     gpt_realtime, which runs no dynamic behavior, and when the service pins no enabled one.
              */
             dynamic_behavior_prompt_template_hash?: components["schemas"]["NameString"] | null;
             /**
@@ -21198,7 +21577,10 @@ export interface components {
             navigation_model?: components["schemas"]["NameString"] | null;
             /** @description ``sha256:`` over the templates each navigation decision renders from. Null on gpt_realtime. */
             navigation_prompt_template_hash?: components["schemas"]["NameString"] | null;
-            /** @description ``sha256:`` over the agent and graph version ids and the LLM model: one value per config generation. */
+            /**
+             * @description ``sha256:`` over the agent and graph version ids, the LLM model and, when the service pins dynamic
+             *     behaviors, each pinned set's id and version: one value per config generation.
+             */
             platform_config_fingerprint?: components["schemas"]["NameString"] | null;
             /** @description The runtime release of the pod the session ran on. */
             runtime_release_id?: components["schemas"]["NameString"] | null;
@@ -24456,10 +24838,9 @@ export interface components {
             description?: components["schemas"]["DescriptionString"];
             /**
              * Dynamic Behaviors
-             * @description The version's dynamic behaviors, which a Decisions call chooses between on each caller turn. Omitted, the
-             *     latest version's carry forward; an empty list removes them all. A behavior keeps its ``id`` across versions.
-             *     Adding a replace-mode behavior, or changing one, needs ``platform:admin``; keeping one as it is, disabling it
-             *     or removing it doesn't.
+             * @deprecated
+             * @description Deprecated: a context graph version carries no dynamic behaviors, so this takes only ``[]`` and can be left
+             *     out. Author behaviors in the dynamic behavior sets library and pin them on a service's version set.
              */
             dynamic_behaviors?: components["schemas"]["DynamicBehavior"][] | null;
             /**
@@ -27959,6 +28340,21 @@ export interface components {
             sync_strategy?: ("manual" | "scheduled" | "webhook" | "continuous") | null;
         };
         /**
+         * UpdateDynamicBehaviorSetRequest
+         * @description What can change on a set without a new version. A field left out stays as it is.
+         */
+        UpdateDynamicBehaviorSetRequest: {
+            /**
+             * Archived
+             * @description True archives the set, which a version set that pins it refuses. False brings it back.
+             */
+            archived?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Tags */
+            tags?: string[] | null;
+        };
+        /**
          * UpdateOperatorRequest
          * @description Fields to change on an operator. A field that is omitted or null is left unchanged.
          */
@@ -28288,6 +28684,17 @@ export interface components {
         };
         /** UpsertVersionSetRequest */
         UpsertVersionSetRequest: {
+            /**
+             * Expected Updated At
+             * @description The service's `updated_at` this write was made from, exactly as the service returned it. When the service
+             *     has changed since, the write is refused with 409 and nothing is stored, so a stale page can't overwrite
+             *     another editor's pins. Left out, the write is not compared to what the caller last read.
+             */
+            expected_updated_at?: string | null;
+            /**
+             * @description The version set to store. Its `dynamic_behavior_sets` left out keep the pins the stored version set has, and
+             *     `[]` clears them.
+             */
             version_set: components["schemas"]["VersionSet-Input"];
         };
         /**
@@ -28999,13 +29406,15 @@ export interface components {
         VersionNumber: number;
         /**
          * VersionSet
-         * @description Pins agent, state machine, and LLM model versions for a service.
+         * @description Pins agent, state machine, LLM model and dynamic behavior versions for a service.
          */
         "VersionSet-Input": {
             /** Agent Version Number */
             agent_version_number?: number | null;
             /** Context Graph Version Number */
             context_graph_version_number?: number | null;
+            /** Dynamic Behavior Sets */
+            dynamic_behavior_sets?: components["schemas"]["VersionSetBehaviorPin"][] | null;
             /** Llm Model Preferences */
             llm_model_preferences?: {
                 [key: string]: components["schemas"]["LLMConfig"];
@@ -29013,17 +29422,48 @@ export interface components {
         };
         /**
          * VersionSet
-         * @description Pins agent, state machine, and LLM model versions for a service.
+         * @description Pins agent, state machine, LLM model and dynamic behavior versions for a service.
          */
         "VersionSet-Output": {
             /** Agent Version Number */
             agent_version_number?: number | null;
             /** Context Graph Version Number */
             context_graph_version_number?: number | null;
+            /** Dynamic Behavior Sets */
+            dynamic_behavior_sets?: components["schemas"]["VersionSetBehaviorPin"][] | null;
             /** Llm Model Preferences */
             llm_model_preferences?: {
                 [key: string]: components["schemas"]["LLMConfig"];
             };
+        };
+        /**
+         * VersionSetBehaviorPin
+         * @description One library set a version set uses, at one version.
+         */
+        VersionSetBehaviorPin: {
+            /**
+             * Enabled
+             * @description A disabled pin stays on the version set and is never offered.
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Set Id
+             * Format: uuid
+             * @description The library set. It belongs to the service's workspace and isn't archived.
+             */
+            set_id: string;
+            /**
+             * States
+             * @description The action and data collection states it applies in. Empty: every one.
+             */
+            states?: components["schemas"]["NameString"][];
+            /**
+             * Version
+             * @description The version of the set the service runs. A later version of the set changes nothing until the pin moves.
+             *     Pinning a replace-mode version needs ``platform:admin``.
+             */
+            version: number;
         };
         /** VoiceConfig */
         VoiceConfig: {
@@ -29843,6 +30283,8 @@ export interface components {
         src__routes__context_graphs__context_graph_crud___SortField: "name" | "created_at" | "updated_at";
         /** @constant */
         src__routes__conversations___SortField: "turn_index";
+        /** @enum {string} */
+        src__routes__dynamic_behavior_sets___SortField: "name" | "updated_at";
         /** CreateRequest */
         src__routes__external_auth_claim_mappings__CreateRequest: {
             /** Claim Key */
@@ -30536,10 +30978,11 @@ export interface components {
          * Request
          * @description Create body — the authored shape of a new workspace data query.
          *
-         *     The SQL template + parameters parity check + multi-statement /
-         *     session-state-command refusal runs inside :meth:`_validate_template`
-         *     so a bad payload surfaces as a Pydantic 422 with the standard wire
-         *     shape — no try/except in the handler.
+         *     The SQL template is held to the workspace SQL allowlist (one SELECT, INSERT,
+         *     UPDATE, DELETE or TRUNCATE statement that calls only built-in functions which
+         *     run no SQL text and change no session state), and the parameters parity check
+         *     runs inside :meth:`_validate_template`, so a bad payload surfaces as a Pydantic
+         *     422 with the standard wire shape, with no try/except in the handler.
          */
         src__routes__workspace_data_queries__create_workspace_data_query__Request: {
             /**
@@ -30732,11 +31175,11 @@ export interface components {
         src__routes__workspace_tables__execute_workspace_query__Request: {
             /**
              * Sql
-             * @description One SQL statement: SELECT / WITH ... SELECT / INSERT / UPDATE /
-             *     DELETE. Multi-statement, DDL, and session-state commands (SET ROLE,
-             *     RESET, SET SESSION AUTHORIZATION) reject with 422 at the Pydantic
-             *     boundary. ``pg_*`` function calls reject with 400 at execute time
-             *     (no grant).
+             * @description One SQL statement, run under the workspace's own role: a SELECT (with its WITH, UNION and the like),
+             *     INSERT, UPDATE, DELETE or TRUNCATE. It may call only built-in functions that run no SQL text and change no
+             *     session state, written unquoted and unqualified. Anything else rejects with 422: DDL, SET, RESET and SET
+             *     ROLE, transaction control, a call to any other function, more than one statement, and SQL that doesn't
+             *     parse.
              */
             sql: string;
         };
@@ -35119,7 +35562,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions, or a replace-mode dynamic behavior added or changed (other than disabled) without platform:admin scope. */
+            /** @description Insufficient permissions. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -35140,7 +35583,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid request body. Dynamic behaviors that are invalid together are listed in detail.dynamic_behaviors, each by its index, id and field. */
+            /** @description Invalid request body. A dynamic_behaviors that isn't empty is refused: dynamic behaviors are in the dynamic behavior sets library. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -36586,6 +37029,519 @@ export interface operations {
             };
             /** @description Execution failed */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "list-dynamic-behavior-sets": {
+        parameters: {
+            query?: {
+                sort_by?: string[];
+                /** @description Sets whose name contains this text, whatever the case. */
+                q?: components["schemas"]["SearchString"] | null;
+                /** @description Sets that carry this tag. */
+                tag?: string | null;
+                /** @description False (the default): sets that aren't archived. True: only archived sets. */
+                archived?: boolean;
+                /** @description Sets that one of this service's version sets pins. */
+                service_id?: string | null;
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetListResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "create-dynamic-behavior-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDynamicBehaviorSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name or the id is already in use. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request body. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-dynamic-behavior-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dynamic behavior set not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "update-dynamic-behavior-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDynamicBehaviorSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dynamic behavior set not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is in use by a set that isn't archived, or version sets pin the set an archive would remove. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request body. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-dynamic-behavior-set-usage": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetUsageResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dynamic behavior set not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "list-dynamic-behavior-set-versions": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetVersionListResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dynamic behavior set or version not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "create-dynamic-behavior-set-version": {
+        parameters: {
+            query: {
+                /** @description The latest version this write was made from. When the set has a different latest version, the write is refused with 409. */
+                expected_latest_version: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDynamicBehaviorSetVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetVersionResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dynamic behavior set or version not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The set's latest version isn't expected_latest_version, or the set is archived. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request body. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-dynamic-behavior-set-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                set_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicBehaviorSetVersionResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dynamic behavior set or version not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -43527,7 +44483,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a replace-mode dynamic behavior pinned without platform:admin. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -43541,7 +44497,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Name already taken. */
+            /** @description Name already taken, or a pinned dynamic behavior set is archived. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -43642,7 +44598,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a replace-mode dynamic behavior pinned without platform:admin. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -43656,7 +44612,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Name already taken. */
+            /** @description Name already taken, or a pinned dynamic behavior set is archived. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -43872,7 +44828,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions. */
+            /** @description Insufficient permissions, or a replace-mode dynamic behavior pinned without platform:admin. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -43886,7 +44842,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Name already taken. */
+            /** @description The service changed since `expected_updated_at` or since this request read it, or a pinned dynamic behavior set is archived. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -44537,7 +45493,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation error */
+            /** @description Validation error, including a null for a retention period or legal_hold */
             422: {
                 headers: {
                     [name: string]: unknown;
