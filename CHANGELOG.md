@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.121.1] - 2026-10-25
+
+### Bug Fixes
+
+- preserve opaque list cursors in request types (#491)
+
 ## [0.121.0] - 2026-10-25
 
 ### Features
