@@ -455,6 +455,108 @@ describe('TokenManager', () => {
       expect(await mgr.hasCredentials()).toBe(false)
     })
 
+    it('waits for an explicit store already writing before clearing sign-out credentials', async () => {
+      const saveStarted = deferred<void>()
+      const saveAllowed = deferred<void>()
+      const underlyingSave = storage.save.bind(storage)
+      vi.spyOn(storage, 'save').mockImplementation(async (credentials) => {
+        saveStarted.resolve()
+        await saveAllowed.promise
+        await underlyingSave(credentials)
+      })
+      const mgr = new TokenManager({ storage, fetch: mockFetch(200, {}) })
+      const storing = mgr.store(validResult)
+      await saveStarted.promise
+      const signingOut = mgr.signOut()
+      // Let immediate revocations and clear settle while the older save is held.
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      saveAllowed.resolve()
+      await Promise.all([storing, signingOut])
+
+      expect(await storage.load()).toBeNull()
+      expect(await mgr.hasCredentials()).toBe(false)
+    })
+
+    it('does not let a stale refresh failure clear a newer explicit sign-in', async () => {
+      const started = deferred<void>()
+      const response = deferred<Response>()
+      const fetch: typeof globalThis.fetch = vi.fn(async () => {
+        started.resolve()
+        return response.promise
+      })
+      const mgr = new TokenManager({ storage, fetch })
+      await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 10 })
+      const previousAuth = mgr.getAccessToken().catch(() => null)
+      await started.promise
+      const next = {
+        ...validResult,
+        accessToken: 'new-explicit-access',
+        refreshToken: 'new-explicit-refresh',
+        workspaceId: 'ws2',
+      }
+      await mgr.store(next)
+      response.resolve(new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 401 }))
+      await previousAuth
+
+      expect(await mgr.getAccessToken()).toEqual({ token: next.accessToken, workspaceId: 'ws2' })
+      expect((await storage.load())?.refresh_token).toBe(next.refreshToken)
+    })
+
+    it('starts a new refresh after clear and store without sharing the old workspace refresh', async () => {
+      const started = deferred<void>()
+      const previousResponse = deferred<Response>()
+      const refreshedTokens: string[] = []
+      const nextAccess = makeJwt({
+        sub: 'e2',
+        workspace_id: 'ws2',
+        exp: Math.floor(Date.now() / 1000) + 900,
+      })
+      const fetch: typeof globalThis.fetch = vi.fn(async (_url, init) => {
+        const refresh = new URLSearchParams(String(init?.body)).get('refresh_token') ?? ''
+        refreshedTokens.push(refresh)
+        if (refresh === validResult.refreshToken) {
+          started.resolve()
+          return previousResponse.promise
+        }
+        return new Response(
+          JSON.stringify({
+            access_token: nextAccess,
+            refresh_token: 'rt_ws2_rotated',
+            token_type: 'Bearer',
+            expires_in: 900,
+          }),
+        )
+      })
+      const mgr = new TokenManager({ storage, fetch })
+      await mgr.store({ ...validResult, expiresAt: Math.floor(Date.now() / 1000) + 10 })
+      const previousAuth = mgr.getAccessToken()
+      await started.promise
+      await mgr.clear()
+      await mgr.store({
+        ...validResult,
+        refreshToken: 'rt_ws2',
+        workspaceId: 'ws2',
+        expiresAt: Math.floor(Date.now() / 1000) + 10,
+      })
+      const nextAuth = mgr.getAccessToken()
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      previousResponse.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: validResult.accessToken,
+            refresh_token: 'rt_ws1_rotated',
+            token_type: 'Bearer',
+            expires_in: 900,
+          }),
+        ),
+      )
+
+      expect(await previousAuth).toBeNull()
+      expect(await nextAuth).toEqual({ token: nextAccess, workspaceId: 'ws2' })
+      expect(refreshedTokens).toEqual([validResult.refreshToken, 'rt_ws2'])
+      expect((await storage.load())?.refresh_token).toBe('rt_ws2_rotated')
+    })
+
     it('tries a 5xx once more', async () => {
       const fetch = createFetchSequence([
         { status: 500, body: {} },
