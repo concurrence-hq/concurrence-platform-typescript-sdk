@@ -18737,6 +18737,47 @@ export interface components {
             };
         };
         /**
+         * OpenerFailureResponse
+         * @description The body of a failed outbound opener.
+         *
+         *     ``detail`` says what failed. ``outcome``, ``reason`` and ``conversation_id`` say what happened to the
+         *     opener's message and where, when the platform has a report of it; a failure it has none of carries
+         *     ``detail`` alone.
+         */
+        OpenerFailureResponse: {
+            /**
+             * Conversation Id
+             * @description The conversation the opener ran in, or null when none had been created. Absent when the platform has no
+             *     report of the opener.
+             */
+            conversation_id?: string | null;
+            /**
+             * Detail
+             * @description What failed.
+             */
+            detail: string;
+            /**
+             * Outcome
+             * @description What came of the opener's send. ``delivered``: the channel took the message, and a later step failed.
+             *     ``unknown``: the send failed after the request may have reached the channel, so the message may have gone
+             *     out. ``rejected``: the channel refused the message, so it did not go out. ``not_sent``: the agent produced
+             *     no message to send. ``error``: the run failed before any send began. Absent when the platform has no report
+             *     of the opener.
+             */
+            outcome?: ("delivered" | "unknown" | "rejected" | "not_sent" | "error") | null;
+            /**
+             * Reason
+             * @description Why the opener ended as it did. A failed send is named by how it failed: ``timeout``, ``connection``,
+             *     ``http_4xx``, ``http_5xx`` or ``error``. A refused message is ``opted_out`` (the recipient opted out) or
+             *     ``invalid_content``. A run that sent nothing is ``no_opener`` (the agent produced no message),
+             *     ``llm_timeout`` (the model did not answer in time) or ``lease_contended`` (another run held the
+             *     conversation). A failure in the run is ``session_init``, ``persist`` or ``agent_error``. ``unanswered``:
+             *     the agent runtime gave no answer. Null when the send went out and nothing failed after it. Absent when the
+             *     platform has no report of the opener.
+             */
+            reason?: ("timeout" | "connection" | "http_4xx" | "http_5xx" | "error" | "opted_out" | "invalid_content" | "no_opener" | "llm_timeout" | "lease_contended" | "session_init" | "persist" | "agent_error" | "unanswered") | null;
+        };
+        /**
          * OperatorIntelligenceSummary
          * @description Operator intervention summary.
          *
@@ -35696,6 +35737,24 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description An unexpected error while sending the opener (the agent's first message) of an sms or imessage conversation. ``outcome``, ``reason`` and ``conversation_id`` say what happened to the message when the platform has a report of it. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenerFailureResponse"];
+                };
+            };
+            /** @description The opener (the agent's first message) of an sms or imessage conversation failed. The message may or may not have gone out: ``outcome`` says which, and a body without ``outcome`` does not. ``reason`` says why the opener ended as it did, ``conversation_id`` names the conversation it ran in, and ``detail`` says what failed. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenerFailureResponse"];
+                };
+            };
         };
     };
     get_conversation_v1__workspace_id__conversations__conversation_id__get: {
@@ -35874,6 +35933,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The channel switched, but the opener (the agent's first message, ``dispatch_opener``) failed. The message may or may not have gone out: ``outcome`` says which, and a body without ``outcome`` does not. ``reason`` says why the opener ended as it did, ``conversation_id`` names the conversation it ran in, and ``detail`` says what failed. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenerFailureResponse"];
                 };
             };
         };

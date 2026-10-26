@@ -26181,6 +26181,81 @@
         "title": "OcrResponse",
         "type": "object"
       },
+      "OpenerFailureResponse": {
+        "description": "The body of a failed outbound opener.\n\n``detail`` says what failed. ``outcome``, ``reason`` and ``conversation_id`` say what happened to the\nopener's message and where, when the platform has a report of it; a failure it has none of carries\n``detail`` alone.",
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The conversation the opener ran in, or null when none had been created. Absent when the platform has no\nreport of the opener.",
+            "title": "Conversation Id"
+          },
+          "detail": {
+            "description": "What failed.",
+            "title": "Detail",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "delivered",
+                  "unknown",
+                  "rejected",
+                  "not_sent",
+                  "error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What came of the opener's send. ``delivered``: the channel took the message, and a later step failed.\n``unknown``: the send failed after the request may have reached the channel, so the message may have gone\nout. ``rejected``: the channel refused the message, so it did not go out. ``not_sent``: the agent produced\nno message to send. ``error``: the run failed before any send began. Absent when the platform has no report\nof the opener.",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "timeout",
+                  "connection",
+                  "http_4xx",
+                  "http_5xx",
+                  "error",
+                  "opted_out",
+                  "invalid_content",
+                  "no_opener",
+                  "llm_timeout",
+                  "lease_contended",
+                  "session_init",
+                  "persist",
+                  "agent_error",
+                  "unanswered"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the opener ended as it did. A failed send is named by how it failed: ``timeout``, ``connection``,\n``http_4xx``, ``http_5xx`` or ``error``. A refused message is ``opted_out`` (the recipient opted out) or\n``invalid_content``. A run that sent nothing is ``no_opener`` (the agent produced no message),\n``llm_timeout`` (the model did not answer in time) or ``lease_contended`` (another run held the\nconversation). A failure in the run is ``session_init``, ``persist`` or ``agent_error``. ``unanswered``:\nthe agent runtime gave no answer. Null when the send went out and nothing failed after it. Absent when the\nplatform has no report of the opener.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "OpenerFailureResponse",
+        "type": "object"
+      },
       "OperatorIntelligenceSummary": {
         "description": "Operator intervention summary.\n\nThree-valued semantics on ``operator_active``:\n- ``True``  — escalation occurred and an operator was active.\n- ``False`` — escalation occurred but no operator picked up.\n- ``None``  — no escalation occurred (producer omits the key).\n  Readers must distinguish; do not coerce ``None`` → ``False``.",
         "properties": {
@@ -62503,6 +62578,26 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenerFailureResponse"
+                }
+              }
+            },
+            "description": "An unexpected error while sending the opener (the agent's first message) of an sms or imessage conversation. ``outcome``, ``reason`` and ``conversation_id`` say what happened to the message when the platform has a report of it."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenerFailureResponse"
+                }
+              }
+            },
+            "description": "The opener (the agent's first message) of an sms or imessage conversation failed. The message may or may not have gone out: ``outcome`` says which, and a body without ``outcome`` does not. ``reason`` says why the opener ended as it did, ``conversation_id`` names the conversation it ran in, and ``detail`` says what failed."
           }
         },
         "summary": "Create or start a conversation (web inbound, or outbound on a channel)",
@@ -62770,6 +62865,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenerFailureResponse"
+                }
+              }
+            },
+            "description": "The channel switched, but the opener (the agent's first message, ``dispatch_opener``) failed. The message may or may not have gone out: ``outcome`` says which, and a body without ``outcome`` does not. ``reason`` says why the opener ended as it did, ``conversation_id`` names the conversation it ran in, and ``detail`` says what failed."
           }
         },
         "summary": "Switch a conversation to another channel",
