@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.126.0] - 2026-10-26
+
+### Features
+
+- a dynamicBehaviorSets resource and a one-pin helper on a service version set (ALL-2048) (#497)
+
+### Documentation
+
+- sync API descriptions from platform 4da0ac54 (ALL-2043) (#498)
+
+### Maintenance
+
+- sync API types from platform (ALL-2022)
+
 ## [0.125.0] - 2026-10-26
 
 ### Documentation
