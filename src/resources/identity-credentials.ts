@@ -22,25 +22,29 @@ export interface IdentityCredentialInfo {
   created_at: string | null
 }
 
-export interface CreateIdentityCredential {
+interface CreateIdentityCredentialFields {
   entity_id: string
   workspace_id: string
-  credential_type: IdentityCredentialType
   role?: string | null
   scopes?: string[]
   name?: string | null
   sso_provider?: string | null
   sso_subject?: string | null
+}
+
+export type CreateIdentityMachineCredential = CreateIdentityCredentialFields & {
+  credential_type: IdentityMachineCredentialType
   /** A timezone-aware ISO timestamp; omitted/null remains unbounded when server authority allows. */
   expires_at?: string | null
 }
-
-export type CreateIdentityMachineCredential = CreateIdentityCredential & {
-  credential_type: IdentityMachineCredentialType
-}
-export type CreateIdentityHumanCredential = CreateIdentityCredential & {
+export type CreateIdentityHumanCredential = CreateIdentityCredentialFields & {
   credential_type: IdentityHumanCredentialType
+  /** Human credential expiry is managed by the session or SSO lifecycle. */
+  expires_at?: never
 }
+export type CreateIdentityCredential =
+  | CreateIdentityMachineCredential
+  | CreateIdentityHumanCredential
 
 export interface IdentityCredentialCreated {
   credential: IdentityCredentialInfo

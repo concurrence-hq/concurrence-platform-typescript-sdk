@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { AmigoClient } from '../../src/index.js'
+import { AmigoClient, type CreateIdentityHumanCredential } from '../../src/index.js'
 
 const workspace = '635fd22d-35b1-4ea9-9118-8eda13b4b753'
 const entity = '919a5b49-8cc2-4e8a-bd1e-cf6fb81406cd'
@@ -98,6 +98,7 @@ describe('Identity credential administration', () => {
   })
 
   it('retains the flat human creation response and omitted expiry', async () => {
+    expectTypeOf<CreateIdentityHumanCredential['expires_at']>().toEqualTypeOf<undefined>()
     const created = { ...credential, credential_type: 'sso', expires_at: null }
     const { client, requests } = setup(created)
     const body = {
