@@ -2672,7 +2672,7 @@
         "type": "object"
       },
       "BehaviorDecision": {
-        "description": "What one caller turn's dynamic behavior decision did.\n\n``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because\nthe model chose it again or said it stays; ``held`` kept it inside its ``sticky_turns``, whatever the\nanswer; ``none``, ``below_floor`` and ``failed`` left nothing in force (no behavior applies, a choice under\nthe confidence floor, no usable answer); ``skipped`` ran no decision (``reason`` says why) and ended the\nactive behavior; ``superseded`` was cancelled by the caller's next turn before it landed.",
+        "description": "What one caller turn's dynamic behavior decision did.\n\n``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because\nthe model chose it again or said it stays; ``held`` left the active one in force because it was still\ninside its ``sticky_turns`` and the model chose none, chose another behavior under the confidence floor,\nor gave no usable answer (a different behavior chosen at or over the floor replaces it as ``applied``,\ninside its ``sticky_turns`` too); ``none``, ``below_floor`` and ``failed`` left nothing in force (no\nbehavior applies, a choice under the confidence floor, no usable answer); ``skipped`` ran no decision\n(``reason`` says why) and ended the active behavior; ``superseded`` was cancelled by the caller's next\nturn before it landed.",
         "properties": {
           "behavior_id": {
             "anyOf": [
@@ -5432,7 +5432,7 @@
         "type": "string"
       },
       "CanonicalInboundEnvelopePayload": {
-        "description": "HTTP wire shape for :class:`CanonicalInboundEnvelope` (channel service → platform-api).\n\nFrozen — it is parsed once and immediately converted to the frozen in-core\ndataclass, so between-parse mutation is a bug.",
+        "description": "An inbound channel message, as the channel service posts it to the platform API.\n\n`caller_ref` is the authenticated sender, and it must be empty when `authenticated` is false.",
         "properties": {
           "authenticated": {
             "default": false,
@@ -10010,7 +10010,7 @@
             "title": "Id"
           },
           "name": {
-            "description": "What authors call it. Unique in the workspace among sets that aren't archived, whatever the case. It never\nreaches a prompt.",
+            "description": "What authors call it. Unique in the workspace among sets that aren't archived, whatever the case. The\nselector reads it with the condition and examples, and the reply prompt never does.",
             "maxLength": 120,
             "minLength": 1,
             "title": "Name",
@@ -13539,7 +13539,7 @@
             "description": "``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action\nguidelines, while boundary constraints, guardrails and safety rules stay. Adding a replace-mode behavior, or\nchanging one, needs ``platform:admin``; disabling or removing one doesn't."
           },
           "name": {
-            "description": "What authors call it. It never reaches the reply prompt.",
+            "description": "What authors call it. The selector reads it with the condition and examples, and the reply prompt never\ndoes.",
             "maxLength": 120,
             "minLength": 1,
             "title": "Name",
@@ -13557,7 +13557,7 @@
           },
           "sticky_turns": {
             "default": 1,
-            "description": "The fewest caller turns it stays in force once applied, counting the turn it was applied on. Another\nbehavior the selector chooses still replaces it sooner.",
+            "description": "The fewest caller turns it stays in force once applied, counting the turn it was applied on. It ends\nsooner when the selector chooses another behavior with enough confidence, and when a turn is skipped: a\nmedical emergency, a request for a person, an empathy hold, a suspended session, or a state the behavior\ndoes not apply in.",
             "maximum": 5,
             "minimum": 1,
             "title": "Sticky Turns",
@@ -22441,7 +22441,7 @@
         "type": "object"
       },
       "IntakeFieldType": {
-        "description": "Allowed ``schema[].type`` values for a registered contract.\n\nConfirmed set (intake-ui-mvp design contract point #1): scalars plus\nISO date/datetime. Coercion semantics live in :func:`_coerces`.",
+        "description": "The types a contract's `schema[].type` may declare: `str`, `int`, `float`, `bool`, `date` and `datetime`.\n\nA CSV cell is accepted when it parses as its column's type, ignoring surrounding whitespace. `date` and\n`datetime` cells are in ISO format, and `bool` cells are one of true, false, t, f, yes, no, y, n, 0 or 1, in\nany case. A cell with nothing in it is not checked, except in a primary key column, where it is refused. A\ncell with only spaces is not empty and has to parse. An upload is checked up to its first 200,000 rows.",
         "enum": [
           "str",
           "int",
@@ -24473,7 +24473,7 @@
           },
           "latency_tier": {
             "default": "batch",
-            "description": "'streaming' — seconds-latency via ZeroBus streaming ingestion (continuous pipeline). 'near_realtime' — minutes-latency via triggered pipeline refresh. 'batch' — hourly/daily scheduled refresh (default, cheapest).",
+            "description": "'streaming': seconds of latency, fed continuously as events arrive. 'near_realtime': minutes of latency, refreshed on a trigger. 'batch': refreshed hourly or daily on a schedule (default, cheapest).",
             "enum": [
               "streaming",
               "near_realtime",
@@ -28239,7 +28239,7 @@
         "type": "object"
       },
       "PatientSurfaceSpec": {
-        "description": "Patient-facing surface spec — what forms-app renders.\n\nFree-form by design: ``fields``/``sections``/``branding`` are forwarded\nfrom the upstream surface document as raw dicts. Renamed from\n``SurfaceSpec`` to avoid an OpenAPI schema-name collision with\n``platform_lib.surfaces.models.SurfaceSpec`` (which would otherwise\nforce FastAPI to namespace both classes and rename the existing\n``SurfaceSpec`` schema in the committed openapi.json).",
+        "description": "The patient-facing form a surface renders: its title, description, fields, sections, branding, submit button\ntext, completion text and context.\n\n`fields`, `sections`, `branding` and `context` are passed through as the surface defines them, so their shape\nis not fixed here.",
         "properties": {
           "branding": {
             "anyOf": [
@@ -28895,12 +28895,13 @@
       "PinningService": {
         "properties": {
           "id": {
+            "description": "The service's id.",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "name": {
-            "description": "The version set that pins the set.",
+            "description": "The service's name.",
             "title": "Name",
             "type": "string"
           },
@@ -28927,7 +28928,7 @@
             "type": "boolean"
           },
           "name": {
-            "description": "The version set that pins the set.",
+            "description": "The version set's name.",
             "title": "Name",
             "type": "string"
           },
@@ -32150,7 +32151,7 @@
       },
       "RoleGrantKeysBinding": {
         "additionalProperties": false,
-        "description": "Declares a SQL-tool parameter as *server-bound* to a turn's resolved authorization.\n\nFamily-agnostic — consumed by BOTH platform functions (``fn_*``,\n``platform.function_parameters``) and workspace data queries (``wsq_*``,\n``platform.workspace_data_query_parameters``). A parameter carrying this binding\nis NOT caller-supplied: at execution the platform discards any caller value,\nprojects the resource keys the turn's :class:`ExternalAuthorizationBlock` holds\nfor ``(resource_type, access)`` via :meth:`ExternalAuthorizationBlock.resource_keys`,\nencodes them, and injects the result into the ``:name`` SQL bind — the model /\ncaller never sees or supplies it.\n\nThis is a THIRD parameter state, distinct from required (``default is None``) and\ndefaulted (``default is not None``): the caller-required check must exempt it and\nthe executor must always inject. The literal sets are pinned to v1; widening one is\na paired migration + model change (the ``binding_*`` columns added to both param\ntables in V328). ``extra=\"forbid\"`` so an author can't smuggle an unrecognized field.\n\nLives here, next to ``ExternalAuthorizationBlock.resource_keys`` (its runtime\ncounterpart), so the two SQL-tool families share one definition and can't drift.",
+        "description": "Binds a SQL parameter to the authorization of the turn, so the platform fills it in and the caller does not.\n\nAt execution the platform discards any caller value, takes the resource keys the turn's authorization\nholds for `resource_type` and `access`, encodes them as `encoding`, and binds the result to the parameter's\n`:name` placeholder. Neither the model nor the caller sees or supplies it. In a trusted test run with no live\nauthorization, the parameter's `authorization_binding_test_value` is bound instead. A bound parameter has no\n`default`. Only the values shown in the schema are accepted.",
         "properties": {
           "access": {
             "const": "read",
@@ -32524,7 +32525,7 @@
         "type": "object"
       },
       "RunGuidanceRequest": {
-        "description": "Operator guidance for a live run. ``operator_id`` is in the body because this\nrouter is not under ``/operators/{operator_id}`` — it is bound to the authenticated\ncaller by ``_enforce_operator_identity`` (no impersonation).",
+        "description": "Operator guidance for a live run. `operator_id` is in the body because these routes are not under\n`/operators/{operator_id}`. It must be the caller's own operator identity: the route returns 404 when the\nworkspace has no such operator and 403 when it is someone else's.",
         "properties": {
           "message": {
             "maxLength": 5000,
@@ -37459,7 +37460,7 @@
         "type": "object"
       },
       "SimulationProxyErrorResponse": {
-        "description": "Error envelope for simulation routes that forward to the agent runtime.\n\n``detail`` is a string for forwarded runtime/configuration errors and a\nstructured list for FastAPI request validation failures. Both share HTTP\n422, so the published contract must admit both shapes.",
+        "description": "The error body of the simulation routes that forward to the agent runtime.\n\n`detail` is a string for an error forwarded from the runtime or a configuration error, and a list of\nvalidation error objects for a request that fails validation. Validation and configuration errors return\nHTTP 422, and the routes also declare this body for 404, 502 and 503.",
         "properties": {
           "detail": {
             "anyOf": [
@@ -41035,7 +41036,7 @@
       },
       "StoredParameter": {
         "additionalProperties": false,
-        "description": "One typed input parameter to a workspace data query — trusted shape.\n\nRead-path model: the DB's CHECK constraints already enforced ``name``\nregex and ``type`` enum on write, and the deploy endpoint's strict\n:class:`Parameter` validators enforced ``description`` length and\ntypo-rejection at the inbound network edge. After that, every\nconstruction of this model (DB read projection, executor binding,\nagent-engine spec, outbound response) is trusted — no 422 surface.\n\n``default is None`` is the canonical \"required\" signal: the executor\nraises if a caller omits a required argument, otherwise substitutes\nthe stored default.",
+        "description": "One typed input parameter of a workspace data query.\n\nA null `default` marks the parameter as required: a call that omits it is refused, unless the parameter is\nbound by `authorization_binding`. Otherwise an omitted argument takes the default.",
         "properties": {
           "authorization_binding": {
             "anyOf": [
@@ -43047,7 +43048,7 @@
         "type": "object"
       },
       "TestInvokeResponse": {
-        "description": "Response shape for ``POST /v1/{ws}/functions/{name}/test``.\n\nStructural superset of :class:`InvokeResponse`. Adds ``status`` and\n``error`` so the DC can render the executor's failure detail inline\nrather than a generic \"Invocation failed.\" The underlying invoke\nuses the same path; ``status`` / ``error`` are filled in by\n``service.test`` after catching an ``HTTPException`` (503 or 422) from the\nexecutor, so the route never bubbles a 5xx for a logical SQL\nfailure — it's still a 200 with ``status=fail`` so the caller can\nshow the message.\n\nInvariant (enforced by :func:`_check_error_when_fail`):\n``status == \"fail\" → error is not None and len(error) > 0``.",
+        "description": "The result of testing a function with `POST /v1/{workspace_id}/functions/{function_name}/test`.\n\nIt has the fields of an invoke response, plus `status`, `error` and `test_duration_ms`. A run the executor\nrefuses (422, such as arguments that do not fit or a stored body that is refused) or that fails in\nexecution (5xx) still returns 200, with `status` set to `fail` and the reason in `error`, so the caller can\nshow the message. Any other 4xx, such as a missing function, is returned as that error. `error` is never\nempty when `status` is `fail`.",
         "properties": {
           "duration_ms": {
             "default": 0,
@@ -47829,6 +47830,7 @@
                 "type": "null"
               }
             ],
+            "description": "What authors call it. The selector reads the name, so a rename changes what it sees for every service that\npins the set, without a new version.",
             "title": "Name"
           },
           "tags": {
@@ -50068,7 +50070,7 @@
                 "type": "null"
               }
             ],
-            "description": "Service identifier; null for unattributed usage.",
+            "description": "The service the request was filtered to; null when it was not filtered.",
             "title": "Service Id"
           },
           "services": {
@@ -54491,7 +54493,7 @@
       },
       "src__routes__workspace_data_queries__create_workspace_data_query__Request": {
         "additionalProperties": false,
-        "description": "Create body — the authored shape of a new workspace data query.\n\nThe SQL template is held to the workspace SQL allowlist (one SELECT, INSERT,\nUPDATE, DELETE or TRUNCATE statement that calls only built-in functions which\nrun no SQL text and change no session state), and the parameters parity check\nruns inside :meth:`_validate_template`, so a bad payload surfaces as a Pydantic\n422 with the standard wire shape, with no try/except in the handler.",
+        "description": "A new workspace data query: a SQL template and the parameters it declares.\n\nThe SQL template must be one SELECT, INSERT, UPDATE, DELETE or TRUNCATE statement that calls only built-in\nfunctions which run no SQL text and change no session state. Its `:name` placeholders and the declared\nparameters must be the same set of names: each placeholder is declared, and each declared parameter appears\nin the template. A parameter's `default`, when set, must be of its declared `type`. A body that breaks any\nof these rules returns 422.",
         "properties": {
           "declarations": {
             "$ref": "#/components/schemas/DataQueryDeclarationsBody",
@@ -54542,7 +54544,7 @@
       },
       "src__routes__workspace_data_queries__create_workspace_data_query__Request__Parameter": {
         "additionalProperties": false,
-        "description": "Strict write-side validator for one declared parameter.",
+        "description": "One parameter the query declares.",
         "properties": {
           "authorization_binding": {
             "anyOf": [
@@ -54753,7 +54755,7 @@
       },
       "src__routes__workspace_data_queries__update_workspace_data_query__Request": {
         "additionalProperties": false,
-        "description": "PATCH body — every field optional. Present ⇒ overwrite; absent ⇒ keep.",
+        "description": "A change to a workspace data query. A field left out, or sent as null, keeps its stored value; inside\n`declarations`, a key sent as null removes that declaration. `parameters`, when sent, replaces the whole list,\nand `[]` clears it.\n\nThe SQL template and parameters are checked as they will stand after the change, by the same rules as a new\nquery: the template must be one SELECT, INSERT, UPDATE, DELETE or TRUNCATE statement that calls only built-in\nfunctions which run no SQL text and change no session state, its `:name` placeholders must be the same set of\nnames as the declared parameters, and a parameter's `default`, when set, must be of its declared `type`. A body\nthat breaks any of these rules returns 422.",
         "properties": {
           "declarations": {
             "anyOf": [
@@ -54840,7 +54842,7 @@
       },
       "src__routes__workspace_data_queries__update_workspace_data_query__Request__Parameter": {
         "additionalProperties": false,
-        "description": "Strict write-side validator for one declared parameter.",
+        "description": "One parameter the query declares.",
         "properties": {
           "authorization_binding": {
             "anyOf": [
