@@ -130,6 +130,17 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `independent`
 - `convertIndependent`
 
+### `identityCredentials`
+
+- `list`
+- `get`
+- `create`
+- `create`
+- `create`
+- `create`
+- `update`
+- `deactivate`
+
 ### `agents`
 
 - `create`

@@ -87,18 +87,17 @@ const omitCredentials: Middleware = {
   },
 }
 
-/** Shared workspace-scoped Identity administration transport. */
-export abstract class IdentityResource extends WorkspaceScopedResource {
-  protected async request<T>(
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-    suffix: string,
+type IdentityMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+type IdentityRequestOptions = { anonymous?: boolean; query?: Record<string, unknown> }
+
+/** Common Identity transport: separate origin, secret-safe failures and no write retries. */
+abstract class IdentityTransport extends WorkspaceScopedResource {
+  protected async identityRequest<T>(
+    method: IdentityMethod,
+    path: string,
     body?: unknown,
-    options: { anonymous?: boolean; query?: Record<string, unknown> } = {},
+    options: IdentityRequestOptions = {},
   ): Promise<T> {
-    if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(this.workspaceId)) {
-      throw new ConfigurationError('Identity administration requires a valid workspace UUID')
-    }
-    const path = `/${options.anonymous ? 'auth' : 'admin'}/workspaces/${this.workspaceId}/${suffix}`
     // Fixed method safety wins over client defaults and scoped retry options.
     // Consuming writes cannot be repeated after a timeout or Retry-After response.
     const client =
@@ -123,5 +122,39 @@ export abstract class IdentityResource extends WorkspaceScopedResource {
       if (error instanceof AmigoError) throw error
       throw new ParseError('Identity response could not be read')
     }
+  }
+}
+
+/** Shared workspace-scoped Identity administration transport. */
+export abstract class IdentityResource extends IdentityTransport {
+  protected request<T>(
+    method: IdentityMethod,
+    suffix: string,
+    body?: unknown,
+    options: IdentityRequestOptions = {},
+  ): Promise<T> {
+    if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(this.workspaceId)) {
+      return Promise.reject(
+        new ConfigurationError('Identity administration requires a valid workspace UUID'),
+      )
+    }
+    return this.identityRequest(
+      method,
+      `/${options.anonymous ? 'auth' : 'admin'}/workspaces/${this.workspaceId}/${suffix}`,
+      body,
+      options,
+    )
+  }
+}
+
+/** Generic administration endpoints carry workspace authority in their request or resource. */
+export abstract class IdentityAdminResource extends IdentityTransport {
+  protected request<T>(
+    method: IdentityMethod,
+    suffix: string,
+    body?: unknown,
+    options: { query?: Record<string, unknown> } = {},
+  ): Promise<T> {
+    return this.identityRequest(method, `/admin/${suffix}`, body, options)
   }
 }

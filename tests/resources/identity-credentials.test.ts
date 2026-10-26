@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
 
 const workspace = '635fd22d-35b1-4ea9-9118-8eda13b4b753'
@@ -43,7 +43,6 @@ describe('Identity credential administration', () => {
   it('lists at the generic Identity root with the supported filters and exact timestamps', async () => {
     const page = { items: [credential], has_more: true, continuation_token: 20 }
     const { client, requests } = setup(page)
-    // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
     const result = await client.identityCredentials.list({
       workspace_id: workspace,
       is_active: false,
@@ -69,7 +68,6 @@ describe('Identity credential administration', () => {
     const { client, requests } = setup()
     await client
       .withOptions({ headers: { 'x-client-scope': 'client' } })
-      // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
       .identityCredentials.withOptions({ headers: { 'x-resource-scope': 'resource' } })
       .get(id)
     expect(requests[0]?.url).toBe(`https://console.example/api/identity/admin/credentials/${id}`)
@@ -91,8 +89,10 @@ describe('Identity credential administration', () => {
       name: 'Automation',
       expires_at: expiresAt,
     }
-    // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
-    expect(await client.identityCredentials.create(body)).toEqual(created)
+    const actual = await client.identityCredentials.create(body)
+    expectTypeOf(actual.client_secret).toEqualTypeOf<string>()
+    expectTypeOf(actual.credential.expires_at).toEqualTypeOf<string | null>()
+    expect(actual).toEqual(created)
     expect(requests[0]?.method).toBe('POST')
     expect(await requests[0]?.json()).toEqual(body)
   })
@@ -107,8 +107,9 @@ describe('Identity credential administration', () => {
       sso_provider: 'oidc',
       sso_subject: 'subject',
     }
-    // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
-    expect(await client.identityCredentials.create(body)).toEqual(created)
+    const actual = await client.identityCredentials.create(body)
+    expectTypeOf(actual.expires_at).toEqualTypeOf<string | null>()
+    expect(actual).toEqual(created)
     expect(await requests[0]?.json()).toEqual(body)
   })
 
@@ -116,7 +117,6 @@ describe('Identity credential administration', () => {
     'PATCH preserves omitted expiry versus an explicit clear or timestamp: %j',
     async (body) => {
       const { client, requests } = setup()
-      // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
       await client.identityCredentials.update(id, body)
       expect(requests[0]?.url).toBe(`https://console.example/api/identity/admin/credentials/${id}`)
       expect(requests[0]?.method).toBe('PATCH')
@@ -126,7 +126,6 @@ describe('Identity credential administration', () => {
 
   it('deactivates via DELETE without expecting a response body', async () => {
     const { client, requests } = setup(undefined, 204)
-    // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
     await expect(client.identityCredentials.deactivate(id)).resolves.toBeUndefined()
     expect(requests[0]?.method).toBe('DELETE')
     expect(requests[0]?.url).toBe(`https://console.example/api/identity/admin/credentials/${id}`)
@@ -137,7 +136,6 @@ describe('Identity credential administration', () => {
     async (operation) => {
       const { client, requests } = setup({ detail: 'provider client_secret=secret-marker' }, 429)
       const scoped = client.withOptions({ maxRetries: 3 })
-      // @ts-expect-error Regression-first: the Identity credential resource is not implemented yet.
       const resource = scoped.identityCredentials.withOptions({ maxRetries: 2 })
       const request =
         operation === 'create'
