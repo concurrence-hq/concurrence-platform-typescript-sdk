@@ -17,6 +17,11 @@ export type DynamicBehaviorPin = components['schemas']['VersionSetBehaviorPin']
 export type VoiceJudgeResult = components['schemas']['VoiceJudgeResultRow']
 export type VoiceJudgeResultListResponse = components['schemas']['VoiceJudgeRecentResponse']
 
+/** Set ids are UUIDs: the API returns them in lower case, and a caller may pass any case. */
+function sameSetId(stored: string, given: string) {
+  return stored.toLowerCase() === given.toLowerCase()
+}
+
 function storedPins(service: components['schemas']['ServiceResponse'], versionSetName: string) {
   const entry = service.version_sets[versionSetName]
   if (!entry) {
@@ -94,7 +99,7 @@ export class ServicesResource extends WorkspaceScopedResource {
    *
    * The version set endpoint replaces the whole entry it is given, so this reads the service,
    * takes the stored entry, changes the one pin whose `set_id` matches and writes the whole
-   * entry back, with the other pins in their stored order and byte for byte as read. A pin for
+   * entry back, with the other pins unchanged and in their stored order. A pin for
    * a set the version set doesn't pin yet goes on the end. A pin is replaced whole, not merged:
    * `enabled` left out is `true` and `states` left out is empty, which applies in every state,
    * whatever the stored pin had. A version set pins a set once. Pins keep the order they are
@@ -112,8 +117,9 @@ export class ServicesResource extends WorkspaceScopedResource {
    * `versionSetName`; this helper does not create one. The API checks the pin: the set and
    * version have to exist (`NotFoundError`), the set can't be archived (`ConflictError`), every
    * `states` entry has to be an action or data collection state of the graph version the
-   * version set runs, and there are at most 254 pins, one per set, whose enabled conditions and
-   * examples fit 160,000 characters together (`ValidationError`). Pinning a replace-mode
+   * version set runs and is listed once, and there are at most 254 pins, one per set and no two
+   * sets with the same name ignoring case, whose enabled conditions and examples fit 160,000
+   * characters together; on a `gpt_realtime` service an enabled pin is refused (`ValidationError`). Pinning a replace-mode
    * version, or changing the pin of one, needs the `platform:admin` scope, which no workspace
    * API key carries (`PermissionError`). The write also needs the `Service.update` permission.
    *
@@ -127,7 +133,7 @@ export class ServicesResource extends WorkspaceScopedResource {
   ): Promise<void> {
     const service = await this.get(serviceId)
     const { entry, pins } = storedPins(service, versionSetName)
-    const at = pins.findIndex(({ set_id }) => set_id === pin.set_id)
+    const at = pins.findIndex(({ set_id }) => sameSetId(set_id, pin.set_id))
     const next =
       at === -1 ? [...pins, pin] : pins.map((stored, index) => (index === at ? pin : stored))
     await this.upsertVersionSet(serviceId, versionSetName, {
@@ -139,8 +145,7 @@ export class ServicesResource extends WorkspaceScopedResource {
   /**
    * Clear one dynamic behavior pin, by set id, from a service's named version set, and leave
    * every other pin and every other field of that version set as it is. Clearing the last pin
-   * writes an empty list. The other pins keep their stored order and go back byte for byte as
-   * read.
+   * writes an empty list. The other pins keep their stored order and go back unchanged.
    *
    * If the version set doesn't pin that set, nothing is written and the call returns. A
    * disabled pin counts as pinned, so it is cleared too.
@@ -158,11 +163,11 @@ export class ServicesResource extends WorkspaceScopedResource {
   ): Promise<void> {
     const service = await this.get(serviceId)
     const { entry, pins } = storedPins(service, versionSetName)
-    if (!pins.some(({ set_id }) => set_id === setId)) return
+    if (!pins.some(({ set_id }) => sameSetId(set_id, setId))) return
     await this.upsertVersionSet(serviceId, versionSetName, {
       version_set: {
         ...entry,
-        dynamic_behavior_sets: pins.filter(({ set_id }) => set_id !== setId),
+        dynamic_behavior_sets: pins.filter(({ set_id }) => !sameSetId(set_id, setId)),
       },
       expected_updated_at: service.updated_at,
     })

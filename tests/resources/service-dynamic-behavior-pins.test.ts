@@ -61,7 +61,7 @@ function recordingClient(
       if (request.method === 'GET' && path === SERVICE_PATH) {
         return Response.json(options.service ?? serviceBody())
       }
-      if (request.method === 'PUT' && path === RELEASE_PATH) {
+      if (request.method === 'PUT' && /\/version-sets\/[^/]+$/.test(path)) {
         return options.putStatus && options.putStatus !== 204
           ? Response.json(options.putBody ?? {}, { status: options.putStatus })
           : new Response(null, { status: 204 })
@@ -99,7 +99,7 @@ describe('ServicesResource dynamic behavior pins', () => {
       })
     })
 
-    it('replaces the pin with the same set id in place, whole, and leaves the others byte for byte', async () => {
+    it('replaces the pin with the same set id in place, whole, and leaves the others unchanged', async () => {
       const { client, requests } = recordingClient()
 
       await client.services.setDynamicBehaviorPin(SERVICE_ID, 'release', {
@@ -123,6 +123,32 @@ describe('ServicesResource dynamic behavior pins', () => {
       expect(written.version_set.llm_model_preferences).toEqual(
         RELEASE_ENTRY_FIXTURE.llm_model_preferences,
       )
+    })
+
+    it('matches the set id in any letter case, so it replaces the pin and does not add a second', async () => {
+      const { client, requests } = recordingClient()
+
+      await client.services.setDynamicBehaviorPin(SERVICE_ID, 'release', {
+        set_id: OTHER_SET_ID.toUpperCase(),
+        version: 7,
+      })
+
+      const pins = writtenBody(requests).version_set.dynamic_behavior_sets
+      expect(pins).toHaveLength(PINS_FIXTURE.length)
+      expect(pins[1]).toEqual({ set_id: OTHER_SET_ID.toUpperCase(), version: 7 })
+    })
+
+    it('writes to the canary version set when it is the one named, and leaves release out of the body', async () => {
+      const { client, requests } = recordingClient()
+      const pin = { set_id: SET_ID, version: 3 }
+
+      await client.services.setDynamicBehaviorPin(SERVICE_ID, 'canary', pin)
+
+      const put = requests.find(({ method }) => method === 'PUT')!
+      expect(put.path).toBe(`${SERVICE_PATH}/version-sets/canary`)
+      const written = JSON.parse(put.rawBody!)
+      expect(written.version_set).toEqual({ ...CANARY_ENTRY, dynamic_behavior_sets: [pin] })
+      expect(put.rawBody).not.toContain('"agent_version_number":3')
     })
 
     it('writes to the named version set only', async () => {
@@ -238,6 +264,33 @@ describe('ServicesResource dynamic behavior pins', () => {
       const sent = requests.find(({ method }) => method === 'PUT')!.rawBody!
       expect(sent).toContain(JSON.stringify(PINS_FIXTURE[0]))
       expect(sent).toContain(JSON.stringify(PINS_FIXTURE[2]))
+    })
+
+    it('matches the set id in any letter case, so the pin goes and nothing is left behind', async () => {
+      const { client, requests } = recordingClient()
+
+      await client.services.clearDynamicBehaviorPin(
+        SERVICE_ID,
+        'release',
+        OTHER_SET_ID.toUpperCase(),
+      )
+
+      expect(writtenBody(requests).version_set.dynamic_behavior_sets).toEqual([
+        PINS_FIXTURE[0],
+        PINS_FIXTURE[2],
+      ])
+    })
+
+    it('clears a pin on the canary version set, not on release', async () => {
+      const canary = { ...CANARY_ENTRY, dynamic_behavior_sets: [PINS_FIXTURE[0]] }
+      const service = { ...serviceBody(), version_sets: { release: RELEASE_ENTRY_FIXTURE, canary } }
+      const { client, requests } = recordingClient({ service })
+
+      await client.services.clearDynamicBehaviorPin(SERVICE_ID, 'canary', PINS_FIXTURE[0]!.set_id)
+
+      const put = requests.find(({ method }) => method === 'PUT')!
+      expect(put.path).toBe(`${SERVICE_PATH}/version-sets/canary`)
+      expect(JSON.parse(put.rawBody!).version_set.dynamic_behavior_sets).toEqual([])
     })
 
     it('sends an empty list, not a missing one, when the last pin goes', async () => {

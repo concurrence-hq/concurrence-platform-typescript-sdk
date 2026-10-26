@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
-import { ConflictError, PermissionError, ValidationError } from '../../src/core/errors.js'
+import {
+  ConflictError,
+  NotFoundError,
+  PermissionError,
+  ValidationError,
+} from '../../src/core/errors.js'
 import {
   CREATE_SET_BODY,
   NEXT_VERSION_BODY,
@@ -86,6 +91,35 @@ describe('DynamicBehaviorSetsResource', () => {
       expect(query.get('continuation_token')).toBe('40')
       // The plus sign has to reach the server as %2B or it reads as a space.
       expect(requests[0]!.query.toString()).toContain('sort_by=%2Bname')
+    })
+
+    it('returns an empty page as it is, with no next page', async () => {
+      const { client } = recordingClient(() =>
+        Response.json({ items: [], has_more: false, continuation_token: null }),
+      )
+
+      const page = await client.dynamicBehaviorSets.list()
+
+      expect(page).toMatchObject({ items: [], has_more: false, continuation_token: null })
+    })
+
+    it('stops listAutoPaging at the last page, in two requests and no more', async () => {
+      const { client, requests } = recordingClient(({ query }) =>
+        query.get('continuation_token') === '1'
+          ? Response.json({ items: [SET_FIXTURE], has_more: false, continuation_token: null })
+          : Response.json({ items: [SET_FIXTURE], has_more: true, continuation_token: 1 }),
+      )
+
+      const ids: string[] = []
+      for await (const set of client.dynamicBehaviorSets.listAutoPaging()) {
+        ids.push(set.id)
+        // A pager that dropped its token would see the same first page forever.
+        if (ids.length > 4) break
+      }
+      const seen = ids.length
+
+      expect(seen).toBe(2)
+      expect(requests).toHaveLength(2)
     })
 
     it('follows continuation tokens across pages with listAutoPaging', async () => {
@@ -182,6 +216,25 @@ describe('DynamicBehaviorSetsResource', () => {
 
       expect(set).toMatchObject(SET_FIXTURE)
       expect(requests[0]).toMatchObject({ method: 'GET', path: `${BASE}/${SET_ID}` })
+    })
+  })
+
+  describe('not found', () => {
+    const body = { detail: 'Dynamic behavior set not found' }
+
+    it('throws NotFoundError with the API body from get, getVersion and usage', async () => {
+      const { client } = recordingClient(() => Response.json(body, { status: 404 }))
+
+      for (const call of [
+        () => client.dynamicBehaviorSets.get(SET_ID),
+        () => client.dynamicBehaviorSets.getVersion(SET_ID, 9),
+        () => client.dynamicBehaviorSets.usage(SET_ID),
+      ]) {
+        const error = await call().catch((e) => e)
+        expect(error).toBeInstanceOf(NotFoundError)
+        expect(error.statusCode).toBe(404)
+        expect(error.errorBody).toEqual(body)
+      }
     })
   })
 
@@ -358,6 +411,16 @@ describe('DynamicBehaviorSetsResource', () => {
       ])
     })
 
+    it('returns an empty versions page as it is', async () => {
+      const { client } = recordingClient(() =>
+        Response.json({ items: [], has_more: false, continuation_token: null }),
+      )
+
+      const page = await client.dynamicBehaviorSets.listVersions(SET_ID)
+
+      expect(page).toMatchObject({ items: [], has_more: false, continuation_token: null })
+    })
+
     it('gets one version by number', async () => {
       const { client, requests } = recordingClient(() => Response.json(VERSION_FIXTURE))
 
@@ -382,6 +445,22 @@ describe('DynamicBehaviorSetsResource', () => {
       expect(page.items).toEqual([USAGE_ITEM_FIXTURE])
       expect(requests[0]).toMatchObject({ method: 'GET', path: `${BASE}/${SET_ID}/usage` })
       expect(requests[0]!.query.get('limit')).toBe('10')
+    })
+
+    it('returns an empty usage page as it is, and usageAutoPaging yields nothing', async () => {
+      const { client, requests } = recordingClient(() =>
+        Response.json({ items: [], has_more: false, continuation_token: null }),
+      )
+
+      const page = await client.dynamicBehaviorSets.usage(SET_ID)
+      const names: string[] = []
+      for await (const service of client.dynamicBehaviorSets.usageAutoPaging(SET_ID)) {
+        names.push(service.name)
+      }
+
+      expect(page.items).toEqual([])
+      expect(names).toEqual([])
+      expect(requests).toHaveLength(2)
     })
 
     it('follows continuation tokens with usageAutoPaging', async () => {
