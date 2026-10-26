@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.125.0] - 2026-10-26
+
+### Documentation
+
+- execute throws ValidationError for SQL outside the allowlist (ALL-2043) (#495)
+
+### Maintenance
+
+- sync API types from platform (ba861ff2) (#496)
+
 ## [0.124.0] - 2026-10-26
 
 ### Features
