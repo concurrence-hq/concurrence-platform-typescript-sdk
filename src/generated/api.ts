@@ -12420,6 +12420,13 @@ export interface components {
          */
         CreateWorkspaceRequest: {
             backend_org_id?: components["schemas"]["StrippedNonemptyString"] | null;
+            /**
+             * Membership Provisioning
+             * @description Create-only membership mode. Explicit excludes automatic domain policies; owner bootstrap, invitations and administrator grants remain available.
+             * @default domain_policies
+             * @enum {string}
+             */
+            membership_provisioning?: "domain_policies" | "explicit";
             name: components["schemas"]["StrippedNonemptyString"];
             slug: components["schemas"]["SlugString"];
             staging_source?: components["schemas"]["StagingWorkspaceSource"] | null;
@@ -29955,6 +29962,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Membership Provisioning
+             * @enum {string}
+             */
+            membership_provisioning: "domain_policies" | "explicit";
             /** Name */
             name: string;
             /** Provisioned At */

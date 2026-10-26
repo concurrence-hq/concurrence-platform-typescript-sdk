@@ -11491,6 +11491,16 @@
               }
             ]
           },
+          "membership_provisioning": {
+            "default": "domain_policies",
+            "description": "Create-only membership mode. Explicit excludes automatic domain policies; owner bootstrap, invitations and administrator grants remain available.",
+            "enum": [
+              "domain_policies",
+              "explicit"
+            ],
+            "title": "Membership Provisioning",
+            "type": "string"
+          },
           "name": {
             "$ref": "#/components/schemas/StrippedNonemptyString"
           },
@@ -52248,6 +52258,14 @@
             "title": "Id",
             "type": "string"
           },
+          "membership_provisioning": {
+            "enum": [
+              "domain_policies",
+              "explicit"
+            ],
+            "title": "Membership Provisioning",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -52298,6 +52316,7 @@
           "slug",
           "name",
           "backend_org_id",
+          "membership_provisioning",
           "region",
           "connector_type",
           "timezone",
