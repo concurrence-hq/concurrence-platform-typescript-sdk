@@ -8854,10 +8854,13 @@ export interface components {
          * @description What one caller turn's dynamic behavior decision did.
          *
          *     ``outcome``: ``applied`` put the chosen behavior in force; ``kept`` left the active one in force because
-         *     the model chose it again or said it stays; ``held`` kept it inside its ``sticky_turns``, whatever the
-         *     answer; ``none``, ``below_floor`` and ``failed`` left nothing in force (no behavior applies, a choice under
-         *     the confidence floor, no usable answer); ``skipped`` ran no decision (``reason`` says why) and ended the
-         *     active behavior; ``superseded`` was cancelled by the caller's next turn before it landed.
+         *     the model chose it again or said it stays; ``held`` left the active one in force because it was still
+         *     inside its ``sticky_turns`` and the model chose none, chose another behavior under the confidence floor,
+         *     or gave no usable answer (a different behavior chosen at or over the floor replaces it as ``applied``,
+         *     inside its ``sticky_turns`` too); ``none``, ``below_floor`` and ``failed`` left nothing in force (no
+         *     behavior applies, a choice under the confidence floor, no usable answer); ``skipped`` ran no decision
+         *     (``reason`` says why) and ended the active behavior; ``superseded`` was cancelled by the caller's next
+         *     turn before it landed.
          */
         BehaviorDecision: {
             /**
@@ -9933,10 +9936,9 @@ export interface components {
         CanonicalIdString: string;
         /**
          * CanonicalInboundEnvelopePayload
-         * @description HTTP wire shape for :class:`CanonicalInboundEnvelope` (channel service → platform-api).
+         * @description An inbound channel message, as the channel service posts it to the platform API.
          *
-         *     Frozen — it is parsed once and immediately converted to the frozen in-core
-         *     dataclass, so between-parse mutation is a bug.
+         *     `caller_ref` is the authenticated sender, and it must be empty when `authenticated` is false.
          */
         CanonicalInboundEnvelopePayload: {
             /**
@@ -11775,8 +11777,8 @@ export interface components {
             id?: string | null;
             /**
              * Name
-             * @description What authors call it. Unique in the workspace among sets that aren't archived, whatever the case. It never
-             *     reaches a prompt.
+             * @description What authors call it. Unique in the workspace among sets that aren't archived, whatever the case. The
+             *     selector reads it with the condition and examples, and the reply prompt never does.
              */
             name: string;
             /**
@@ -13501,7 +13503,8 @@ export interface components {
             mode?: components["schemas"]["DynamicBehaviorMode"];
             /**
              * Name
-             * @description What authors call it. It never reaches the reply prompt.
+             * @description What authors call it. The selector reads it with the condition and examples, and the reply prompt never
+             *     does.
              */
             name: string;
             /**
@@ -13512,8 +13515,10 @@ export interface components {
             states?: components["schemas"]["NameString"][];
             /**
              * Sticky Turns
-             * @description The fewest caller turns it stays in force once applied, counting the turn it was applied on. Another
-             *     behavior the selector chooses still replaces it sooner.
+             * @description The fewest caller turns it stays in force once applied, counting the turn it was applied on. It ends
+             *     sooner when the selector chooses another behavior with enough confidence, and when a turn is skipped: a
+             *     medical emergency, a request for a person, an empathy hold, a suspended session, or a state the behavior
+             *     does not apply in.
              * @default 1
              */
             sticky_turns?: number;
@@ -17024,10 +17029,12 @@ export interface components {
         };
         /**
          * IntakeFieldType
-         * @description Allowed ``schema[].type`` values for a registered contract.
+         * @description The types a contract's `schema[].type` may declare: `str`, `int`, `float`, `bool`, `date` and `datetime`.
          *
-         *     Confirmed set (intake-ui-mvp design contract point #1): scalars plus
-         *     ISO date/datetime. Coercion semantics live in :func:`_coerces`.
+         *     A CSV cell is accepted when it parses as its column's type, ignoring surrounding whitespace. `date` and
+         *     `datetime` cells are in ISO format, and `bool` cells are one of true, false, t, f, yes, no, y, n, 0 or 1, in
+         *     any case. A cell with nothing in it is not checked, except in a primary key column, where it is refused. A
+         *     cell with only spaces is not empty and has to parse. An upload is checked up to its first 200,000 rows.
          * @enum {string}
          */
         IntakeFieldType: "str" | "int" | "float" | "bool" | "date" | "datetime";
@@ -18027,7 +18034,7 @@ export interface components {
             key: string;
             /**
              * Latency Tier
-             * @description 'streaming' — seconds-latency via ZeroBus streaming ingestion (continuous pipeline). 'near_realtime' — minutes-latency via triggered pipeline refresh. 'batch' — hourly/daily scheduled refresh (default, cheapest).
+             * @description 'streaming': seconds of latency, fed continuously as events arrive. 'near_realtime': minutes of latency, refreshed on a trigger. 'batch': refreshed hourly or daily on a schedule (default, cheapest).
              * @default batch
              * @enum {string}
              */
@@ -19655,14 +19662,11 @@ export interface components {
         };
         /**
          * PatientSurfaceSpec
-         * @description Patient-facing surface spec — what forms-app renders.
+         * @description The patient-facing form a surface renders: its title, description, fields, sections, branding, submit button
+         *     text, completion text and context.
          *
-         *     Free-form by design: ``fields``/``sections``/``branding`` are forwarded
-         *     from the upstream surface document as raw dicts. Renamed from
-         *     ``SurfaceSpec`` to avoid an OpenAPI schema-name collision with
-         *     ``platform_lib.surfaces.models.SurfaceSpec`` (which would otherwise
-         *     force FastAPI to namespace both classes and rename the existing
-         *     ``SurfaceSpec`` schema in the committed openapi.json).
+         *     `fields`, `sections`, `branding` and `context` are passed through as the surface defines them, so their shape
+         *     is not fixed here.
          */
         PatientSurfaceSpec: {
             /** Branding */
@@ -19900,11 +19904,12 @@ export interface components {
             /**
              * Id
              * Format: uuid
+             * @description The service's id.
              */
             id: string;
             /**
              * Name
-             * @description The version set that pins the set.
+             * @description The service's name.
              */
             name: string;
             /** Version Sets */
@@ -19916,7 +19921,7 @@ export interface components {
             enabled: boolean;
             /**
              * Name
-             * @description The version set that pins the set.
+             * @description The version set's name.
              */
             name: string;
             /**
@@ -21315,25 +21320,13 @@ export interface components {
         };
         /**
          * RoleGrantKeysBinding
-         * @description Declares a SQL-tool parameter as *server-bound* to a turn's resolved authorization.
+         * @description Binds a SQL parameter to the authorization of the turn, so the platform fills it in and the caller does not.
          *
-         *     Family-agnostic — consumed by BOTH platform functions (``fn_*``,
-         *     ``platform.function_parameters``) and workspace data queries (``wsq_*``,
-         *     ``platform.workspace_data_query_parameters``). A parameter carrying this binding
-         *     is NOT caller-supplied: at execution the platform discards any caller value,
-         *     projects the resource keys the turn's :class:`ExternalAuthorizationBlock` holds
-         *     for ``(resource_type, access)`` via :meth:`ExternalAuthorizationBlock.resource_keys`,
-         *     encodes them, and injects the result into the ``:name`` SQL bind — the model /
-         *     caller never sees or supplies it.
-         *
-         *     This is a THIRD parameter state, distinct from required (``default is None``) and
-         *     defaulted (``default is not None``): the caller-required check must exempt it and
-         *     the executor must always inject. The literal sets are pinned to v1; widening one is
-         *     a paired migration + model change (the ``binding_*`` columns added to both param
-         *     tables in V328). ``extra="forbid"`` so an author can't smuggle an unrecognized field.
-         *
-         *     Lives here, next to ``ExternalAuthorizationBlock.resource_keys`` (its runtime
-         *     counterpart), so the two SQL-tool families share one definition and can't drift.
+         *     At execution the platform discards any caller value, takes the resource keys the turn's authorization
+         *     holds for `resource_type` and `access`, encodes them as `encoding`, and binds the result to the parameter's
+         *     `:name` placeholder. Neither the model nor the caller sees or supplies it. In a trusted test run with no live
+         *     authorization, the parameter's `authorization_binding_test_value` is bound instead. A bound parameter has no
+         *     `default`. Only the values shown in the schema are accepted.
          */
         RoleGrantKeysBinding: {
             /**
@@ -21479,9 +21472,9 @@ export interface components {
         };
         /**
          * RunGuidanceRequest
-         * @description Operator guidance for a live run. ``operator_id`` is in the body because this
-         *     router is not under ``/operators/{operator_id}`` — it is bound to the authenticated
-         *     caller by ``_enforce_operator_identity`` (no impersonation).
+         * @description Operator guidance for a live run. `operator_id` is in the body because these routes are not under
+         *     `/operators/{operator_id}`. It must be the caller's own operator identity: the route returns 404 when the
+         *     workspace has no such operator and 403 when it is someone else's.
          */
         RunGuidanceRequest: {
             /** Message */
@@ -23679,11 +23672,11 @@ export interface components {
         };
         /**
          * SimulationProxyErrorResponse
-         * @description Error envelope for simulation routes that forward to the agent runtime.
+         * @description The error body of the simulation routes that forward to the agent runtime.
          *
-         *     ``detail`` is a string for forwarded runtime/configuration errors and a
-         *     structured list for FastAPI request validation failures. Both share HTTP
-         *     422, so the published contract must admit both shapes.
+         *     `detail` is a string for an error forwarded from the runtime or a configuration error, and a list of
+         *     validation error objects for a request that fails validation. Validation and configuration errors return
+         *     HTTP 422, and the routes also declare this body for 404, 502 and 503.
          */
         SimulationProxyErrorResponse: {
             /** Detail */
@@ -25394,18 +25387,10 @@ export interface components {
         };
         /**
          * StoredParameter
-         * @description One typed input parameter to a workspace data query — trusted shape.
+         * @description One typed input parameter of a workspace data query.
          *
-         *     Read-path model: the DB's CHECK constraints already enforced ``name``
-         *     regex and ``type`` enum on write, and the deploy endpoint's strict
-         *     :class:`Parameter` validators enforced ``description`` length and
-         *     typo-rejection at the inbound network edge. After that, every
-         *     construction of this model (DB read projection, executor binding,
-         *     agent-engine spec, outbound response) is trusted — no 422 surface.
-         *
-         *     ``default is None`` is the canonical "required" signal: the executor
-         *     raises if a caller omits a required argument, otherwise substitutes
-         *     the stored default.
+         *     A null `default` marks the parameter as required: a call that omits it is refused, unless the parameter is
+         *     bound by `authorization_binding`. Otherwise an omitted argument takes the default.
          */
         StoredParameter: {
             authorization_binding?: components["schemas"]["RoleGrantKeysBinding"] | null;
@@ -26249,19 +26234,13 @@ export interface components {
         };
         /**
          * TestInvokeResponse
-         * @description Response shape for ``POST /v1/{ws}/functions/{name}/test``.
+         * @description The result of testing a function with `POST /v1/{workspace_id}/functions/{function_name}/test`.
          *
-         *     Structural superset of :class:`InvokeResponse`. Adds ``status`` and
-         *     ``error`` so the DC can render the executor's failure detail inline
-         *     rather than a generic "Invocation failed." The underlying invoke
-         *     uses the same path; ``status`` / ``error`` are filled in by
-         *     ``service.test`` after catching an ``HTTPException`` (503 or 422) from the
-         *     executor, so the route never bubbles a 5xx for a logical SQL
-         *     failure — it's still a 200 with ``status=fail`` so the caller can
-         *     show the message.
-         *
-         *     Invariant (enforced by :func:`_check_error_when_fail`):
-         *     ``status == "fail" → error is not None and len(error) > 0``.
+         *     It has the fields of an invoke response, plus `status`, `error` and `test_duration_ms`. A run the executor
+         *     refuses (422, such as arguments that do not fit or a stored body that is refused) or that fails in
+         *     execution (5xx) still returns 200, with `status` set to `fail` and the reason in `error`, so the caller can
+         *     show the message. Any other 4xx, such as a missing function, is returned as that error. `error` is never
+         *     empty when `status` is `fail`.
          */
         TestInvokeResponse: {
             /**
@@ -28363,7 +28342,11 @@ export interface components {
              * @description True archives the set, which a version set that pins it refuses. False brings it back.
              */
             archived?: boolean | null;
-            /** Name */
+            /**
+             * Name
+             * @description What authors call it. The selector reads the name, so a rename changes what it sees for every service that
+             *     pins the set, without a new version.
+             */
             name?: string | null;
             /** Tags */
             tags?: string[] | null;
@@ -29079,7 +29062,7 @@ export interface components {
             rate_card_version: string | null;
             /**
              * Service Id
-             * @description Service identifier; null for unattributed usage.
+             * @description The service the request was filtered to; null when it was not filtered.
              */
             service_id: string | null;
             /** Services */
@@ -30990,13 +30973,13 @@ export interface components {
         src__routes__skills___SortField: "name" | "created_at" | "updated_at" | "slug";
         /**
          * Request
-         * @description Create body — the authored shape of a new workspace data query.
+         * @description A new workspace data query: a SQL template and the parameters it declares.
          *
-         *     The SQL template is held to the workspace SQL allowlist (one SELECT, INSERT,
-         *     UPDATE, DELETE or TRUNCATE statement that calls only built-in functions which
-         *     run no SQL text and change no session state), and the parameters parity check
-         *     runs inside :meth:`_validate_template`, so a bad payload surfaces as a Pydantic
-         *     422 with the standard wire shape, with no try/except in the handler.
+         *     The SQL template must be one SELECT, INSERT, UPDATE, DELETE or TRUNCATE statement that calls only built-in
+         *     functions which run no SQL text and change no session state. Its `:name` placeholders and the declared
+         *     parameters must be the same set of names: each placeholder is declared, and each declared parameter appears
+         *     in the template. A parameter's `default`, when set, must be of its declared `type`. A body that breaks any
+         *     of these rules returns 422.
          */
         src__routes__workspace_data_queries__create_workspace_data_query__Request: {
             /**
@@ -31021,7 +31004,7 @@ export interface components {
         };
         /**
          * Parameter
-         * @description Strict write-side validator for one declared parameter.
+         * @description One parameter the query declares.
          */
         src__routes__workspace_data_queries__create_workspace_data_query__Request__Parameter: {
             authorization_binding?: components["schemas"]["RoleGrantKeysBinding"] | null;
@@ -31114,7 +31097,15 @@ export interface components {
         src__routes__workspace_data_queries__list_workspace_data_queries___SortField: "deployed_at";
         /**
          * Request
-         * @description PATCH body — every field optional. Present ⇒ overwrite; absent ⇒ keep.
+         * @description A change to a workspace data query. A field left out, or sent as null, keeps its stored value; inside
+         *     `declarations`, a key sent as null removes that declaration. `parameters`, when sent, replaces the whole list,
+         *     and `[]` clears it.
+         *
+         *     The SQL template and parameters are checked as they will stand after the change, by the same rules as a new
+         *     query: the template must be one SELECT, INSERT, UPDATE, DELETE or TRUNCATE statement that calls only built-in
+         *     functions which run no SQL text and change no session state, its `:name` placeholders must be the same set of
+         *     names as the declared parameters, and a parameter's `default`, when set, must be of its declared `type`. A body
+         *     that breaks any of these rules returns 422.
          */
         src__routes__workspace_data_queries__update_workspace_data_query__Request: {
             /**
@@ -31135,7 +31126,7 @@ export interface components {
         };
         /**
          * Parameter
-         * @description Strict write-side validator for one declared parameter.
+         * @description One parameter the query declares.
          */
         src__routes__workspace_data_queries__update_workspace_data_query__Request__Parameter: {
             authorization_binding?: components["schemas"]["RoleGrantKeysBinding"] | null;
