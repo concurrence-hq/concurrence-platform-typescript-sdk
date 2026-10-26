@@ -5490,8 +5490,14 @@ export interface paths {
          *     Partial updates supported — only provided fields are changed.
          *     A ``null`` for a retention period or ``legal_hold`` is refused with a 422, so an
          *     active legal hold or a retention period is never cleared by one. Release a hold
-         *     with ``legal_hold: false``; the update is recorded in the audit log. A ``null``
-         *     ``legal_hold_reason`` clears the reason and leaves the hold as it is.
+         *     with ``legal_hold: false``; the update is recorded in the audit log.
+         *     A legal hold carries a reason, and a new hold needs its own. A save that turns
+         *     ``legal_hold`` on must send a ``legal_hold_reason`` that is not null, empty or blank,
+         *     since the reason a released hold kept is not the new hold's. A save that leaves a hold
+         *     on may leave the reason out and keeps the stored one, but is refused with a 422 when
+         *     the reason it would store is null, empty or blank. Both refusals name ``legal_hold_reason``.
+         *     A hold that is off needs no reason, and releasing a hold keeps the stored reason
+         *     unless the request replaces it.
          *     Advisory in v1: policy is stored and displayed but no automated
          *     deletion is performed. Legal hold overrides all retention.
          *
@@ -21098,8 +21104,14 @@ export interface components {
          * @description Change the retention policy. Only the fields sent change, and a field left out keeps its stored value.
          *
          *     A retention period or ``legal_hold`` sent as ``null`` is refused with a 422, so neither is cleared by
-         *     accident. Release a legal hold with ``legal_hold: false``. ``legal_hold_reason`` is the one field a
-         *     ``null`` clears.
+         *     accident. Release a legal hold with ``legal_hold: false``.
+         *
+         *     A legal hold carries a reason, and a new hold needs its own. A save that turns ``legal_hold`` on must send a
+         *     ``legal_hold_reason`` that is not null, empty or blank, since the reason a released hold kept is not the new
+         *     hold's. A save that leaves a hold on may leave the reason out and keeps the stored one, but is refused with a
+         *     422 when the reason it would store is null, empty or blank. A hold that is off needs no reason, and releasing
+         *     a hold keeps the stored reason unless the save replaces it: a ``null`` ``legal_hold_reason`` clears the
+         *     reason only while the hold is off.
          */
         RetentionPolicyRequest: {
             /** Audit Log Days */
@@ -22253,13 +22265,15 @@ export interface components {
          *     and the tool schema follows it — a static service gets an argument-less
          *     tool, a dynamic one gets a required ``phone_number`` that must be one of
          *     ``approved_destinations`` (none approved means no tool). Nothing cascades:
-         *     a service is one mode or the other.
+         *     a service is one mode or the other. ``fallback_to`` is no mode: it is the
+         *     line the safe exit dials, in either, and ``forward_call`` never offers it.
          */
         ServiceForwardingConfig: {
             /** Approved Destinations */
             approved_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
+            fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             /** Warm Transfer */
             warm_transfer: boolean;
@@ -45493,7 +45507,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation error, including a null for a retention period or legal_hold */
+            /** @description Validation error, including a null for a retention period or legal_hold, a legal hold turned on without a reason of its own, and a legal hold left on without a reason */
             422: {
                 headers: {
                     [name: string]: unknown;
