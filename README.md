@@ -513,13 +513,18 @@ Supply `workspace_id` explicitly when listing or creating credentials; the serve
 enforces workspace authority. `get()`, `update()`, and `deactivate()` take the
 credential ID. Deactivation retains the record and associated data.
 
-`expires_at` accepts a timezone-aware ISO timestamp. Preserve timestamp strings
+For machine credentials (`api_key` and `client_credentials`), `expires_at` accepts
+a timezone-aware ISO timestamp. SSO and session-token lifetimes remain managed by
+their respective lifecycles. Preserve timestamp strings
 without rounding through `Date`. On update, omitting the field preserves its
 current value; explicit `null` removes expiration and is an increase in authority.
 On create, omitted/null expiry preserves unbounded compatibility only when the
 server permits it. The server limits explicit API key expiry to 90 days and client
 credential expiry to 3,650 days, and constrains machine callers to their own expiry.
 Expiry support requires the corresponding Identity server release.
+Changing a deadline does not rewrite an already issued JWT's expiry or guarantee
+immediate closure of existing streams. Verify the relevant consumer's admission
+and refresh behavior when planning a credential replacement.
 
 Machine creation returns `{ credential, client_id, client_secret }`; SSO and
 session-token creation return credential metadata directly. The machine secret is
