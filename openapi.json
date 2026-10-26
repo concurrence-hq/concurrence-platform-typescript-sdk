@@ -31713,7 +31713,7 @@
         "type": "object"
       },
       "RetentionPolicyRequest": {
-        "description": "Change the retention policy. Only the fields sent change, and a field left out keeps its stored value.\n\nA retention period or ``legal_hold`` sent as ``null`` is refused with a 422, so neither is cleared by\naccident. Release a legal hold with ``legal_hold: false``. ``legal_hold_reason`` is the one field a\n``null`` clears.",
+        "description": "Change the retention policy. Only the fields sent change, and a field left out keeps its stored value.\n\nA retention period or ``legal_hold`` sent as ``null`` is refused with a 422, so neither is cleared by\naccident. Release a legal hold with ``legal_hold: false``.\n\nA legal hold carries a reason, and a new hold needs its own. A save that turns ``legal_hold`` on must send a\n``legal_hold_reason`` that is not null, empty or blank, since the reason a released hold kept is not the new\nhold's. A save that leaves a hold on may leave the reason out and keeps the stored one, but is refused with a\n422 when the reason it would store is null, empty or blank. A hold that is off needs no reason, and releasing\na hold keeps the stored reason unless the save replaces it: a ``null`` ``legal_hold_reason`` clears the\nreason only while the hold is off.",
         "properties": {
           "audit_log_days": {
             "maximum": 36500,
@@ -34158,7 +34158,7 @@
         "type": "object"
       },
       "ServiceForwardingConfig": {
-        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other.",
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.",
         "properties": {
           "approved_destinations": {
             "additionalProperties": {
@@ -34170,6 +34170,16 @@
             },
             "title": "Approved Destinations",
             "type": "object"
+          },
+          "fallback_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "forward_to": {
             "anyOf": [
@@ -79248,7 +79258,7 @@
         ]
       },
       "put": {
-        "description": "Update the workspace retention policy.\n\nPartial updates supported — only provided fields are changed.\nA ``null`` for a retention period or ``legal_hold`` is refused with a 422, so an\nactive legal hold or a retention period is never cleared by one. Release a hold\nwith ``legal_hold: false``; the update is recorded in the audit log. A ``null``\n``legal_hold_reason`` clears the reason and leaves the hold as it is.\nAdvisory in v1: policy is stored and displayed but no automated\ndeletion is performed. Legal hold overrides all retention.\n\nPermissions: admin, owner (``Workspace.update``).",
+        "description": "Update the workspace retention policy.\n\nPartial updates supported — only provided fields are changed.\nA ``null`` for a retention period or ``legal_hold`` is refused with a 422, so an\nactive legal hold or a retention period is never cleared by one. Release a hold\nwith ``legal_hold: false``; the update is recorded in the audit log.\nA legal hold carries a reason, and a new hold needs its own. A save that turns\n``legal_hold`` on must send a ``legal_hold_reason`` that is not null, empty or blank,\nsince the reason a released hold kept is not the new hold's. A save that leaves a hold\non may leave the reason out and keeps the stored one, but is refused with a 422 when\nthe reason it would store is null, empty or blank. Both refusals name ``legal_hold_reason``.\nA hold that is off needs no reason, and releasing a hold keeps the stored reason\nunless the request replaces it.\nAdvisory in v1: policy is stored and displayed but no automated\ndeletion is performed. Legal hold overrides all retention.\n\nPermissions: admin, owner (``Workspace.update``).",
         "operationId": "update-retention-policy",
         "parameters": [
           {
@@ -79287,7 +79297,7 @@
             "description": "Workspace not found"
           },
           "422": {
-            "description": "Validation error, including a null for a retention period or legal_hold"
+            "description": "Validation error, including a null for a retention period or legal_hold, a legal hold turned on without a reason of its own, and a legal hold left on without a reason"
           },
           "429": {
             "description": "Rate limited"
