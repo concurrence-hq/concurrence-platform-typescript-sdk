@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.124.0] - 2026-10-26
+
+### Features
+
+- add generic credential expiry administration (ALL-2017) (#494)
+
 ## [0.123.0] - 2026-10-25
 
 ### Features
