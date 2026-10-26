@@ -58,6 +58,7 @@ import { OperatorsResource } from './resources/operators.js'
 import { PromptLogsResource } from './resources/prompt-logs.js'
 import { TriggersResource } from './resources/triggers.js'
 import { ServicesResource } from './resources/services.js'
+import { DynamicBehaviorSetsResource } from './resources/dynamic-behavior-sets.js'
 import { StagingClonesResource } from './resources/staging-clones.js'
 import { ContextGraphsResource } from './resources/context-graphs.js'
 import { DataSourcesResource } from './resources/data-sources.js'
@@ -292,6 +293,8 @@ export class AmigoClient {
   readonly sessions!: SessionsResource
   /** Workspace data queries — Lakebase-backed query tool registry */
   readonly workspaceDataQueries!: WorkspaceDataQueriesResource
+  /** Dynamic behaviors library: sets and their versions; pin them with `services.setDynamicBehaviorPin` */
+  readonly dynamicBehaviorSets!: DynamicBehaviorSetsResource
   /** @internal — exposed for path-level type inference in GET/POST/PUT/etc. */
   readonly api!: PlatformFetch
 
@@ -552,6 +555,7 @@ export class AmigoClient {
     mutable.surfaces = new SurfacesResource(client, workspaceId)
     mutable.sessions = new SessionsResource(client, workspaceId)
     mutable.workspaceDataQueries = new WorkspaceDataQueriesResource(client, workspaceId)
+    mutable.dynamicBehaviorSets = new DynamicBehaviorSetsResource(client, workspaceId)
   }
 
   private async resolveApiRequest<
@@ -793,6 +797,22 @@ export type {
 } from './resources/analytics.js'
 
 export type {
+  CreateDynamicBehaviorSetRequest,
+  CreateDynamicBehaviorSetVersionRequest,
+  DynamicBehaviorSet,
+  DynamicBehaviorSetListResponse,
+  DynamicBehaviorSetPinningService,
+  DynamicBehaviorSetUsageParams,
+  DynamicBehaviorSetUsageResponse,
+  DynamicBehaviorSetVersion,
+  DynamicBehaviorSetVersionListResponse,
+  ListDynamicBehaviorSetsParams,
+  ListDynamicBehaviorSetVersionsParams,
+  UpdateDynamicBehaviorSetRequest,
+} from './resources/dynamic-behavior-sets.js'
+
+export type {
+  DynamicBehaviorPin,
   ListVoiceJudgeResultsParams,
   VoiceJudgeResult,
   VoiceJudgeResultListResponse,
