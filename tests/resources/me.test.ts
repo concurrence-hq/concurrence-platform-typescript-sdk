@@ -9,6 +9,7 @@ const WORKSPACE_FIXTURE: components['schemas']['WorkspaceResponse'] = {
   id: TEST_WORKSPACE_ID,
   name: 'Acme Health',
   slug: 'acme-health',
+  membership_provisioning: 'domain_policies',
   backend_org_id: null,
   region: 'us-east-1',
   connector_type: null,
