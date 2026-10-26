@@ -319,7 +319,7 @@ export interface paths {
         put?: never;
         /**
          * Create a workspace under the authenticated identity
-         * @description Create a workspace and attach the authenticated caller as owner. On staging, staging_source creates a stable production pairing using fresh source administrator authority. Retries preserve the original workspace and require its original creator and current owner access. Source credentials are not retained.
+         * @description Create a workspace and attach the authenticated caller as owner.
          */
         post: operations["create-my-workspace"];
         delete?: never;
@@ -1299,7 +1299,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.
+         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. A patient is optional: give patient_entity_id or patient_canonical_id, not both, to tie the call to a patient, or neither for a call with no patient, such as a call to a payer line. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -11894,11 +11894,11 @@ export interface components {
              * @description World model outbound_task entity ID for completion feedback.
              */
             outbound_task_entity_id?: string | null;
-            /** @description Patient world model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString rejects spaces, names, DOBs, and similar regulated content so PHI cannot leak into audit events or pipeline projections. The raw value is deliberately not recorded in the outbound.initiated event — correlation back to the source system is via the resolved entity_id joined to world.entities_synced.canonical_id. Resolved against the SDP-projected world.entities_synced table; an entity created moments ago may not yet be visible if the projection is lagging. Provide either patient_entity_id or patient_canonical_id, not both. */
+            /** @description Patient world model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString rejects spaces, names, DOBs, and similar regulated content so PHI cannot leak into audit events or pipeline projections. The raw value is deliberately not recorded in the outbound.initiated event: correlation back to the source system is via the resolved entity_id joined to world.entities_synced.canonical_id. Resolved against the SDP-projected world.entities_synced table; an entity created moments ago may not yet be visible if the projection is lagging. Optional: leave out both patient_canonical_id and patient_entity_id for a call with no patient. Not together with patient_entity_id. */
             patient_canonical_id?: components["schemas"]["CanonicalIdString"] | null;
             /**
              * Patient Entity Id
-             * @description Patient entity UUID in the world model. Must exist in workspace as a person entity. Provide either patient_entity_id or patient_canonical_id.
+             * @description Patient entity UUID in the world model. Optional: leave out both patient_entity_id and patient_canonical_id for a call with no patient. When given, it must exist in the workspace as a person entity. Not together with patient_canonical_id.
              */
             patient_entity_id?: string | null;
             /** @description Destination phone number in E.164 format, the direct number: one with an extension is refused. */
@@ -32133,14 +32133,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Production source service or active destination not found. */
+            /** @description Requested workspace resource not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Workspace slug, source pairing, or destination state conflicts. */
+            /** @description Workspace slug or state conflicts. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32154,7 +32154,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Production source unavailable or invalid. */
+            /** @description Workspace provisioning dependency unavailable or invalid. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -34693,7 +34693,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The patient, the use case's service, or a phone number for the use case was not found */
+            /** @description The patient (when an identifier is given), the use case's service, or a phone number for the use case was not found */
             404: {
                 headers: {
                     [name: string]: unknown;
