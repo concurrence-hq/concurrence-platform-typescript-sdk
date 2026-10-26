@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { AmigoClient, BadRequestError, type WorkspaceQueryResponse } from '../../src/index.js'
+import {
+  AmigoClient,
+  BadRequestError,
+  ValidationError,
+  type WorkspaceQueryResponse,
+} from '../../src/index.js'
 import { mockFetch } from '../helpers/mock-fetch.js'
 
 const TEST_API_KEY = 'test-api-key'
@@ -12,6 +17,18 @@ const QUERY_RESULT = {
   row_count: 1,
 } satisfies WorkspaceQueryResponse
 
+// The platform's 422 for a statement outside the workspace SQL allowlist, in FastAPI's validation
+// shape: the field and the rule it broke.
+const OUTSIDE_ALLOWLIST = {
+  detail: [
+    {
+      loc: ['body', 'sql'],
+      msg: 'Value error, CREATE statements are not allowed, only SELECT, INSERT, UPDATE, DELETE and TRUNCATE',
+      type: 'value_error',
+    },
+  ],
+}
+
 const sentQueries: unknown[] = []
 
 const client = new AmigoClient({
@@ -22,9 +39,12 @@ const client = new AmigoClient({
       Response.json({ rows: [{ id: 'c1' }], next_offset: null }),
     [`POST ${BASE}/query`]: ({ body }) => {
       sentQueries.push(body)
-      return (body as { sql: string }).sql.startsWith('CREATE')
-        ? Response.json({ detail: 'permission denied for schema custom' }, { status: 400 })
-        : Response.json(QUERY_RESULT)
+      const { sql } = body as { sql: string }
+      if (sql.startsWith('CREATE')) return Response.json(OUTSIDE_ALLOWLIST, { status: 422 })
+      if (sql.includes('custom.secrets')) {
+        return Response.json({ detail: 'permission denied for table secrets' }, { status: 400 })
+      }
+      return Response.json(QUERY_RESULT)
     },
   }),
 })
@@ -45,9 +65,25 @@ describe('DataQueryResource', () => {
     expect(result.row_count).toBe(1)
   })
 
-  it('throws BadRequestError with the Postgres message for SQL the role cannot run', async () => {
-    await expect(
-      client.dataQuery.execute({ sql: 'CREATE TABLE custom.t (id int)' }),
-    ).rejects.toThrow(BadRequestError)
+  it('throws ValidationError for SQL outside the workspace allowlist, DDL included', async () => {
+    const refused = client.dataQuery.execute({ sql: 'CREATE TABLE custom.t (id int)' })
+
+    await expect(refused).rejects.toBeInstanceOf(ValidationError)
+    await expect(refused).rejects.toMatchObject({
+      statusCode: 422,
+      errorBody: {
+        detail: [{ msg: expect.stringContaining('CREATE statements are not allowed') }],
+      },
+    })
+  })
+
+  it('throws BadRequestError with the Postgres message for an allowed statement the role cannot run', async () => {
+    const refused = client.dataQuery.execute({ sql: 'SELECT * FROM custom.secrets' })
+
+    await expect(refused).rejects.toBeInstanceOf(BadRequestError)
+    await expect(refused).rejects.toMatchObject({
+      statusCode: 400,
+      detail: 'permission denied for table secrets',
+    })
   })
 })

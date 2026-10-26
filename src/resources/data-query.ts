@@ -32,10 +32,14 @@ export class DataQueryResource extends WorkspaceScopedResource {
 
   /**
    * Run one SQL statement as the workspace's own database role, which can read and write only
-   * what its grants allow. Needs workspace update permission. Multi-statement SQL and session
-   * commands such as `SET ROLE` throw `ValidationError`. Anything else the role can't run, DDL
-   * included, throws `BadRequestError` with the Postgres message. A statement that returns no
-   * rows still reports its `row_count`.
+   * what its grants allow. Needs workspace update permission. The workspace SQL allowlist takes
+   * one SELECT, INSERT, UPDATE, DELETE or TRUNCATE that calls only built-in functions that run
+   * no SQL text and change no session state. Any other statement throws `ValidationError`
+   * (HTTP 422) before it runs: DDL, `SET`, `RESET` and `SET ROLE`, transaction control, a call
+   * to any other function, more than one statement, and SQL that doesn't parse. The reason is
+   * in `errorBody.detail[0].msg`. A statement the allowlist takes but Postgres refuses, such as
+   * a table the role has no grant on, throws `BadRequestError` (HTTP 400) with the Postgres
+   * message. A statement that returns no rows still reports its `row_count`.
    */
   async execute(body: WorkspaceQueryRequest) {
     return extractData(
