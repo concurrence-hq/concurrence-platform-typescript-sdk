@@ -244,6 +244,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `get`
 - `update`
 - `upsertVersionSet`
+- `setDynamicBehaviorPin`
+- `clearDynamicBehaviorPin`
 - `delete`
 - `listVoiceJudgeResults`
 
@@ -644,5 +646,19 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `update`
 - `delete`
 - `invoke`
+
+### `dynamicBehaviorSets`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `update`
+- `createVersion`
+- `listVersions`
+- `listVersionsAutoPaging`
+- `getVersion`
+- `usage`
+- `usageAutoPaging`
 
 ### `api`
