@@ -12400,6 +12400,41 @@
         "title": "DataQueryResponse",
         "type": "object"
       },
+      "DataResidency": {
+        "enum": [
+          "any",
+          "regional"
+        ],
+        "type": "string"
+      },
+      "DataResidencySettingsResponse": {
+        "properties": {
+          "data_residency": {
+            "$ref": "#/components/schemas/DataResidency"
+          },
+          "geography": {
+            "title": "Geography",
+            "type": "string"
+          },
+          "region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Region",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data_residency",
+          "region",
+          "geography"
+        ],
+        "title": "DataResidencySettingsResponse",
+        "type": "object"
+      },
       "DataSourceListResponse": {
         "properties": {
           "continuation_token": {
@@ -13921,6 +13956,7 @@
         "type": "string"
       },
       "EagerEvalResponse": {
+        "description": "``evaluated`` with an ``eval_count`` of 0 is a call with no active definitions to run.\n``skipped_data_residency`` is a call the judge never saw: the workspace's data residency\nforbids its model.",
         "properties": {
           "eval_count": {
             "title": "Eval Count",
@@ -13929,7 +13965,8 @@
           "status": {
             "enum": [
               "evaluated",
-              "skipped_over_cap"
+              "skipped_over_cap",
+              "skipped_data_residency"
             ],
             "title": "Status",
             "type": "string"
@@ -25220,6 +25257,13 @@
         "title": "ModelUsage",
         "type": "object"
       },
+      "ModelUse": {
+        "enum": [
+          "engage",
+          "skill"
+        ],
+        "type": "string"
+      },
       "NameString": {
         "maxLength": 256,
         "minLength": 1,
@@ -30117,6 +30161,15 @@
         "title": "PromptLogListResponse",
         "type": "object"
       },
+      "ProviderFamily": {
+        "enum": [
+          "anthropic",
+          "google",
+          "openai",
+          "xai"
+        ],
+        "type": "string"
+      },
       "ProviderType": {
         "description": "Messaging provider that implements a channel.\n\nMultiple providers may serve the same ChannelKind.",
         "enum": [
@@ -32593,6 +32646,32 @@
       },
       "RunAuthoredTurnResponse": {
         "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the staged reply stops waiting to be sent.",
+            "title": "Expires At"
+          },
+          "reply_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The staged reply. Read its fate with ``GET .../authored-turn``.",
+            "title": "Reply Id"
+          },
           "run_id": {
             "format": "uuid",
             "title": "Run Id",
@@ -32601,6 +32680,12 @@
           "staged": {
             "title": "Staged",
             "type": "boolean"
+          },
+          "waits_for_person": {
+            "default": false,
+            "description": "True when an external user owns the conversation. No agent is started for them, so the reply is queued and\ngoes out when the person next sends a message or polls. If they do not within ``expires_at`` it expires\nunsent: read ``GET .../authored-turn``.",
+            "title": "Waits For Person",
+            "type": "boolean"
           }
         },
         "required": [
@@ -32608,6 +32693,80 @@
           "staged"
         ],
         "title": "RunAuthoredTurnResponse",
+        "type": "object"
+      },
+      "RunAuthoredTurnStateResponse": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "reply_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Id"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "staged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staged At"
+          },
+          "state": {
+            "description": "``none``: no reply was staged. ``pending``: it is waiting to be sent. ``consumed``: it was taken to be sent.\n``expired``: it ran out of time, or a hand back discarded it.",
+            "enum": [
+              "none",
+              "pending",
+              "consumed",
+              "expired"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "state"
+        ],
+        "title": "RunAuthoredTurnStateResponse",
         "type": "object"
       },
       "RunGuidanceRequest": {
@@ -32691,6 +32850,36 @@
           "success"
         ],
         "title": "RunHandbackResponse",
+        "type": "object"
+      },
+      "RunHold": {
+        "description": "Who holds a text run, since when, and until when unless it is renewed.",
+        "properties": {
+          "expires_at": {
+            "description": "When the hold ends unless the holder renews it.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "operator_id": {
+            "description": "The operator who holds the run.",
+            "format": "uuid",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "since": {
+            "description": "When this hold began. A renewal keeps it.",
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_id",
+          "since",
+          "expires_at"
+        ],
+        "title": "RunHold",
         "type": "object"
       },
       "RunManifest": {
@@ -32959,6 +33148,52 @@
           }
         },
         "title": "RunManifest",
+        "type": "object"
+      },
+      "RunRenewRequest": {
+        "properties": {
+          "hold_token": {
+            "description": "The ``hold_token`` the takeover returned. It is opaque: send it back exactly as received.",
+            "maxLength": 64,
+            "title": "Hold Token",
+            "type": "string"
+          },
+          "operator_id": {
+            "format": "uuid",
+            "title": "Operator Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_id",
+          "hold_token"
+        ],
+        "title": "RunRenewRequest",
+        "type": "object"
+      },
+      "RunRenewResponse": {
+        "properties": {
+          "held_by": {
+            "$ref": "#/components/schemas/RunHold",
+            "description": "The hold with its new expiry."
+          },
+          "lease_seconds": {
+            "description": "How long the hold lasts from now unless renewed again.",
+            "title": "Lease Seconds",
+            "type": "integer"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "held_by",
+          "lease_seconds"
+        ],
+        "title": "RunRenewResponse",
         "type": "object"
       },
       "RunSimulationBenchmarkRequest": {
@@ -33236,6 +33471,42 @@
               }
             ],
             "title": "Conference Sid"
+          },
+          "held_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On a text run, the hold the caller now has: who, since when and until when unless renewed."
+          },
+          "hold_token": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On a text run, the token that renews this hold. It is opaque: send it back exactly as received.",
+            "title": "Hold Token"
+          },
+          "lease_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On a text run, how long a hold lasts after it is taken or renewed.",
+            "title": "Lease Seconds"
           },
           "mode": {
             "enum": [
@@ -43371,6 +43642,17 @@
             "title": "Eligible",
             "type": "boolean"
           },
+          "held_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The operator who holds the run, since when and until when. Left out of the response while no operator does."
+          },
           "mode_options": {
             "default": [],
             "items": {
@@ -46049,6 +46331,19 @@
         "title": "TranscriptSegment",
         "type": "object"
       },
+      "Transport": {
+        "enum": [
+          "gateway",
+          "decisions",
+          "vertex",
+          "vertex_priority",
+          "vertex_batch",
+          "bedrock",
+          "openai_direct",
+          "voice_vendor"
+        ],
+        "type": "string"
+      },
       "TriggerCompletedEvent": {
         "properties": {
           "event_type": {
@@ -48160,6 +48455,18 @@
           }
         },
         "title": "UpdateDashboardRequest",
+        "type": "object"
+      },
+      "UpdateDataResidencyRequest": {
+        "properties": {
+          "data_residency": {
+            "$ref": "#/components/schemas/DataResidency"
+          }
+        },
+        "required": [
+          "data_residency"
+        ],
+        "title": "UpdateDataResidencyRequest",
         "type": "object"
       },
       "UpdateDataSourceRequest": {
@@ -52647,6 +52954,42 @@
         "title": "WorkspaceMemberRoleUpdatedEvent",
         "type": "object"
       },
+      "WorkspaceModelListResponse": {
+        "properties": {
+          "data_residency": {
+            "$ref": "#/components/schemas/DataResidency"
+          },
+          "geography": {
+            "title": "Geography",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/src__routes__workspace_models__WorkspaceModelListResponse__Item"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "region": {
+            "enum": [
+              "us-east-1",
+              "ap-southeast-2",
+              "eu-central-1",
+              "ca-central-1"
+            ],
+            "title": "Region",
+            "type": "string"
+          }
+        },
+        "required": [
+          "region",
+          "geography",
+          "data_residency",
+          "items"
+        ],
+        "title": "WorkspaceModelListResponse",
+        "type": "object"
+      },
       "WorkspaceResponse": {
         "properties": {
           "backend_org_id": {
@@ -55382,6 +55725,41 @@
           "description"
         ],
         "title": "Parameter",
+        "type": "object"
+      },
+      "src__routes__workspace_models__WorkspaceModelListResponse__Item": {
+        "properties": {
+          "family": {
+            "$ref": "#/components/schemas/ProviderFamily"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "regional": {
+            "description": "Whether every path this model's requests can take stays in the region's geography.",
+            "title": "Regional",
+            "type": "boolean"
+          },
+          "transport": {
+            "$ref": "#/components/schemas/Transport"
+          },
+          "usable_for": {
+            "items": {
+              "$ref": "#/components/schemas/ModelUse"
+            },
+            "title": "Usable For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "transport",
+          "regional",
+          "usable_for"
+        ],
+        "title": "Item",
         "type": "object"
       },
       "src__routes__workspace_tables__create_workspace_table__Request": {
@@ -74102,6 +74480,40 @@
         ]
       }
     },
+    "/v1/{workspace_id}/models": {
+      "get": {
+        "description": "Every model the workspace's data residency allows in its region. A regional workspace sees only the models whose every request path stays in the region's geography. Any role.",
+        "operationId": "list-workspace-models",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceModelListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List the models this workspace may pin",
+        "tags": [
+          "Models"
+        ]
+      }
+    },
     "/v1/{workspace_id}/network/egress-ips": {
       "get": {
         "description": "Get platform egress IP addresses for firewall allowlisting.\n\nReturns the static IP addresses used by all outbound traffic from the\nplatform. Customers should add these to their firewall allowlists to\nenable data source connectivity (EHR, FHIR stores, etc.).\n\nPermissions: authenticated (any role).",
@@ -74266,7 +74678,7 @@
     },
     "/v1/{workspace_id}/operators/audit-log": {
       "get": {
-        "description": "Query the operator actions recorded in a workspace's audit ledger, newest first. The ledger is written from the event stream and refreshed about every 15 minutes, so an action appears here after that delay: the log cannot confirm an action you have just taken. The log lists operator takeover (``operator.takeover_started``), hand back (``operator.handback``), staged replies (``operator.authored_turn``), guidance (``operator.guidance_sent``), mode switches (``operator.mode_switched``), calls joined and left (``operator.joined_call``, ``operator.left_call``, ``operator.mode_changed``) and transcript views (``operator.viewed_transcript``). Transcript views are made with an API key, so they carry no operator id and ``operator_id`` never matches them. Older takeover, hand back, staged reply and mode switch events carry no ``result``. The other values the ``action`` filter accepts are not recorded in the ledger, so filtering on one returns nothing. Message text and notes are never part of an event. 503 if the ledger cannot be read.",
+        "description": "Query the operator actions recorded in a workspace's audit ledger, newest first. The ledger is written from the event stream and refreshed about every 15 minutes, so an action appears here after that delay: the log cannot confirm an action you have just taken. The log lists operator takeover (``operator.takeover_started``), a renewal of the hold that the server refused because the hold had ended (``operator.takeover_renewed`` with ``result`` ``failed``), hand back (``operator.handback``), staged replies (``operator.authored_turn``), guidance (``operator.guidance_sent``), mode switches (``operator.mode_switched``), calls joined and left (``operator.joined_call``, ``operator.left_call``, ``operator.mode_changed``) and transcript views (``operator.viewed_transcript``). A renewal that succeeds, and a takeover the holder repeats, are not recorded: the hold's end is on the run. Transcript views are made with an API key, so they carry no operator id and ``operator_id`` never matches them. Older takeover, hand back, staged reply and mode switch events carry no ``result``. The other values the ``action`` filter accepts are not recorded in the ledger, so filtering on one returns nothing. Message text and notes are never part of an event. 503 if the ledger cannot be read.",
         "operationId": "list-audit-log",
         "parameters": [
           {
@@ -74334,6 +74746,7 @@
                     "operator.mode_changed",
                     "operator.mode_switched",
                     "operator.takeover_started",
+                    "operator.takeover_renewed",
                     "operator.handback",
                     "operator.authored_turn",
                     "operator.left_call",
@@ -76360,7 +76773,7 @@
         ]
       },
       "patch": {
-        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:\nthat kind grades simulation case assertions only. A default\n(``is_default``) can only be paused or resumed: a patch that sets any\nother field returns 422.",
+        "description": "Update a production eval definition.\n\nA patch that sets ``metric_key`` or ``eval_type``, or sets ``active`` to\ntrue, re-checks the metric: a metric eval must name an active ai_query\nmetric on call_intelligence, else 422. Clearing ``metric_key`` on a metric\neval also returns 422. Any other patch, including ``active: false``,\nleaves the stored key alone. ``assertion_kind: llm_boolean`` returns 422:\nthat kind grades simulation case assertions only. A default\n(``is_default``) can only be paused or resumed: a patch that sets any\nother field returns 422. Setting ``active`` to true returns 422\n``data_residency_refused`` when the workspace's data residency forbids the\njudge.",
         "operationId": "update-production-eval-definition",
         "parameters": [
           {
@@ -77421,8 +77834,60 @@
       }
     },
     "/v1/{workspace_id}/runs/{run_id}/authored-turn": {
+      "get": {
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Read the state of the last reply staged on a NON-voice run with ``POST .../authored-turn``: ``none`` (nothing was staged), ``pending`` (it waits to be sent), ``consumed`` (it was taken to be sent) or ``expired`` (it ran out of time, or a hand back discarded it). A reply waits up to 2 minutes. Requires ``Operator:View``, held by the ``viewer``, ``operator``, ``member``, ``admin`` and ``owner`` roles.",
+        "operationId": "get_run_authored_turn_v1__workspace_id__runs__run_id__authored_turn_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAuthoredTurnStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read what became of the reply staged on a run",
+        "tags": [
+          "Runs"
+        ]
+      },
       "post": {
-        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller has taken over. The reply is held for up to 8 hours and sent in place of the agent's next outbound message on the run. A run holds one pending reply, so staging another replaces it. A reply that is never used stays pending, also after a hand back. Addressed by the channel-neutral ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg \u2014 use the conference, not an authored turn).",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Stage an operator-authored reply for a NON-voice run (sms/whatsapp/email/web/imessage) the caller holds. The caller needs a live hold on the run, or the answer is 409 with ``detail.code`` ``no_hold``. The reply waits up to 2 minutes to be sent, and a hand back discards it. A run has one reply waiting at a time: staging another while one waits is 409 with ``detail.code`` ``reply_pending`` and the waiting ``reply_id``. The reply is handed to the agent before this answers, and the agent sends it as its own message. A 200 means it was handed over, not that it was sent: read what became of it with ``GET .../authored-turn``. On a web conversation an external user owns, no agent is started for them: the answer has ``waits_for_person`` true, and the reply goes out only when the person next sends a message or polls, before it expires. When it cannot be handed over the reply is discarded, so that read says ``expired``, and the answer says why in ``detail.code``: 409 ``conversation_not_active`` (the conversation has ended), ``reply_expired`` (the reply ran out of time or the hold ended), ``channel_routing_unavailable`` (the patient has not written recently enough for the platform to reach them on this channel) or ``reply_not_deliverable``; 502 or 503 ``agent_unreachable`` (the reply was not sent and sending it again is safe; 503 means the last attempt never left the platform) or 502 ``agent_rejected_request`` (agent-engine refused the request itself; the reply was not sent and sending it again will not help). 502 ``delivery_unconfirmed`` means the reply may have been sent, so check the conversation before sending it again. 502 ``conversation_read_failed`` means the conversation could not be read before anything was staged: nothing was staged or sent, and sending the reply again is safe. Addressed by the channel-neutral ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 for voice (voice takeover drives the live audio leg \u2014 use the conference, not an authored turn).",
         "operationId": "author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post",
         "parameters": [
           {
@@ -77467,6 +77932,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "No hold, a reply already waiting, or a reply that could not be handed to the agent (``detail.code`` ``conversation_not_active``, ``reply_expired``, ``channel_routing_unavailable`` or ``reply_not_deliverable``)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77476,6 +77944,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The agent could not be reached (``agent_unreachable``), refused the request itself (``agent_rejected_request``), or its answer was lost (``delivery_unconfirmed``); or the conversation could not be read before anything was staged (``conversation_read_failed``)."
+          },
+          "503": {
+            "description": "The run is busy, or the agent could not be reached (``agent_unreachable``). Nothing was sent, and sending the reply again is safe."
           }
         },
         "summary": "Author the next turn on a non-voice run under takeover",
@@ -77550,7 +78024,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/handback": {
       "post": {
-        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over \u2014 the agent resumes. Addressed by ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Release the caller's operator from a run they took over \u2014 the agent resumes. Addressed by ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). On a text run, only the operator who holds the run, or a caller with ``Operator:Delete``, held by the ``admin`` and ``owner`` roles, can hand it back; anyone else gets 403 and the hold stays. Anyone can hand back a hold that has ended, and a hand back on a run nobody holds succeeds and changes nothing. A hand back discards a reply that is still waiting to be sent. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet.",
         "operationId": "hand_back_run_v1__workspace_id__runs__run_id__handback_post",
         "parameters": [
           {
@@ -77595,6 +78069,9 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "description": "Another operator holds the text run, and the caller may not release it."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77604,6 +78081,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "The run is busy. Try again."
           }
         },
         "summary": "Hand a taken-over run back to the agent",
@@ -77678,7 +78158,7 @@
     },
     "/v1/{workspace_id}/runs/{run_id}/takeover": {
       "post": {
-        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.",
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Register the caller's operator identity on a LIVE run and (in ``takeover`` mode) suspend the agent so the human drives; ``listen`` mode monitors without driving. Addressed by the channel-neutral ``run_id``. Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). A text run is held for 90 seconds (``lease_seconds``) and the hold ends by itself unless the holder renews it with ``POST .../takeover/renew`` and the ``hold_token`` this response returns. The holder taking over again keeps the hold and moves its end. 404 if the run is not live in this workspace; 409 if its channel does not support live takeover yet, if the operator has no phone number configured, or if a text conversation ended before the takeover took hold. 409 with ``detail.code`` ``run_held`` if another operator holds a text run: ``detail.held_by`` says who, since when and until when, and ``detail.operator_name`` names them. ``held_by`` is null when the hold names no operator, and a hand back clears it. For voice, Twilio dials the operator's phone and the response carries the resulting conference/participant SIDs.",
         "operationId": "take_over_run_v1__workspace_id__runs__run_id__takeover_post",
         "parameters": [
           {
@@ -77723,6 +78203,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "The run is not live for takeover, or another operator holds it (``detail.code`` ``run_held``)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -77732,9 +78215,82 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "The run is busy. Try again."
           }
         },
         "summary": "Take over a live run as operator",
+        "tags": [
+          "Runs"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/runs/{run_id}/takeover/renew": {
+      "post": {
+        "description": "Beta. Available to the workspaces enabled for it; other workspaces get 403. Move the end of the hold the caller took with ``POST .../takeover`` to 90 seconds from now. Send the ``hold_token`` that takeover returned, exactly as received: the match is exact, so a token that was parsed and written back with less precision names no hold. A renewal only extends the hold it names: after a hand back, after the hold ended, or after another operator took the run, it is 409 with ``detail.code`` ``hold_lost`` and the run stays as it is. It never takes a run, so taking over again is the only way to hold a run again. A renewal that succeeds is not written to the audit log; one refused with ``hold_lost`` is (``operator.takeover_renewed`` with ``result`` ``failed``). Requires ``Operator:Update``, held by the ``operator``, ``admin`` and ``owner`` roles. Bound to the caller's own operator identity (no impersonation). Addressed by the channel-neutral ``run_id``.",
+        "operationId": "renew_run_hold_v1__workspace_id__runs__run_id__takeover_renew_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRenewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRenewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "The hold is gone (``detail.code`` ``hold_lost``)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "The run is busy. Try again."
+          }
+        },
+        "summary": "Renew the hold on a text run",
         "tags": [
           "Runs"
         ]
@@ -79344,6 +79900,97 @@
         ]
       }
     },
+    "/v1/{workspace_id}/settings/data-residency": {
+      "get": {
+        "description": "Where this workspace's model calls may be processed. Any role.",
+        "operationId": "get-data-residency-settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResidencySettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Get data residency",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "put": {
+        "description": "Set where this workspace's model calls may be processed: `any` (anywhere a BAA covers them) or `regional` (only routes that stay in the region's geography). Turning `regional` on answers 422 with code `data_residency_refused`, listing every saved choice the region's policy forbids. An admin or owner can turn it on or leave it as it is. Turning it off, from `regional` to `any`, takes an owner: an admin gets 403.",
+        "operationId": "update-data-residency-settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDataResidencyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResidencySettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Requires an admin or owner, and an owner to turn regional off"
+          },
+          "404": {
+            "description": "Workspace not found"
+          },
+          "422": {
+            "description": "A saved choice the region's policy forbids for a regional workspace"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Update data residency (owner to turn off)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
     "/v1/{workspace_id}/settings/form-templates": {
       "get": {
         "description": "List all form templates for a workspace.",
@@ -79586,7 +80233,7 @@
         ]
       },
       "put": {
-        "description": "Update the workspace metric definitions.\n\nPartial updates supported \u2014 only provided fields are changed.\nThe definitions list is replaced entirely when provided, and a ``null``\nresets it to the built-in defaults.\n\nA custom ai_query metric needs an output set whenever the save adds it or\nchanges its type, prompt, labels or range: categorical requires a\nnon-empty ai_labels list, numerical requires valid_range_min <\nvalid_range_max. A missing or inverted bound returns 422 naming the field.\n\nPermissions: admin, owner.",
+        "description": "Update the workspace metric definitions.\n\nPartial updates supported \u2014 only provided fields are changed.\nThe definitions list is replaced entirely when provided, and a ``null``\nresets it to the built-in defaults.\n\nA custom ai_query metric needs an output set whenever the save adds it or\nchanges its type, prompt, labels or range: categorical requires a\nnon-empty ai_labels list, numerical requires valid_range_min <\nvalid_range_max. A missing or inverted bound returns 422 naming the field.\n\nA regional workspace in a region whose Databricks workspace doesn't run the ai_* functions\nin-geography can't keep an active ai_query, ai_classify or ai_extract metric, builtins\nincluded: 422 with code ``data_residency_refused`` lists them.\n\nPermissions: admin, owner.",
         "operationId": "update-metric-settings",
         "parameters": [
           {

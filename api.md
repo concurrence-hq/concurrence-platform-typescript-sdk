@@ -166,7 +166,9 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `trajectory`
 - `sendGuidance`
 - `takeOver`
+- `renewTakeover`
 - `authorTurn`
+- `getAuthoredTurn`
 - `handBack`
 - `switchMode`
 
