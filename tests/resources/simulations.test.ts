@@ -13,6 +13,7 @@ const SERVICE_ID = 'svc-00000000-0000-0000-0000-000000000001'
 const CASE_ID = '00000000-0000-0000-0000-0000000000c1'
 const SUITE_ID = '00000000-0000-0000-0000-0000000000a1'
 const SUITE_RUN_ID = '00000000-0000-0000-0000-0000000000b1'
+const ENTITY_ID = '00000000-0000-0000-0000-0000000000e1'
 
 interface RecordedRequest {
   method: string
@@ -486,6 +487,63 @@ describe('SimulationsResource', () => {
       ])
       expect(requests[1]!.body).toEqual({ required_tags: ['intake'], max_cases: 20 })
       expect(requests[2]!.body).toEqual({ run_ids: [RUN_ID] })
+    })
+
+    it("returns each run's case name, verdict counts and participant in the suite run results", async () => {
+      const OTHER_RUN_ID = 'run-00000000-0000-0000-0000-000000000002'
+      const results = {
+        suite_run_id: SUITE_RUN_ID,
+        suite_id: SUITE_ID,
+        run_ids: [RUN_ID, OTHER_RUN_ID],
+        total_runs: 2,
+        summary: {
+          suite_run_id: SUITE_RUN_ID,
+          run_ids: [RUN_ID, OTHER_RUN_ID],
+          status: 'completed',
+          total_runs: 2,
+        },
+        per_run: [
+          {
+            run_id: RUN_ID,
+            service_id: SERVICE_ID,
+            status: 'completed',
+            case_name: 'Refill request',
+            evaluations_configured: true,
+            eval_counts: { passed: 3, failed: 1, pending: 0, skipped: 0, error: 0 },
+            participant: {
+              binding: 'bound',
+              entity_id: ENTITY_ID,
+              entity_type: 'patient',
+              display_name: 'Pat Example',
+            },
+          },
+          {
+            run_id: OTHER_RUN_ID,
+            service_id: SERVICE_ID,
+            status: 'running',
+            case_name: null,
+            evaluations_configured: false,
+            eval_counts: null,
+            participant: { binding: 'unbound' },
+          },
+        ],
+      } satisfies components['schemas']['SimulationSuiteRunResultsResponse']
+      const { client: recording } = recordingClient(results)
+
+      const suiteRun = await recording.simulations.suiteRuns.get(SUITE_RUN_ID)
+
+      const [bound, unbound] = suiteRun.per_run ?? []
+      expect(bound?.case_name).toBe('Refill request')
+      expect(bound?.evaluations_configured).toBe(true)
+      expect(bound?.eval_counts).toEqual({ passed: 3, failed: 1, pending: 0, skipped: 0, error: 0 })
+      expect(bound?.participant).toEqual({
+        binding: 'bound',
+        entity_id: ENTITY_ID,
+        entity_type: 'patient',
+        display_name: 'Pat Example',
+      })
+      expect(unbound?.eval_counts).toBeNull()
+      expect(unbound?.participant?.binding).toBe('unbound')
     })
 
     it('reads many suite run summaries and one suite run performance, each in one request', async () => {

@@ -1043,28 +1043,68 @@ build the client from that operator's identity token, as in the
 `operator_id` must be that operator's own id, and the operator needs the `Operator:Update`
 permission (the operator, admin and owner roles).
 
-On a text channel (sms, whatsapp, email, web or imessage) the operator takes over, writes the
-replies one at a time, then hands back:
+On a text channel (sms, whatsapp, email, web or imessage) the operator takes over, writes a reply,
+then hands back. A text run is held under a lease. `takeOver` returns the hold (`held_by`), how long
+it lasts (`lease_seconds`, 90) and a `hold_token`, and the hold ends by itself unless the operator
+renews it with `renewTakeover`:
 
 ```typescript
 // operatorToken is the signed-in operator's identity token.
 const operatorClient = new AmigoClient({ apiKey: operatorToken, workspaceId })
 
-// Every run says whether it can be taken over. `run.takeover.reason` says why not.
+// Every run says whether it can be taken over. `run.takeover.reason` says why not, and
+// `run.takeover.held_by` says who holds it now and until when.
 const run = await operatorClient.runs.get(runId)
 
 if (run.takeover.eligible) {
-  await operatorClient.runs.takeOver(runId, { operator_id: operatorId, mode: 'takeover' })
+  const hold = await operatorClient.runs.takeOver(runId, {
+    operator_id: operatorId,
+    mode: 'takeover',
+  })
 
-  // The reply goes out in place of the agent's next message, and `staged` is true once it is
-  // queued. Call it again for the next reply.
-  const { staged } = await operatorClient.runs.authorTurn(runId, {
+  // Renew while the operator is present, well inside `lease_seconds`. Send `hold_token` back
+  // exactly as `takeOver` returned it: it is opaque, and the server matches it exactly.
+  if (hold.hold_token) {
+    await operatorClient.runs.renewTakeover(runId, {
+      operator_id: operatorId,
+      hold_token: hold.hold_token,
+    })
+  }
+
+  // The agent sends the reply as its own message. A 200 means it was handed over, not sent.
+  // A run has one reply waiting at a time, and a reply waits up to 2 minutes.
+  await operatorClient.runs.authorTurn(runId, {
     operator_id: operatorId,
     text: 'Thanks for waiting. Your refill is ready for pickup.',
   })
 
-  // The agent picks the conversation back up.
+  // What became of the reply: `none`, `pending`, `consumed` or `expired`.
+  const { state } = await operatorClient.runs.getAuthoredTurn(runId)
+
+  // The agent picks the conversation back up, and a reply still waiting is discarded.
   await operatorClient.runs.handBack(runId, { operator_id: operatorId })
+}
+```
+
+On a web conversation an external user owns, no agent is started for them. `authorTurn` then
+returns `waits_for_person: true`, and the reply goes out when the person next sends a message or
+polls, before `expires_at`.
+
+These 409s carry a `detail.code` in the error body: `hold_lost` on a renewal when the hold is gone
+(handed back, ended, or another operator took the run), `run_held` on a takeover when another
+operator holds the run, and `no_hold` or `reply_pending` on `authorTurn`. A 503 means the run is
+busy. The SDK does not retry a POST on a 503, so call again.
+
+```typescript
+import { ConflictError, isHttpException } from '@amigo-ai/platform-sdk'
+
+try {
+  await operatorClient.runs.renewTakeover(runId, { operator_id: operatorId, hold_token })
+} catch (err) {
+  const detail = err instanceof ConflictError && isHttpException(err) ? err.errorBody.detail : null
+  if (typeof detail === 'object' && !Array.isArray(detail) && detail?.code === 'hold_lost') {
+    // The operator no longer holds the run. Take over again to hold it.
+  }
 }
 ```
 
@@ -1094,7 +1134,8 @@ await operatorClient.runs.sendGuidance(runId, {
 await operatorClient.runs.handBack(runId, { operator_id: operatorId })
 ```
 
-`authorTurn` is for text runs and returns a 409 on a voice run. A reply is 1 to 4,000 characters.
+`renewTakeover`, `authorTurn` and `getAuthoredTurn` are for text runs, and `authorTurn` returns a
+409 on a voice run. A reply is 1 to 4,000 characters.
 
 To keep an operator screen current, `client.events.subscribeToWorkspace` delivers `call.escalated`,
 `operator.registered`, `operator.status_changed`, `operator.joined_call`, `operator.left_call`,

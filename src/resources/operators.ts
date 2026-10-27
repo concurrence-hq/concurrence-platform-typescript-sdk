@@ -5,6 +5,10 @@ export type EscalationStatsParams = NonNullable<
   operations['escalation-stats']['parameters']['query']
 >
 
+export type OperatorAuditLogParams = NonNullable<
+  operations['list-audit-log']['parameters']['query']
+>
+
 export class OperatorsResource extends WorkspaceScopedResource {
   async list(params?: { status?: string; limit?: number; offset?: number }) {
     return extractData(
@@ -173,7 +177,13 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  async getAuditLog(params?: { limit?: number; offset?: number }) {
+  /**
+   * List the operator actions recorded in the workspace's audit ledger, newest
+   * first. Filter by one `operator_id` or `action`, and page with
+   * `continuation_token`. The ledger refreshes about every 15 minutes, so an
+   * action appears after that delay. Returns 503 when the ledger cannot be read.
+   */
+  async getAuditLog(params?: OperatorAuditLogParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/operators/audit-log', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -181,11 +191,7 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  getAuditLogAutoPaging(params?: { limit?: number; offset?: number }) {
-    return this.iterateOffsetPaginatedList(
-      (pageParams) => this.getAuditLog(pageParams),
-      (page) => page.items,
-      params,
-    )
+  getAuditLogAutoPaging(params?: OperatorAuditLogParams) {
+    return this.iteratePaginatedList((pageParams) => this.getAuditLog(pageParams), params)
   }
 }
