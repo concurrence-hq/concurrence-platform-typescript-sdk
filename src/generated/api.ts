@@ -1795,7 +1795,7 @@ export interface paths {
         put?: never;
         /**
          * Send a message and get the agent's response
-         * @description Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.
+         * @description Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE. While an operator holds the conversation, a turn is taken too: the message is recorded and the agent does not answer it, so `output` is empty unless the platform sends an automatic reply, and `conversation.status` is `paused`. The operator's own replies are not in a turn or poll response: read them with `GET /conversations/{conversation_id}/turns`.
          */
         post: operations["create_turn_v1__workspace_id__conversations__conversation_id__turns_post"];
         delete?: never;
@@ -1815,7 +1815,7 @@ export interface paths {
         put?: never;
         /**
          * Send a message and receive a streamed agent response
-         * @description Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header — no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. A turn refused before its first frame, such as a retry whose `Idempotency-Key` was used for a different turn, gets the same JSON error as `POST /turns` instead of a stream. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.
+         * @description Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header — no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. A turn refused before its first frame, such as a retry whose `Idempotency-Key` was used for a different turn, gets the same JSON error as `POST /turns` instead of a stream. While an operator holds the conversation, a turn is taken as `POST /turns` takes it: the message is recorded and the agent does not answer it, so the stream ends in `done` with status `paused` and no `message` frame, unless the platform sends an automatic reply. The operator's own replies are not streamed: read them with `GET /conversations/{conversation_id}/turns`. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.
          */
         post: operations["create_turn_stream_v1__workspace_id__conversations__conversation_id__turns_stream_post"];
         delete?: never;
@@ -36421,7 +36421,7 @@ export interface operations {
             query?: {
                 /** @description Include tool call details in response */
                 include_tool_calls?: boolean;
-                /** @description Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409; one an operator holds can be polled again once it is handed back. */
+                /** @description Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409. */
                 poll?: boolean;
             };
             header?: {
@@ -36464,7 +36464,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn */
+            /** @description Conversation isn't active (it is closed, completed or failed, or an operator took it over under an older release and has not handed it back) or is busy, or the Idempotency-Key was used for a different turn */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -36556,7 +36556,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn */
+            /** @description Conversation isn't active (it is closed, completed or failed, or an operator took it over under an older release and has not handed it back) or is busy, or the Idempotency-Key was used for a different turn */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -44394,6 +44394,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description The state of the reply could not be read. Nothing changed, so read it again. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     author_run_turn_v1__workspace_id__runs__run_id__authored_turn_post: {
@@ -44420,6 +44427,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RunAuthoredTurnResponse"];
                 };
+            };
+            /** @description No live run with that id in this workspace, or the ``operator_id`` is not an operator of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description No hold, a reply already waiting, or a reply that could not be handed to the agent (``detail.code`` ``conversation_not_active``, ``reply_expired``, ``channel_routing_unavailable`` or ``reply_not_deliverable``). */
             409: {
@@ -44478,6 +44492,20 @@ export interface operations {
                     "application/json": components["schemas"]["RunGuidanceResponse"];
                 };
             };
+            /** @description No live run with that id in this workspace, or the ``operator_id`` is not an operator of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run's channel has no live guidance yet, or the voice run has no call to guide. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -44486,6 +44514,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The run could not be looked up, or the voice agent could not be reached. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -44521,6 +44556,20 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No live run with that id in this workspace, or the ``operator_id`` is not an operator of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run has no conversation or call to hand back. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -44529,6 +44578,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The run could not be looked up, the hold could not be released, or the voice agent could not be reached or answered without a result. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description The run is busy. Try again. */
             503: {
@@ -44564,6 +44620,20 @@ export interface operations {
                     "application/json": components["schemas"]["RunSwitchModeResponse"];
                 };
             };
+            /** @description No live run with that id in this workspace, or the ``operator_id`` is not an operator of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not a voice run, or it has no call to switch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -44572,6 +44642,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The run could not be looked up, or the voice agent could not be reached or answered without the mode. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -44600,6 +44677,13 @@ export interface operations {
                     "application/json": components["schemas"]["RunTakeoverResponse"];
                 };
             };
+            /** @description No live run with that id in this workspace, or the ``operator_id`` is not an operator of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description The run is not live for takeover, or another operator holds it (``detail.code`` ``run_held``). */
             409: {
                 headers: {
@@ -44615,6 +44699,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The run could not be looked up, the hold could not be written, or the voice agent could not be reached. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description The run is busy. Try again. */
             503: {
@@ -44650,6 +44741,13 @@ export interface operations {
                     "application/json": components["schemas"]["RunRenewResponse"];
                 };
             };
+            /** @description The ``operator_id`` is not an operator of this workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description The hold is gone (``detail.code`` ``hold_lost``). */
             409: {
                 headers: {
@@ -44665,6 +44763,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The hold could not be renewed. Try again before it ends. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description The run is busy. Try again. */
             503: {

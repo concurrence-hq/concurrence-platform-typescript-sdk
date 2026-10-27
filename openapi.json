@@ -63731,7 +63731,7 @@
         ]
       },
       "post": {
-        "description": "Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE.",
+        "description": "Send a user message and receive the agent's response. Set `Accept: text/event-stream` to receive an SSE stream of typed `TurnStreamEvent` frames (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error) instead of the synchronous JSON response. For new integrations prefer `POST /turns/stream`, which is always SSE. While an operator holds the conversation, a turn is taken too: the message is recorded and the agent does not answer it, so `output` is empty unless the platform sends an automatic reply, and `conversation.status` is `paused`. The operator's own replies are not in a turn or poll response: read them with `GET /conversations/{conversation_id}/turns`.",
         "operationId": "create_turn_v1__workspace_id__conversations__conversation_id__turns_post",
         "parameters": [
           {
@@ -63767,13 +63767,13 @@
             }
           },
           {
-            "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409; one an operator holds can be polled again once it is handed back.",
+            "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409.",
             "in": "query",
             "name": "poll",
             "required": false,
             "schema": {
               "default": false,
-              "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409; one an operator holds can be polled again once it is handed back.",
+              "description": "Poll for a background result without sending a user message. Protocol v2 claims at most one ready answer and returns an opaque delivery receipt; render or durably persist the answer, then acknowledge that receipt. Returns empty output when nothing is ready. Must NOT be combined with a request-body ``message`` (422) or SSE streaming (422). Poll no more than once every ~5s per conversation. A conversation that isn't active answers a poll 409.",
               "title": "Poll",
               "type": "boolean"
             }
@@ -63831,7 +63831,7 @@
             "description": "Conversation or service not found"
           },
           "409": {
-            "description": "Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn"
+            "description": "Conversation isn't active (it is closed, completed or failed, or an operator took it over under an older release and has not handed it back) or is busy, or the Idempotency-Key was used for a different turn"
           },
           "422": {
             "content": {
@@ -63864,7 +63864,7 @@
     },
     "/v1/{workspace_id}/conversations/{conversation_id}/turns/stream": {
       "post": {
-        "description": "Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header \u2014 no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. A turn refused before its first frame, such as a retry whose `Idempotency-Key` was used for a different turn, gets the same JSON error as `POST /turns` instead of a stream. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.",
+        "description": "Streaming variant of `POST /turns`. Always returns `text/event-stream` regardless of the `Accept` header \u2014 no JSON fallback. Each frame is a `TurnStreamEvent` discriminated by the `event` field (token, tool_call_started, tool_call_completed, thinking, artifact, message, state_transition, state, done, error). Right before `done`, a turn sends a `state_transition` frame per context-graph hop it took, then a `state` frame with the state it ended in. A turn refused before its first frame, such as a retry whose `Idempotency-Key` was used for a different turn, gets the same JSON error as `POST /turns` instead of a stream. While an operator holds the conversation, a turn is taken as `POST /turns` takes it: the message is recorded and the agent does not answer it, so the stream ends in `done` with status `paused` and no `message` frame, unless the platform sends an automatic reply. The operator's own replies are not streamed: read them with `GET /conversations/{conversation_id}/turns`. Use this endpoint for new integrations; the `Accept`-sniffing variant remains for backward compatibility.",
         "operationId": "create_turn_stream_v1__workspace_id__conversations__conversation_id__turns_stream_post",
         "parameters": [
           {
@@ -63950,7 +63950,7 @@
             "description": "Conversation or service not found"
           },
           "409": {
-            "description": "Conversation isn't active (it is closed, completed or failed, or an operator holds it) or is busy, or the Idempotency-Key was used for a different turn"
+            "description": "Conversation isn't active (it is closed, completed or failed, or an operator took it over under an older release and has not handed it back) or is busy, or the Idempotency-Key was used for a different turn"
           },
           "422": {
             "content": {
@@ -77879,6 +77879,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The state of the reply could not be read. Nothing changed, so read it again."
           }
         },
         "summary": "Read what became of the reply staged on a run",
@@ -77931,6 +77934,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No live run with that id in this workspace, or the ``operator_id`` is not an operator of it."
           },
           "409": {
             "description": "No hold, a reply already waiting, or a reply that could not be handed to the agent (``detail.code`` ``conversation_not_active``, ``reply_expired``, ``channel_routing_unavailable`` or ``reply_not_deliverable``)."
@@ -78005,6 +78011,12 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "No live run with that id in this workspace, or the ``operator_id`` is not an operator of it."
+          },
+          "409": {
+            "description": "The run's channel has no live guidance yet, or the voice run has no call to guide."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -78014,6 +78026,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The run could not be looked up, or the voice agent could not be reached."
           }
         },
         "summary": "Send operator guidance to a live run",
@@ -78072,6 +78087,12 @@
           "403": {
             "description": "Another operator holds the text run, and the caller may not release it."
           },
+          "404": {
+            "description": "No live run with that id in this workspace, or the ``operator_id`` is not an operator of it."
+          },
+          "409": {
+            "description": "The run has no conversation or call to hand back."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -78081,6 +78102,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The run could not be looked up, the hold could not be released, or the voice agent could not be reached or answered without a result."
           },
           "503": {
             "description": "The run is busy. Try again."
@@ -78139,6 +78163,12 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "No live run with that id in this workspace, or the ``operator_id`` is not an operator of it."
+          },
+          "409": {
+            "description": "The run is not a voice run, or it has no call to switch."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -78148,6 +78178,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The run could not be looked up, or the voice agent could not be reached or answered without the mode."
           }
         },
         "summary": "Switch an operator between listen and takeover on a live run",
@@ -78203,6 +78236,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "No live run with that id in this workspace, or the ``operator_id`` is not an operator of it."
+          },
           "409": {
             "description": "The run is not live for takeover, or another operator holds it (``detail.code`` ``run_held``)."
           },
@@ -78215,6 +78251,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The run could not be looked up, the hold could not be written, or the voice agent could not be reached."
           },
           "503": {
             "description": "The run is busy. Try again."
@@ -78273,6 +78312,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "The ``operator_id`` is not an operator of this workspace."
+          },
           "409": {
             "description": "The hold is gone (``detail.code`` ``hold_lost``)."
           },
@@ -78285,6 +78327,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "502": {
+            "description": "The hold could not be renewed. Try again before it ends."
           },
           "503": {
             "description": "The run is busy. Try again."
