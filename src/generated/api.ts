@@ -4114,7 +4114,7 @@ export interface paths {
         };
         /**
          * Query audit log
-         * @description Query audit events (operator actions) for a workspace.
+         * @description Query the operator actions recorded in a workspace's audit ledger, newest first. The ledger is written from the event stream and refreshed about every 15 minutes, so an action appears here after that delay: the log cannot confirm an action you have just taken. The log lists operator takeover (``operator.takeover_started``), hand back (``operator.handback``), staged replies (``operator.authored_turn``), guidance (``operator.guidance_sent``), mode switches (``operator.mode_switched``), calls joined and left (``operator.joined_call``, ``operator.left_call``, ``operator.mode_changed``) and transcript views (``operator.viewed_transcript``). Transcript views are made with an API key, so they carry no operator id and ``operator_id`` never matches them. Older takeover, hand back, staged reply and mode switch events carry no ``result``. The other values the ``action`` filter accepts are not recorded in the ledger, so filtering on one returns nothing. Message text and notes are never part of an event. 503 if the ledger cannot be read.
          */
         get: operations["list-audit-log"];
         put?: never;
@@ -6173,6 +6173,12 @@ export interface paths {
         /**
          * Get Simulation Suite Run Results
          * @description Fetch aggregate results for a durable suite run.
+         *
+         *     Each ``per_run`` item carries the run's status, turn counts and metric availability, and
+         *     also ``eval_counts`` (its verdicts counted by status), ``evaluations_configured``,
+         *     ``case_name`` and ``participant`` (the entity it simulated, by binding, id, display name and
+         *     type). Together they give the whole suite's headline, and group its runs by patient, in one
+         *     request with no per-run reads.
          */
         get: operations["get-simulation-suite-run-results"];
         put?: never;
@@ -23732,6 +23738,38 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /**
+         * SimulationRunEvalCounts
+         * @description A run's evaluation verdicts, counted by status.
+         */
+        SimulationRunEvalCounts: {
+            /**
+             * Error
+             * @description Verdicts the grader could not produce, plus any whose status is not one of the other four.
+             * @default 0
+             */
+            error?: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed?: number;
+            /**
+             * Passed
+             * @default 0
+             */
+            passed?: number;
+            /**
+             * Pending
+             * @default 0
+             */
+            pending?: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped?: number;
+        };
         /** SimulationRunListResponse */
         SimulationRunListResponse: {
             /** Continuation Token */
@@ -23745,6 +23783,36 @@ export interface components {
              * @description Runs that match the filters, across every page.
              */
             total: number;
+        };
+        /**
+         * SimulationRunParticipant
+         * @description The entity a run simulated, as the run's snapshot and the world record it.
+         */
+        SimulationRunParticipant: {
+            /**
+             * Binding
+             * @description `bound` when the run was started against an entity, `unbound` when it was started
+             *     explicitly without one, `unknown` when its snapshot does not say.
+             * @enum {string}
+             */
+            binding: "bound" | "unbound" | "unknown";
+            /**
+             * Display Name
+             * @description The bound entity's display name, else its name. Null when the entity is not in the
+             *     workspace's world or has neither.
+             */
+            display_name?: string | null;
+            /**
+             * Entity Id
+             * @description The bound entity. Null unless `binding` is `bound`.
+             */
+            entity_id?: string | null;
+            /**
+             * Entity Type
+             * @description The bound entity's type, such as `person` or `patient`. Null when the entity is not in
+             *     the workspace's world.
+             */
+            entity_type?: string | null;
         };
         /**
          * SimulationRunResponse
@@ -24041,6 +24109,134 @@ export interface components {
              */
             workspace_id: string;
         };
+        /** SimulationSuiteRunPerRunSummary */
+        SimulationSuiteRunPerRunSummary: {
+            /** Average Score */
+            average_score?: number | null;
+            /** Capability Tags */
+            capability_tags?: string[];
+            /** Case Ids */
+            case_ids?: string[];
+            /**
+             * Case Name
+             * @description The run's case description, else its name. Null when the snapshot has neither.
+             */
+            case_name?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Error */
+            error?: string | null;
+            /**
+             * Error Session Count
+             * @description Sessions cut short by the simulator or the platform rather than the agent: the caller LLM,
+             *     a step outside the agent's own turn, a turn write or the run's time limit failed. Each has no
+             *     score and a `score_rationale` of `bridge:error:<end reason>`, so it stays out of `average_score`
+             *     and the pass and fail counts. A session whose agent turn failed (it raised, or ran out of time)
+             *     isn't one of them: it scores 0 with `score_rationale` `bridge:agent_error` or
+             *     `bridge:agent_timeout`, and counts as failed.
+             * @default 0
+             */
+            error_session_count?: number;
+            /**
+             * @description How the run's evaluation verdicts came out, counted by status across its sessions and the run
+             *     as a whole. All zero for a run that has not completed.
+             */
+            eval_counts?: components["schemas"]["SimulationRunEvalCounts"] | null;
+            /**
+             * Evaluations Configured
+             * @description False when the run's snapshot records no evaluation definitions, so a run with no verdicts
+             *     was never going to get any.
+             */
+            evaluations_configured?: boolean | null;
+            /**
+             * Fail Count
+             * @default 0
+             */
+            fail_count?: number;
+            /** Immediate Average Score */
+            immediate_average_score?: number | null;
+            /**
+             * Immediate Fail Count
+             * @default 0
+             */
+            immediate_fail_count?: number;
+            /**
+             * Immediate Pass Count
+             * @default 0
+             */
+            immediate_pass_count?: number;
+            /** Immediate Passed */
+            immediate_passed?: boolean | null;
+            /**
+             * Metric Result Count
+             * @default 0
+             */
+            metric_result_count?: number;
+            /**
+             * Metric Status
+             * @default pending
+             * @enum {string}
+             */
+            metric_status?: "pending" | "available" | "unavailable";
+            /** Metrics Last Checked At */
+            metrics_last_checked_at?: string | null;
+            /** @description The entity the run simulated and how its snapshot binds it. */
+            participant?: components["schemas"]["SimulationRunParticipant"] | null;
+            /**
+             * Pass Count
+             * @default 0
+             */
+            pass_count?: number;
+            /** Passed */
+            passed?: boolean | null;
+            /** Result Pointer */
+            result_pointer?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Score Rationales */
+            score_rationales?: string[];
+            /**
+             * Scored Session Count
+             * @default 0
+             */
+            scored_session_count?: number;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Session Ids */
+            session_ids?: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "completed" | "failed";
+            /** Tags */
+            tags?: string[];
+            /**
+             * Terminal Session Count
+             * @default 0
+             */
+            terminal_session_count?: number;
+            /**
+             * Total Sessions
+             * @default 0
+             */
+            total_sessions?: number;
+            /**
+             * Total Turns
+             * @default 0
+             */
+            total_turns?: number;
+        };
         /** SimulationSuiteRunResultsResponse */
         SimulationSuiteRunResultsResponse: {
             /** Average Score */
@@ -24085,7 +24281,7 @@ export interface components {
              */
             pass_count?: number;
             /** Per Run */
-            per_run?: components["schemas"]["SimulationBenchmarkPerRunSummary"][];
+            per_run?: components["schemas"]["SimulationSuiteRunPerRunSummary"][];
             /** Run Ids */
             run_ids: string[];
             /**
@@ -42301,7 +42497,7 @@ export interface operations {
                 /** @description Filter by operator entity UUID. */
                 operator_id?: string | null;
                 /** @description Filter by exact operator audit event type. */
-                action?: ("operator.registered" | "operator.status_changed" | "operator.profile_updated" | "operator.joined_call" | "operator.mode_changed" | "operator.mode_switched" | "operator.left_call" | "operator.access_token_generated" | "operator.guidance_sent" | "operator.wrap_up" | "operator.viewed_transcript") | null;
+                action?: ("operator.registered" | "operator.status_changed" | "operator.profile_updated" | "operator.joined_call" | "operator.mode_changed" | "operator.mode_switched" | "operator.takeover_started" | "operator.handback" | "operator.authored_turn" | "operator.left_call" | "operator.access_token_generated" | "operator.guidance_sent" | "operator.wrap_up" | "operator.viewed_transcript") | null;
             };
             header?: never;
             path: {
@@ -42328,6 +42524,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The audit ledger could not be read. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
