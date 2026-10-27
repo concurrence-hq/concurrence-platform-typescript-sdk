@@ -15,6 +15,7 @@ const continuationPaths = new Set([
   `${BASE}/context-graphs/cg-001/versions`,
   `${BASE}/data-sources`,
   `${BASE}/integrations`,
+  `${BASE}/operators/audit-log`,
   `${BASE}/production-eval-definitions`,
   `${BASE}/services`,
   `${BASE}/triggers`,
@@ -22,11 +23,7 @@ const continuationPaths = new Set([
   '/v1/workspaces',
 ])
 
-const offsetItemPaths = new Set([
-  `${BASE}/operators`,
-  `${BASE}/operators/escalations`,
-  `${BASE}/operators/audit-log`,
-])
+const offsetItemPaths = new Set([`${BASE}/operators`, `${BASE}/operators/escalations`])
 
 const offsetEventPaths = new Set([
   `${BASE}/audit`,
@@ -112,6 +109,7 @@ describe('resource auto-pagination helpers', () => {
       countItems(client.contextGraphs.listVersionsAutoPaging('cg-001', { limit: 1 })),
       countItems(client.dataSources.listAutoPaging({ limit: 1 })),
       countItems(client.integrations.listAutoPaging({ limit: 1 })),
+      countItems(client.operators.getAuditLogAutoPaging({ limit: 1 })),
       countItems(client.productionEvals.listDefinitionsAutoPaging({ limit: 1 })),
       countItems(client.services.listAutoPaging({ limit: 1 })),
       countItems(client.skills.listAutoPaging({ limit: 1 })),
@@ -130,7 +128,6 @@ describe('resource auto-pagination helpers', () => {
       countItems(client.audit.getEntityAccessLogAutoPaging('entity-001', { limit: 1 })),
       countItems(client.operators.listAutoPaging({ limit: 1 })),
       countItems(client.operators.getEscalationsAutoPaging({ limit: 1 })),
-      countItems(client.operators.getAuditLogAutoPaging({ limit: 1 })),
       countItems(client.world.listEntitiesAutoPaging({ limit: 1 })),
       countItems(client.world.getTimelineAutoPaging('entity-001', { limit: 1 })),
     ])

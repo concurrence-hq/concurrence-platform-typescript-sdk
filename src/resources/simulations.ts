@@ -398,7 +398,10 @@ export class SimulationsResource extends WorkspaceScopedResource {
   readonly suiteRuns = {
     /**
      * Get a suite run's server-side summary (expected vs started cases, status
-     * counts) and its aggregate results across every case run.
+     * counts) and its aggregate results across every case run. Each `per_run`
+     * item also carries its verdict counts (`eval_counts`), `evaluations_configured`,
+     * `case_name` and the `participant` it simulated, so a run history needs no
+     * per-run reads.
      */
     get: async (suiteRunId: string) =>
       extractData(
