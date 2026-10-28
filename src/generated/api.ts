@@ -6418,6 +6418,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/skills/identity-lifecycle/groups/{mapping_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an Identity group lifecycle action */
+        get: operations["get-identity-group-lifecycle-action"];
+        /**
+         * Save an Identity group lifecycle action
+         * @description Administrator-only, idempotent action binding for one exact SSO group mapping. Use the returned action_id in a cron trigger with an empty input_template. Identity verifies the current mapping and all saved source revisions at execution. Saving the action does not approve or enable the mapping.
+         */
+        put: operations["put-identity-group-lifecycle-action"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/skills/identity-lifecycle/{connection_id}": {
         parameters: {
             query?: never;
@@ -8203,11 +8224,10 @@ export interface components {
         };
         /**
          * AgentIdentity
-         * @description Who the agent IS — platform-authored only; ``None`` for native runs
-         *     (a customer's own definition carries its own identity). Named
-         *     ``AgentIdentity`` (not ``Identity``) to avoid colliding with the existing
-         *     ``config.models.Identity`` OpenAPI schema (a same-name collision would
-         *     force-rename that shipped schema — a breaking spec change).
+         * @description Who the agent is: the service's authored persona and its reference
+         *     instructions. Named ``AgentIdentity`` (not ``Identity``) to avoid colliding
+         *     with the existing ``config.models.Identity`` OpenAPI schema (a same-name
+         *     collision would force-rename that shipped schema, a breaking spec change).
          */
         AgentIdentity: {
             /**
@@ -16826,6 +16846,12 @@ export interface components {
         };
         /** ForwardingDetails */
         ForwardingDetails: {
+            /**
+             * After Hours
+             * @description The service's staffed hours sent this transfer to its after-hours line, whichever line was asked for.
+             * @default false
+             */
+            after_hours?: boolean;
             /** Forward To */
             forward_to: string;
             /** Forwarded At */
@@ -16935,7 +16961,7 @@ export interface components {
              */
             context_version?: number;
             guardrails: components["schemas"]["Guardrails"];
-            identity?: components["schemas"]["AgentIdentity"] | null;
+            identity: components["schemas"]["AgentIdentity"];
             runtime: components["schemas"]["Runtime"];
             /**
              * Source
@@ -17030,6 +17056,72 @@ export interface components {
             relationship_to_developer?: components["schemas"]["RelationshipToDeveloper"];
             /** Role */
             role: string;
+        };
+        /** IdentityGroupLifecycleActionRequest */
+        IdentityGroupLifecycleActionRequest: {
+            /**
+             * Configuration Id
+             * Format: uuid
+             */
+            configuration_id: string;
+            /**
+             * Configuration Revision
+             * Format: uuid
+             */
+            configuration_revision: string;
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * Connection Revision
+             * Format: uuid
+             */
+            connection_revision: string;
+            /**
+             * Mapping Revision
+             * Format: uuid
+             */
+            mapping_revision: string;
+        };
+        /** IdentityGroupLifecycleActionResponse */
+        IdentityGroupLifecycleActionResponse: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /**
+             * Configuration Id
+             * Format: uuid
+             */
+            configuration_id: string;
+            /**
+             * Configuration Revision
+             * Format: uuid
+             */
+            configuration_revision: string;
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * Connection Revision
+             * Format: uuid
+             */
+            connection_revision: string;
+            /**
+             * Mapping Id
+             * Format: uuid
+             */
+            mapping_id: string;
+            /**
+             * Mapping Revision
+             * Format: uuid
+             */
+            mapping_revision: string;
         };
         /** IdentityLifecycleActionRequest */
         IdentityLifecycleActionRequest: {
@@ -22515,14 +22607,28 @@ export interface components {
          *     ``approved_destinations`` (none approved means no tool). Nothing cascades:
          *     a service is one mode or the other. ``fallback_to`` is no mode: it is the
          *     line the safe exit dials, in either, and ``forward_call`` never offers it.
+         *     A call tagged as a test reaches only ``test_destinations``, in either mode, unless
+         *     its caller is one of ``verification_callers``.
+         *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
+         *     hours dials ``after_hours_destination`` whichever approved line was asked for.
          */
         ServiceForwardingConfig: {
+            after_hours_destination?: components["schemas"]["DialE164"] | null;
             /** Approved Destinations */
             approved_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
             fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
+            hours?: components["schemas"]["StaffedHours"] | null;
+            /** Test Destinations */
+            test_destinations?: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            /** Verification Callers */
+            verification_callers?: {
+                [key: string]: components["schemas"]["NameString"];
+            };
             /** Warm Transfer */
             warm_transfer: boolean;
         };
@@ -25034,6 +25140,42 @@ export interface components {
             results?: {
                 [key: string]: unknown;
             }[] | null;
+        };
+        /**
+         * StaffedHours
+         * @description When the people who answer a service's lines are there.
+         *
+         *     A weekday with no window is closed all day. A closed date, and a federal holiday when the service closes for
+         *     them, close the whole day whatever the windows say. Everything else is open exactly where a window covers the
+         *     wall-clock time of the zone.
+         */
+        StaffedHours: {
+            /** Closed Dates */
+            closed_dates?: string[];
+            /**
+             * Closed On Us Federal Holidays
+             * @default false
+             */
+            closed_on_us_federal_holidays?: boolean;
+            /** Timezone */
+            timezone: string;
+            /** Windows */
+            windows: components["schemas"]["StaffedWindow"][];
+        };
+        /**
+         * StaffedWindow
+         * @description One stretch of one weekday that people answer: from ``open`` up to, not including, ``close``.
+         */
+        StaffedWindow: {
+            /** Close */
+            close: string;
+            /**
+             * Day
+             * @enum {string}
+             */
+            day: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+            /** Open */
+            open: string;
         };
         /**
          * StagingAgentConfiguration
@@ -30523,11 +30665,11 @@ export interface components {
         };
         /**
          * WriteFloor
-         * @description A static summary of MCP write policy, advisory to the renderer.
+         * @description A static summary of the MCP write policy.
          *
          *     The MCP edge resolves the caller's actual principal and enforces the
-         *     result. These fields do not grant write access; hosted runner credentials
-         *     are currently unanchored and cannot perform provider-only clinical writes.
+         *     result. These fields do not grant write access: API-key and unanchored
+         *     callers get no writes.
          */
         WriteFloor: {
             /**
@@ -48373,6 +48515,102 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "get-identity-group-lifecycle-action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                mapping_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityGroupLifecycleActionResponse"];
+                };
+            };
+            /** @description Administrator permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Group lifecycle action not found in this workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "put-identity-group-lifecycle-action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                mapping_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityGroupLifecycleActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityGroupLifecycleActionResponse"];
+                };
+            };
+            /** @description Administrator permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Action slug occupied or a related update is in progress. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
