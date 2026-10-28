@@ -51,6 +51,8 @@ import { RunsResource } from './resources/runs.js'
 import { SkillsResource } from './resources/skills.js'
 import { ActionsResource } from './resources/actions.js'
 export type {
+  IdentityGroupLifecycleActionRequest,
+  IdentityGroupLifecycleActionResponse,
   IdentityLifecycleActionRequest,
   IdentityLifecycleActionResponse,
 } from './resources/actions.js'

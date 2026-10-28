@@ -1147,7 +1147,7 @@
         "type": "object"
       },
       "AgentIdentity": {
-        "description": "Who the agent IS \u2014 platform-authored only; ``None`` for native runs\n(a customer's own definition carries its own identity). Named\n``AgentIdentity`` (not ``Identity``) to avoid colliding with the existing\n``config.models.Identity`` OpenAPI schema (a same-name collision would\nforce-rename that shipped schema \u2014 a breaking spec change).",
+        "description": "Who the agent is: the service's authored persona and its reference\ninstructions. Named ``AgentIdentity`` (not ``Identity``) to avoid colliding\nwith the existing ``config.models.Identity`` OpenAPI schema (a same-name\ncollision would force-rename that shipped schema, a breaking spec change).",
         "properties": {
           "developed_by": {
             "default": "",
@@ -21848,6 +21848,12 @@
       },
       "ForwardingDetails": {
         "properties": {
+          "after_hours": {
+            "default": false,
+            "description": "The service's staffed hours sent this transfer to its after-hours line, whichever line was asked for.",
+            "title": "After Hours",
+            "type": "boolean"
+          },
           "forward_to": {
             "title": "Forward To",
             "type": "string",
@@ -22027,14 +22033,7 @@
             "$ref": "#/components/schemas/Guardrails"
           },
           "identity": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AgentIdentity"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/AgentIdentity"
           },
           "runtime": {
             "$ref": "#/components/schemas/Runtime"
@@ -22055,6 +22054,7 @@
           }
         },
         "required": [
+          "identity",
           "world_scope",
           "tools",
           "guardrails",
@@ -22270,6 +22270,95 @@
           "default_spoken_language"
         ],
         "title": "Identity",
+        "type": "object"
+      },
+      "IdentityGroupLifecycleActionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration_id": {
+            "format": "uuid",
+            "title": "Configuration Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "format": "uuid",
+            "title": "Configuration Revision",
+            "type": "string"
+          },
+          "connection_id": {
+            "format": "uuid",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "connection_revision": {
+            "format": "uuid",
+            "title": "Connection Revision",
+            "type": "string"
+          },
+          "mapping_revision": {
+            "format": "uuid",
+            "title": "Mapping Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "connection_revision",
+          "configuration_id",
+          "configuration_revision",
+          "mapping_revision"
+        ],
+        "title": "IdentityGroupLifecycleActionRequest",
+        "type": "object"
+      },
+      "IdentityGroupLifecycleActionResponse": {
+        "properties": {
+          "action_id": {
+            "format": "uuid",
+            "title": "Action Id",
+            "type": "string"
+          },
+          "configuration_id": {
+            "format": "uuid",
+            "title": "Configuration Id",
+            "type": "string"
+          },
+          "configuration_revision": {
+            "format": "uuid",
+            "title": "Configuration Revision",
+            "type": "string"
+          },
+          "connection_id": {
+            "format": "uuid",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "connection_revision": {
+            "format": "uuid",
+            "title": "Connection Revision",
+            "type": "string"
+          },
+          "mapping_id": {
+            "format": "uuid",
+            "title": "Mapping Id",
+            "type": "string"
+          },
+          "mapping_revision": {
+            "format": "uuid",
+            "title": "Mapping Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "connection_revision",
+          "configuration_id",
+          "configuration_revision",
+          "mapping_revision",
+          "action_id",
+          "mapping_id"
+        ],
+        "title": "IdentityGroupLifecycleActionResponse",
         "type": "object"
       },
       "IdentityLifecycleActionRequest": {
@@ -34516,8 +34605,18 @@
         "type": "object"
       },
       "ServiceForwardingConfig": {
-        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it \u2014 a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.",
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it \u2014 a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for.",
         "properties": {
+          "after_hours_destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "approved_destinations": {
             "additionalProperties": {
               "$ref": "#/components/schemas/NameString"
@@ -34548,6 +34647,38 @@
                 "type": "null"
               }
             ]
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffedHours"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test_destinations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 20,
+            "propertyNames": {
+              "$ref": "#/components/schemas/DialE164"
+            },
+            "title": "Test Destinations",
+            "type": "object"
+          },
+          "verification_callers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 10,
+            "propertyNames": {
+              "$ref": "#/components/schemas/PhoneE164"
+            },
+            "title": "Verification Callers",
+            "type": "object"
           },
           "warm_transfer": {
             "title": "Warm Transfer",
@@ -40253,6 +40384,87 @@
         "title": "SqlQueryResponse",
         "type": "object"
       },
+      "StaffedHours": {
+        "description": "When the people who answer a service's lines are there.\n\nA weekday with no window is closed all day. A closed date, and a federal holiday when the service closes for\nthem, close the whole day whatever the windows say. Everything else is open exactly where a window covers the\nwall-clock time of the zone.",
+        "properties": {
+          "closed_dates": {
+            "items": {
+              "maxLength": 10,
+              "minLength": 10,
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Closed Dates",
+            "type": "array"
+          },
+          "closed_on_us_federal_holidays": {
+            "default": false,
+            "title": "Closed On Us Federal Holidays",
+            "type": "boolean"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "type": "string"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/StaffedWindow"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "timezone",
+          "windows"
+        ],
+        "title": "StaffedHours",
+        "type": "object"
+      },
+      "StaffedWindow": {
+        "description": "One stretch of one weekday that people answer: from ``open`` up to, not including, ``close``.",
+        "properties": {
+          "close": {
+            "maxLength": 5,
+            "minLength": 5,
+            "pattern": "^(?:(?:[01][0-9]|2[0-3]):[0-5][0-9]|24:00)$",
+            "title": "Close",
+            "type": "string"
+          },
+          "day": {
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ],
+            "title": "Day",
+            "type": "string"
+          },
+          "open": {
+            "maxLength": 5,
+            "minLength": 5,
+            "pattern": "^(?:(?:[01][0-9]|2[0-3]):[0-5][0-9]|24:00)$",
+            "title": "Open",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "open",
+          "close"
+        ],
+        "title": "StaffedWindow",
+        "type": "object"
+      },
       "StagingAgentConfiguration": {
         "description": "Agent-version configuration proposed for staging.",
         "properties": {
@@ -40708,6 +40920,56 @@
         "title": "StagingCloneReceipt",
         "type": "object"
       },
+      "StagingControlRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "format": "uuid",
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "StagingControlRequest",
+        "type": "object"
+      },
+      "StagingControlResponse": {
+        "properties": {
+          "action_id": {
+            "format": "uuid",
+            "title": "Action Id",
+            "type": "string"
+          },
+          "trigger_id": {
+            "format": "uuid",
+            "title": "Trigger Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "trigger_id"
+        ],
+        "title": "StagingControlResponse",
+        "type": "object"
+      },
+      "StagingExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "format": "uuid",
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "StagingExportRequest",
+        "type": "object"
+      },
       "StagingGraphConfiguration": {
         "description": "Graph-version configuration proposed for staging.",
         "properties": {
@@ -41072,6 +41334,53 @@
           "created_at"
         ],
         "title": "StagingPairing",
+        "type": "object"
+      },
+      "StagingResumeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "previous_revision": {
+            "format": "uuid",
+            "title": "Previous Revision",
+            "type": "string"
+          },
+          "revision": {
+            "format": "uuid",
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "previous_revision"
+        ],
+        "title": "StagingResumeRequest",
+        "type": "object"
+      },
+      "StagingRetryResponse": {
+        "properties": {
+          "action_id": {
+            "format": "uuid",
+            "title": "Action Id",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "trigger_id": {
+            "format": "uuid",
+            "title": "Trigger Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "trigger_id",
+          "run_id"
+        ],
+        "title": "StagingRetryResponse",
         "type": "object"
       },
       "StagingServiceConfiguration": {
@@ -53451,7 +53760,7 @@
         "type": "object"
       },
       "WriteFloor": {
-        "description": "A static summary of MCP write policy, advisory to the renderer.\n\nThe MCP edge resolves the caller's actual principal and enforces the\nresult. These fields do not grant write access; hosted runner credentials\nare currently unanchored and cannot perform provider-only clinical writes.",
+        "description": "A static summary of the MCP write policy.\n\nThe MCP edge resolves the caller's actual principal and enforces the\nresult. These fields do not grant write access: API-key and unanchored\ncallers get no writes.",
         "properties": {
           "allow_create": {
             "default": false,
@@ -83886,6 +84195,133 @@
         ]
       }
     },
+    "/v1/{workspace_id}/skills/identity-lifecycle/groups/{mapping_id}": {
+      "get": {
+        "operationId": "get-identity-group-lifecycle-action",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "mapping_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mapping Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityGroupLifecycleActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Administrator permission required."
+          },
+          "404": {
+            "description": "Group lifecycle action not found in this workspace."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read an Identity group lifecycle action",
+        "tags": [
+          "Skills"
+        ]
+      },
+      "put": {
+        "description": "Administrator-only, idempotent action binding for one exact SSO group mapping. Use the returned action_id in a cron trigger with an empty input_template. Identity verifies the current mapping and all saved source revisions at execution. Saving the action does not approve or enable the mapping.",
+        "operationId": "put-identity-group-lifecycle-action",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "mapping_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mapping Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityGroupLifecycleActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityGroupLifecycleActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Administrator permission required."
+          },
+          "409": {
+            "description": "Action slug occupied or a related update is in progress."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save an Identity group lifecycle action",
+        "tags": [
+          "Skills"
+        ]
+      }
+    },
     "/v1/{workspace_id}/skills/identity-lifecycle/{connection_id}": {
       "get": {
         "operationId": "get-identity-lifecycle-action",
@@ -84837,6 +85273,336 @@
           }
         },
         "summary": "List production services available for staging copies",
+        "tags": [
+          "Services"
+        ],
+        "x-internal": true
+      }
+    },
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/export-services": {
+      "post": {
+        "operationId": "export_staging_services_v1__workspace_id__staging_enrollments__enrollment_id__export_services_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "enrollment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Enrollment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingSourceServices"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Staging Services",
+        "tags": [
+          "Services"
+        ],
+        "x-internal": true
+      }
+    },
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/register": {
+      "post": {
+        "operationId": "register_staging_enrollment_v1__workspace_id__staging_enrollments__enrollment_id__register_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "enrollment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Enrollment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingControlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingControlResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Staging Enrollment",
+        "tags": [
+          "Services"
+        ],
+        "x-internal": true
+      }
+    },
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/resume": {
+      "post": {
+        "operationId": "resume_staging_enrollment_v1__workspace_id__staging_enrollments__enrollment_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "enrollment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Enrollment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingResumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingControlResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume Staging Enrollment",
+        "tags": [
+          "Services"
+        ],
+        "x-internal": true
+      }
+    },
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/retry": {
+      "post": {
+        "operationId": "retry_staging_enrollment_v1__workspace_id__staging_enrollments__enrollment_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "enrollment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Enrollment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingControlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingRetryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Staging Enrollment",
+        "tags": [
+          "Services"
+        ],
+        "x-internal": true
+      }
+    },
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/services/{service_id}/export": {
+      "post": {
+        "operationId": "export_staging_service_v1__workspace_id__staging_enrollments__enrollment_id__services__service_id__export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "enrollment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Enrollment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingClonePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Staging Service",
         "tags": [
           "Services"
         ],

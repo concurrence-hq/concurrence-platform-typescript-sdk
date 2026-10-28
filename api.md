@@ -186,6 +186,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 - `putIdentityLifecycle`
 - `getIdentityLifecycle`
+- `putIdentityGroupLifecycle`
+- `getIdentityGroupLifecycle`
 - `create`
 - `list`
 - `listAutoPaging`

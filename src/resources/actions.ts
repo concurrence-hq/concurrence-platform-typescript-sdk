@@ -13,6 +13,11 @@ export interface ListActionsParams extends ListParams {
   sort_by?: ActionsListQuery['sort_by']
 }
 
+export type IdentityGroupLifecycleActionRequest =
+  components['schemas']['IdentityGroupLifecycleActionRequest']
+export type IdentityGroupLifecycleActionResponse =
+  components['schemas']['IdentityGroupLifecycleActionResponse']
+
 export type IdentityLifecycleActionRequest = components['schemas']['IdentityLifecycleActionRequest']
 export type IdentityLifecycleActionResponse =
   components['schemas']['IdentityLifecycleActionResponse']
@@ -39,6 +44,25 @@ export class ActionsResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/skills/identity-lifecycle/{connection_id}', {
         params: { path: { workspace_id: this.workspaceId, connection_id: connectionId } },
+      }),
+    )
+  }
+
+  /** Save the exact revisions for one SSO group reconciliation action. This does not enable the mapping. */
+  async putIdentityGroupLifecycle(mappingId: string, body: IdentityGroupLifecycleActionRequest) {
+    return extractData(
+      await this.client.PUT('/v1/{workspace_id}/skills/identity-lifecycle/groups/{mapping_id}', {
+        params: { path: { workspace_id: this.workspaceId, mapping_id: mappingId } },
+        body,
+      }),
+    )
+  }
+
+  /** Read one saved group action. An action binding does not establish a running schedule. */
+  async getIdentityGroupLifecycle(mappingId: string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/skills/identity-lifecycle/groups/{mapping_id}', {
+        params: { path: { workspace_id: this.workspaceId, mapping_id: mappingId } },
       }),
     )
   }
