@@ -6678,6 +6678,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/adopt-existing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adopt Existing Staging Enrollment */
+        post: operations["adopt_existing_staging_enrollment_v1__workspace_id__staging_enrollments__enrollment_id__adopt_existing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/export-services": {
         parameters: {
             query?: never;
@@ -25261,6 +25278,34 @@ export interface components {
             day: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
             /** Open */
             open: string;
+        };
+        /** StagingAdoptionRequest */
+        StagingAdoptionRequest: {
+            /**
+             * Destination Owner Membership Id
+             * Format: uuid
+             */
+            destination_owner_membership_id: string;
+            /** Provenance Digest */
+            provenance_digest: string;
+            /**
+             * Revision
+             * Format: uuid
+             */
+            revision: string;
+        };
+        /** StagingAdoptionResponse */
+        StagingAdoptionResponse: {
+            /**
+             * Destination Id
+             * Format: uuid
+             */
+            destination_id: string;
+            /**
+             * Owner Membership Id
+             * Format: uuid
+             */
+            owner_membership_id: string;
         };
         /**
          * StagingAgentConfiguration
@@ -49595,6 +49640,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    adopt_existing_staging_enrollment_v1__workspace_id__staging_enrollments__enrollment_id__adopt_existing_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                enrollment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingAdoptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingAdoptionResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

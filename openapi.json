@@ -40465,6 +40465,55 @@
         "title": "StaffedWindow",
         "type": "object"
       },
+      "StagingAdoptionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "destination_owner_membership_id": {
+            "format": "uuid",
+            "title": "Destination Owner Membership Id",
+            "type": "string"
+          },
+          "provenance_digest": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Provenance Digest",
+            "type": "string"
+          },
+          "revision": {
+            "format": "uuid",
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "destination_owner_membership_id",
+          "provenance_digest"
+        ],
+        "title": "StagingAdoptionRequest",
+        "type": "object"
+      },
+      "StagingAdoptionResponse": {
+        "properties": {
+          "destination_id": {
+            "format": "uuid",
+            "title": "Destination Id",
+            "type": "string"
+          },
+          "owner_membership_id": {
+            "format": "uuid",
+            "title": "Owner Membership Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "destination_id",
+          "owner_membership_id"
+        ],
+        "title": "StagingAdoptionResponse",
+        "type": "object"
+      },
       "StagingAgentConfiguration": {
         "description": "Agent-version configuration proposed for staging.",
         "properties": {
@@ -85273,6 +85322,70 @@
           }
         },
         "summary": "List production services available for staging copies",
+        "tags": [
+          "Services"
+        ],
+        "x-internal": true
+      }
+    },
+    "/v1/{workspace_id}/staging-enrollments/{enrollment_id}/adopt-existing": {
+      "post": {
+        "operationId": "adopt_existing_staging_enrollment_v1__workspace_id__staging_enrollments__enrollment_id__adopt_existing_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "enrollment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Enrollment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingAdoptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingAdoptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Adopt Existing Staging Enrollment",
         "tags": [
           "Services"
         ],
