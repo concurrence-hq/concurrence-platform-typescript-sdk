@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import openapiTS, { astToString } from 'openapi-typescript'
 import ts from 'typescript'
+import { projectPublicOpenApi } from './lib/public-openapi.mjs'
 import {
   REPO_ROOT,
   assertWithinRoots,
@@ -144,7 +145,7 @@ function patchOpenApiDocument(input) {
 const specSource = resolveSpecSource()
 console.log(`Generating types from: ${specSource}`)
 
-const input = patchOpenApiDocument(await loadSpec(specSource))
+const input = patchOpenApiDocument(projectPublicOpenApi(await loadSpec(specSource)))
 
 // Recursive "arbitrary JSON" schemas (a union whose array/object members
 // `$ref` the schema itself) are emitted by openapi-typescript as a member that

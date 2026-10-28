@@ -54,19 +54,20 @@ jobs:
       - name: Validate downloaded spec
         run: |
           jq -e 'type == "object" and (.openapi | type == "string") and (.paths | type == "object")' openapi-new.json >/dev/null
+          npm run openapi:sync -- --spec openapi-new.json --output openapi-public.json
 
       - name: Compare with committed spec
         id: diff
         run: |
-          if ! diff -q openapi.json openapi-new.json >/dev/null 2>&1; then
+          if ! diff -q openapi.json openapi-public.json >/dev/null 2>&1; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "Spec changed — will regenerate types"
 
             # Section-level diagnostics
             OLD_PATHS=$(jq -r '(.paths // {}) | keys | length' openapi.json)
-            NEW_PATHS=$(jq -r '(.paths // {}) | keys | length' openapi-new.json)
+            NEW_PATHS=$(jq -r '(.paths // {}) | keys | length' openapi-public.json)
             OLD_SCHEMAS=$(jq -r '(.components.schemas // {}) | keys | length' openapi.json)
-            NEW_SCHEMAS=$(jq -r '(.components.schemas // {}) | keys | length' openapi-new.json)
+            NEW_SCHEMAS=$(jq -r '(.components.schemas // {}) | keys | length' openapi-public.json)
             echo "Paths: $OLD_PATHS -> $NEW_PATHS"
             echo "Schemas: $OLD_SCHEMAS -> $NEW_SCHEMAS"
           else
@@ -77,7 +78,7 @@ jobs:
       - name: Update spec + regenerate types
         if: steps.diff.outputs.changed == 'true'
         run: |
-          cp openapi-new.json openapi.json
+          cp openapi-public.json openapi.json
           npm run gen-types
 
       - name: Verify types compile
