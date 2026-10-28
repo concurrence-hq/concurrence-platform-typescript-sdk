@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.128.0] - 2026-10-28
+
+### Features
+
+- add typed group lifecycle bindings (ALL-2141) (#502)
+
+### Documentation
+
+- createOutbound names which statuses are safe to retry (ALL-765) (#501)
+
 ## [0.127.0] - 2026-10-27
 
 ### Maintenance
