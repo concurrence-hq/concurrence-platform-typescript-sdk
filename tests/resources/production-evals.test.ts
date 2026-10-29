@@ -6,6 +6,8 @@ import {
   type CreateProductionEvalDefinitionRequest,
   type ProductionEvalDefinition,
   type ProductionEvalDefinitionListResponse,
+  type ProductionEvalResultItem,
+  type ProductionEvalResultListResponse,
 } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -36,6 +38,31 @@ const DEFINITION_PAGE = {
   has_more: true,
   continuation_token: 1,
 } satisfies ProductionEvalDefinitionListResponse
+
+const RESULT_ITEM = {
+  conversation_id: CONVERSATION_ID,
+  call_sid: null,
+  service_id: SERVICE_ID,
+  status: 'failed',
+  passed: false,
+  value: false,
+  rationale: null,
+  justification: 'The caller did not confirm a time.',
+  cited_turns: [3],
+  computed_at: '2026-10-11T18:00:00Z',
+} satisfies ProductionEvalResultItem
+
+const RESULTS_PAGE_1 = {
+  items: [RESULT_ITEM],
+  has_more: true,
+  continuation_token: 1,
+} satisfies ProductionEvalResultListResponse
+
+const RESULTS_PAGE_2 = {
+  items: [{ ...RESULT_ITEM, status: 'passed', passed: true, value: true }],
+  has_more: false,
+  continuation_token: null,
+} satisfies ProductionEvalResultListResponse
 
 const VERDICTS = {
   conversation_id: CONVERSATION_ID,
@@ -73,6 +100,13 @@ const handlers = {
   delete: vi.fn<RouteHandler>(() => new Response(null, { status: 204 })),
   evaluate: vi.fn<RouteHandler>(() => Response.json(VERDICTS)),
   results: vi.fn<RouteHandler>(() => Response.json(VERDICTS)),
+  evalResults: vi.fn<RouteHandler>((request) =>
+    Response.json(
+      new URL(request.url).searchParams.get('continuation_token') === '1'
+        ? RESULTS_PAGE_2
+        : RESULTS_PAGE_1,
+    ),
+  ),
 }
 
 function mockFetch(routes: Record<string, RouteHandler>): typeof globalThis.fetch {
@@ -96,6 +130,7 @@ const client = new AmigoClient({
     [`PATCH ${BASE}/production-eval-definitions/${DEFINITION_ID}`]: handlers.update,
     [`DELETE ${BASE}/production-eval-definitions/${DEFINITION_ID}`]: handlers.delete,
     [`POST ${BASE}/calls/${CONVERSATION_ID}/evaluate`]: handlers.evaluate,
+    [`GET ${BASE}/production-evals/results`]: handlers.evalResults,
     [`GET ${BASE}/calls/${CONVERSATION_ID}/eval-results`]: handlers.results,
     [`GET ${BASE}/calls/${MISSING_CONVERSATION_ID}/eval-results`]: () =>
       Response.json({ detail: 'Conversation not found' }, { status: 404 }),
@@ -130,6 +165,46 @@ describe('ProductionEvalsResource', () => {
     expect(searchParams.get('continuation_token')).toBe('1')
     expect(result.items[0]?.metric_key).toBe('call_resolved')
     expect(result.has_more).toBe(true)
+  })
+
+  it("lists one eval's verdicts for a date range with filters, sort order and the token", async () => {
+    const result = await client.productionEvals.listResults({
+      eval_key: 'resolved_on_first_call',
+      service_id: SERVICE_ID,
+      status: ['failed', 'error'],
+      date_from: '2026-10-01',
+      date_to: '2026-10-28',
+      sort_by: ['-computed_at'],
+      limit: 1,
+    })
+    const searchParams = new URL(capturedRequest(handlers.evalResults).url).searchParams
+
+    expect(searchParams.get('eval_key')).toBe('resolved_on_first_call')
+    expect(searchParams.get('service_id')).toBe(SERVICE_ID)
+    expect(searchParams.getAll('status')).toEqual(['failed', 'error'])
+    expect(searchParams.get('date_from')).toBe('2026-10-01')
+    expect(searchParams.get('date_to')).toBe('2026-10-28')
+    expect(searchParams.has('days')).toBe(false)
+    expect(searchParams.getAll('sort_by')).toEqual(['-computed_at'])
+    expect(searchParams.get('limit')).toBe('1')
+    expect(result.items[0]?.status).toBe('failed')
+    expect(result.has_more).toBe(true)
+  })
+
+  it('pages through every verdict of an eval', async () => {
+    const statuses: string[] = []
+    for await (const item of client.productionEvals.listResultsAutoPaging({
+      eval_key: 'resolved_on_first_call',
+      days: 30,
+      limit: 1,
+    })) {
+      statuses.push(item.status)
+    }
+
+    expect(statuses).toEqual(['failed', 'passed'])
+    expect(handlers.evalResults).toHaveBeenCalledTimes(2)
+    const secondRequest = handlers.evalResults.mock.calls[1]?.[0]
+    expect(new URL(secondRequest?.url ?? '').searchParams.get('continuation_token')).toBe('1')
   })
 
   it('creates a definition', async () => {

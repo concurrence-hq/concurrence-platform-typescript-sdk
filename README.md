@@ -927,6 +927,13 @@ const { results } = await client.productionEvals.evaluate(conversationId)
 // Read stored verdicts later
 const stored = await client.productionEvals.getResults(conversationId)
 
+// One eval's verdicts across calls in a date window (UTC days), failed verdicts first
+const verdicts = await client.productionEvals.listResults({
+  eval_key: 'appointment_booked',
+  date_from: '2026-10-01',
+  date_to: '2026-10-28',
+})
+
 // Pass rate and score across calls, and recent voice-judge scores for one service
 const quality = await client.analytics.getEvalQuality({ days: 30, interval: '1d' })
 const voiceJudge = await client.services.listVoiceJudgeResults(serviceId, { limit: 20 })
