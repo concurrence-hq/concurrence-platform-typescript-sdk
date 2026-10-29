@@ -42,6 +42,7 @@ import { TokensResource } from './resources/tokens.js'
 import { WorkspaceAuthenticationResource } from './resources/workspace-authentication.js'
 import { SsoLifecycleResource } from './resources/sso-lifecycle.js'
 import { SsoGrantsResource } from './resources/sso-grants.js'
+import { SsoGroupGrantsResource } from './resources/sso-group-grants.js'
 import { IdentityCredentialsResource } from './resources/identity-credentials.js'
 import { AgentsResource } from './resources/agents.js'
 import { AgentRunsResource } from './resources/agent-runs.js'
@@ -229,6 +230,7 @@ export class AmigoClient {
   readonly workspaceAuthentication!: WorkspaceAuthenticationResource
   readonly ssoLifecycle!: SsoLifecycleResource
   readonly ssoGrants!: SsoGrantsResource
+  readonly ssoGroupGrants!: SsoGroupGrantsResource
   readonly identityCredentials!: IdentityCredentialsResource
   readonly agents!: AgentsResource
   readonly agentRuns!: AgentRunsResource
@@ -513,6 +515,7 @@ export class AmigoClient {
     mutable.workspaceAuthentication = new WorkspaceAuthenticationResource(client, workspaceId)
     mutable.ssoLifecycle = new SsoLifecycleResource(client, workspaceId)
     mutable.ssoGrants = new SsoGrantsResource(client, workspaceId)
+    mutable.ssoGroupGrants = new SsoGroupGrantsResource(client, workspaceId)
     mutable.identityCredentials = new IdentityCredentialsResource(client, '_identity-admin')
     mutable.agents = new AgentsResource(client, workspaceId)
     mutable.agentRuns = new AgentRunsResource(client, workspaceId)
@@ -1058,4 +1061,5 @@ function withWorkspaceId<Path extends keyof paths & string, Init>(
 export * from './resources/workspace-authentication.js'
 export * from './resources/sso-lifecycle.js'
 export * from './resources/sso-grants.js'
+export * from './resources/sso-group-grants.js'
 export * from './resources/identity-credentials.js'
