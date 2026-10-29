@@ -468,7 +468,8 @@ const parent = await client.tokens.exchangeClientCredentials({
 
 ### Workspace SSO administration
 
-`client.workspaceAuthentication`, `client.ssoLifecycle`, and `client.ssoGrants`
+`client.workspaceAuthentication`, `client.ssoLifecycle`, `client.ssoGrants`, and
+`client.ssoGroupGrants`
 call the configured `identityBaseUrl` with the client's workspace ID. These
 operations require a current human administrator session; an API key or machine
 credential does not substitute for that authority. Pass the human access token
@@ -500,6 +501,14 @@ Managed grants remain separate from independent membership. Before
 unchanged as `expected_updated_at`; converting it through `Date` can discard
 precision. The SDK rejects grant revisions outside JavaScript's safe integer range
 instead of rounding them. Server-owned revisions are read-only.
+
+Use `ssoGroupGrants.list()` to discover stored group-managed contributions, with the
+same pagination options as `ssoGrants.list()`. Each result includes `mapping_id` and
+`mapping_revision`. Listing is not proof of current group membership or conversion
+eligibility: call `ssoGroupGrants.independent(mappingId, grantId)` before conversion
+and forward that snapshot's revision and timestamp unchanged to
+`ssoGroupGrants.convertIndependent()`. Group conversion keeps the group source;
+it does not create an app-managed grant.
 
 Identity writes are never retried automatically, including after `Retry-After`.
 Read the current state after an uncertain result; reuse the original approval ID
