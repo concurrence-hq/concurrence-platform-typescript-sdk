@@ -883,7 +883,7 @@
         "type": "object"
       },
       "AdvancedCallStatsSummary": {
-        "description": "Production calls in the window: counts, durations and quality scores.",
+        "description": "Production calls in the window: counts, durations, quality scores and audio latency.",
         "properties": {
           "avg_duration_seconds": {
             "anyOf": [
@@ -966,6 +966,18 @@
             ],
             "description": "95th-percentile call duration in seconds",
             "title": "P95 Duration Seconds"
+          },
+          "p95_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95th percentile of each call's average audio time-to-first-byte, in ms; /analytics/latency reports the same measure as p95_ttfb_ms but only matches this value when no direction or service scope is applied",
+            "title": "P95 Latency Ms"
           },
           "p95_quality_score": {
             "anyOf": [
@@ -7994,7 +8006,8 @@
               {
                 "enum": [
                   "amigo",
-                  "gpt_realtime"
+                  "gpt_realtime",
+                  "eleven_realtime"
                 ],
                 "type": "string"
               },
@@ -8740,6 +8753,39 @@
           "to"
         ],
         "title": "ConversationTurnStateTransition",
+        "type": "object"
+      },
+      "CorrectionLine": {
+        "maxLength": 300,
+        "minLength": 1,
+        "type": "string"
+      },
+      "CorrectionLines": {
+        "additionalProperties": false,
+        "description": "What a caller hears in place of the built-in correction, per language. Both languages or neither: a service\nwith one authored line would have callers in the other language hear a built-in line that can contradict it.",
+        "properties": {
+          "en": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorrectionLine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "es": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorrectionLine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "CorrectionLines",
         "type": "object"
       },
       "CostModelsResponse": {
@@ -13374,6 +13420,26 @@
         "title": "DestroySessionResponse",
         "type": "object"
       },
+      "DiagnosisCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "correction": {
+            "$ref": "#/components/schemas/CorrectionLines"
+          },
+          "mode": {
+            "default": "cut",
+            "enum": [
+              "cut",
+              "log",
+              "off"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "DiagnosisCheck",
+        "type": "object"
+      },
       "DialE164": {
         "maxLength": 16,
         "minLength": 2,
@@ -13426,6 +13492,25 @@
           }
         },
         "title": "DocumentProcessingSpec",
+        "type": "object"
+      },
+      "DosingOrMedChangeCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "correction": {
+            "$ref": "#/components/schemas/CorrectionLines"
+          },
+          "mode": {
+            "default": "cut",
+            "enum": [
+              "cut",
+              "log"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "DosingOrMedChangeCheck",
         "type": "object"
       },
       "DriveFolderMapping": {
@@ -14024,6 +14109,36 @@
           "note"
         ],
         "title": "EgressIpsResponse",
+        "type": "object"
+      },
+      "ElevenRealtimeSessionConfig": {
+        "additionalProperties": false,
+        "description": "Eleven Realtime controls for a service: the ElevenLabs voice it speaks in, and the model.",
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "const": "eleven_realtime_v1_mini",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "voice": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Voice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "voice"
+        ],
+        "title": "ElevenRealtimeSessionConfig",
         "type": "object"
       },
       "EmotionEvent": {
@@ -17205,17 +17320,63 @@
         "title": "EscalationStatsResponse",
         "type": "object"
       },
+      "EvalKeyQuality": {
+        "description": "One eval key's verdicts: the summary and trend the route returns for ``eval_key`` set to it.",
+        "properties": {
+          "eval_key": {
+            "description": "The eval key the verdicts belong to",
+            "title": "Eval Key",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/EvalQualitySummary",
+            "description": "The eval key's aggregate for the period"
+          },
+          "trend": {
+            "description": "The eval key's trend",
+            "items": {
+              "$ref": "#/components/schemas/EvalQualityTrendPoint"
+            },
+            "maxItems": 2200,
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "eval_key",
+          "summary",
+          "trend"
+        ],
+        "title": "EvalKeyQuality",
+        "type": "object"
+      },
       "EvalQualityResponse": {
-        "description": "Production-eval quality: overall pass-rate/score, per-eval-key breakdown, and a trend.\n\nThe channel-agnostic quality surface. Returns zeroed shapes (empty ``by_eval_key``\nand ``trend``, null rates) when no verdicts exist for the workspace/window — the\nconsole renders an empty-state rather than erroring, so this ships safely ahead of\nthe eager-eval trigger being enabled in production.",
+        "description": "Production-eval quality: overall pass-rate/score, per-eval-key breakdown, and a trend.\n\nThe channel-agnostic quality surface. Returns zeroed shapes (empty ``by_eval_key``\nand ``trend``, null rates) when no verdicts exist for the workspace/window. The\nconsole renders an empty-state rather than erroring, so this ships safely ahead of\nthe eager-eval trigger being enabled in production.\n\nA verdict belongs to the window and to its trend bucket by ``computed_at``, the UTC time its check last\nran. Evaluating a conversation again replaces its verdict and moves it to the new time; the time the\nconversation took place plays no part.",
         "properties": {
           "by_eval_key": {
-            "description": "Per-eval-key aggregates, most-evaluated first",
+            "description": "Per-eval-key aggregates, most-evaluated first, ties by eval_key. At most 200: a workspace with more lists its most-evaluated keys",
             "items": {
               "$ref": "#/components/schemas/EvalQualitySummary"
             },
             "maxItems": 200,
             "title": "By Eval Key",
             "type": "array"
+          },
+          "eval_key_groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EvalKeyQuality"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With group_by=eval_key, one entry per eval key with verdicts in the window, in the order of by_eval_key: most-evaluated first, ties by eval_key, at most 200. Each entry holds the summary and trend the route returns for that eval_key; with service_id, these are that service's eval keys. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=eval_key.",
+            "title": "Eval Key Groups"
           },
           "groups": {
             "anyOf": [
@@ -17229,7 +17390,7 @@
                 "type": "null"
               }
             ],
-            "description": "With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by.",
+            "description": "With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=service_id.",
             "title": "Groups"
           },
           "summary": {
@@ -17295,7 +17456,7 @@
                 "type": "null"
               }
             ],
-            "description": "Fraction of judged verdicts that passed (0.0-1.0)",
+            "description": "Fraction of judged verdicts that passed (0.0-1.0). Null when none were judged, which is not 0.0: judged, and none passed",
             "title": "Pass Rate"
           },
           "total_evals": {
@@ -17312,7 +17473,7 @@
         "type": "object"
       },
       "EvalQualityTrendPoint": {
-        "description": "Single date-bucket data point in the eval-quality trend series.",
+        "description": "Single date-bucket data point in the eval-quality trend series. A bucket with no verdicts has no point.",
         "properties": {
           "avg_score": {
             "anyOf": [
@@ -17327,7 +17488,7 @@
             "title": "Avg Score"
           },
           "date": {
-            "description": "Date bucket (granularity follows `interval`)",
+            "description": "Date of the bucket: the day for a daily bucket, the Monday for a weekly one, and for an hourly bucket the day it falls in, so the buckets of one day share this date",
             "format": "date",
             "title": "Date",
             "type": "string"
@@ -17346,7 +17507,7 @@
                 "type": "null"
               }
             ],
-            "description": "Fraction of judged verdicts that passed in this bucket",
+            "description": "Fraction of judged verdicts that passed in this bucket. Null when none were judged, which is not 0.0: judged, and none passed",
             "title": "Pass Rate"
           },
           "total_evals": {
@@ -21854,6 +22015,18 @@
             "title": "After Hours",
             "type": "boolean"
           },
+          "destination_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The service's label for the line this transfer dialed, or ``forward_to`` for a static service's own line.",
+            "title": "Destination Label"
+          },
           "forward_to": {
             "title": "Forward To",
             "type": "string",
@@ -22141,6 +22314,22 @@
         "title": "HealFieldResponse",
         "type": "object"
       },
+      "HealthInformationCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "off",
+            "enum": [
+              "log",
+              "off"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "HealthInformationCheck",
+        "type": "object"
+      },
       "HipaaReportResponse": {
         "properties": {
           "access_controls": {
@@ -22202,6 +22391,25 @@
           "compliance_status"
         ],
         "title": "HipaaReportResponse",
+        "type": "object"
+      },
+      "HttpSettings": {
+        "properties": {
+          "allowed_origins": {
+            "description": "Origins whose web pages may call this workspace's API from a browser, such as `https://app.example.com`.\n\nAt most 20. Each is `https://host` or `https://host:port`, with no path, query, wildcard or credentials.\n`localhost` origins are for local development and are refused in production.",
+            "items": {
+              "maxLength": 253,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Allowed Origins",
+            "type": "array"
+          }
+        },
+        "required": [
+          "allowed_origins"
+        ],
+        "title": "HttpSettings",
         "type": "object"
       },
       "HumanSegment": {
@@ -29770,6 +29978,30 @@
         "title": "ProductionEvalDefinitionListResponse",
         "type": "object"
       },
+      "ProductionEvalResultListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/src__routes__production_eval_results__ProductionEvalResultListResponse__Item"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "ProductionEvalResultListResponse",
+        "type": "object"
+      },
       "ProductionEvalType": {
         "enum": [
           "metric"
@@ -32616,7 +32848,8 @@
               {
                 "enum": [
                   "amigo",
-                  "gpt_realtime"
+                  "gpt_realtime",
+                  "eleven_realtime"
                 ],
                 "type": "string"
               },
@@ -34317,6 +34550,9 @@
             "title": "Name",
             "type": "string"
           },
+          "output_checks": {
+            "$ref": "#/components/schemas/ServiceOutputChecks"
+          },
           "platform_caller_verification": {
             "default": true,
             "title": "Platform Caller Verification",
@@ -34567,7 +34803,7 @@
         "description": "One service's verdicts: what the route returns for ``service_id`` set to it.",
         "properties": {
           "by_eval_key": {
-            "description": "The service's per-eval-key aggregates, most-evaluated first",
+            "description": "The service's per-eval-key aggregates, most-evaluated first, ties by eval_key. At most 200: a service with more lists its most-evaluated keys",
             "items": {
               "$ref": "#/components/schemas/EvalQualitySummary"
             },
@@ -34714,6 +34950,22 @@
           "has_more"
         ],
         "title": "ServiceListResponse",
+        "type": "object"
+      },
+      "ServiceOutputChecks": {
+        "additionalProperties": false,
+        "properties": {
+          "diagnosis": {
+            "$ref": "#/components/schemas/DiagnosisCheck"
+          },
+          "dosing_or_med_change": {
+            "$ref": "#/components/schemas/DosingOrMedChangeCheck"
+          },
+          "health_information": {
+            "$ref": "#/components/schemas/HealthInformationCheck"
+          }
+        },
+        "title": "ServiceOutputChecks",
         "type": "object"
       },
       "ServiceResponse": {
@@ -35051,6 +35303,16 @@
             ],
             "title": "Eager Eot Threshold"
           },
+          "eleven_realtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElevenRealtimeSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "empathy_hold_ms": {
             "anyOf": [
               {
@@ -35253,7 +35515,8 @@
               {
                 "enum": [
                   "amigo",
-                  "gpt_realtime"
+                  "gpt_realtime",
+                  "eleven_realtime"
                 ],
                 "type": "string"
               },
@@ -35346,6 +35609,16 @@
             ],
             "title": "Eager Eot Threshold"
           },
+          "eleven_realtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElevenRealtimeSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "empathy_hold_ms": {
             "anyOf": [
               {
@@ -35548,7 +35821,8 @@
               {
                 "enum": [
                   "amigo",
-                  "gpt_realtime"
+                  "gpt_realtime",
+                  "eleven_realtime"
                 ],
                 "type": "string"
               },
@@ -51859,7 +52133,8 @@
               {
                 "enum": [
                   "amigo",
-                  "gpt_realtime"
+                  "gpt_realtime",
+                  "eleven_realtime"
                 ],
                 "type": "string"
               },
@@ -55151,6 +55426,129 @@
         ],
         "title": "AuditEventResponse",
         "type": "object"
+      },
+      "src__routes__production_eval_results__ProductionEvalResultListResponse__Item": {
+        "description": "One conversation's verdict on the eval, with the reasoning behind it.",
+        "properties": {
+          "call_sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The conversation's call SID, when it has one.",
+            "title": "Call Sid"
+          },
+          "cited_turns": {
+            "description": "The turns of the conversation that `justification` cites, by turn number.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cited Turns",
+            "type": "array"
+          },
+          "computed_at": {
+            "description": "When the verdict was last computed. Evaluating a conversation again replaces its verdict.",
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "conversation_id": {
+            "description": "The conversation the verdict is for.",
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "justification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The grader's explanation of the value. It can quote the conversation.",
+            "title": "Justification"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "True for `passed`, false for `failed` and null for every other status. The pass rate counts the verdicts\nwhere this isn't null.",
+            "title": "Passed"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the value passed or failed the check's rule, or why there is no pass or fail.",
+            "title": "Rationale"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The service the check is assigned to. Null when the check applies to every service.",
+            "title": "Service Id"
+          },
+          "status": {
+            "description": "How the check graded the conversation: `passed`, `failed`, `skipped` (no pass or fail: the grader found no\nanswer, or the check has no pass rule), `error` (the check could not run) or `pending`.",
+            "enum": [
+              "passed",
+              "failed",
+              "pending",
+              "skipped",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "description": "What the check observed: the metric's value, a number, a boolean or a label. Null when it observed none, and\nfor the older checks that aren't metrics.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "call_sid",
+          "service_id",
+          "status",
+          "passed",
+          "value",
+          "rationale",
+          "justification",
+          "cited_turns",
+          "computed_at"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "src__routes__production_eval_results___SortField": {
+        "enum": [
+          "computed_at",
+          "score"
+        ],
+        "type": "string"
       },
       "src__routes__production_evals___SortField": {
         "const": "created_at",
@@ -59567,7 +59965,7 @@
     },
     "/v1/{workspace_id}/analytics/eval-quality": {
       "get": {
-        "description": "Production-eval pass-rate and score trends (channel-agnostic — voice, text, SMS, email).",
+        "description": "Production-eval pass rates and scores: overall, per eval key and over time. Channel-agnostic: voice, text, SMS and email conversations all count. A verdict counts by `computed_at`, the UTC time its check last ran, not the time of the conversation; evaluating a conversation again replaces its verdict and moves it to the new time. The window is the last `days` days up to now, or the UTC days from `date_from` through `date_to` when both are sent. `service_id` and `eval_key` narrow every number to one service and one eval. `trend` has a point for each `interval` that holds verdicts and none for one that holds none. A point with `judged` 0 had verdicts but no pass or fail outcome (an error, a skip or a check still pending), and its `pass_rate` is null; a `pass_rate` of 0.0 means every judged verdict failed.",
         "operationId": "get-eval-quality-analytics",
         "parameters": [
           {
@@ -59581,15 +59979,55 @@
             }
           },
           {
+            "description": "The last `days` days up to now, by when each verdict was computed. Not used when `date_from` and `date_to` are sent, though it is still limited to 1 to 90.",
             "in": "query",
             "name": "days",
             "required": false,
             "schema": {
               "default": 30,
+              "description": "The last `days` days up to now, by when each verdict was computed. Not used when `date_from` and `date_to` are sent, though it is still limited to 1 to 90.",
               "maximum": 90,
               "minimum": 1,
               "title": "Days",
               "type": "integer"
+            }
+          },
+          {
+            "description": "First day of a date range (YYYY-MM-DD, UTC), counted from its start. Send it with `date_to`; the range replaces `days`. A date alone gets a 422.",
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of a date range (YYYY-MM-DD, UTC), counted from its start. Send it with `date_to`; the range replaces `days`. A date alone gets a 422.",
+              "title": "Date From"
+            }
+          },
+          {
+            "description": "Last day of a date range (YYYY-MM-DD, UTC), counted through its end. Send it with `date_from`. A date alone gets a 422.",
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of a date range (YYYY-MM-DD, UTC), counted through its end. Send it with `date_from`. A date alone gets a 422.",
+              "title": "Date To"
             }
           },
           {
@@ -59627,21 +60065,44 @@
             }
           },
           {
-            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+            "description": "Only this production eval's verdicts: the `eval_key` of its definition.",
             "in": "query",
-            "name": "group_by",
+            "name": "eval_key",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "const": "service_id",
+                  "maxLength": 128,
+                  "minLength": 1,
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged.",
+              "description": "Only this production eval's verdicts: the `eval_key` of its definition.",
+              "title": "Eval Key"
+            }
+          },
+          {
+            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged.",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "service_id",
+                    "eval_key"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged.",
               "title": "Group By"
             }
           }
@@ -77047,6 +77508,192 @@
         ]
       }
     },
+    "/v1/{workspace_id}/production-evals/results": {
+      "get": {
+        "description": "List the verdicts one production eval recorded, a page at a time: one row per conversation it graded, so the conversations behind its pass rate can be opened. The scope is that of `GET /v1/{workspace_id}/analytics/eval-quality`: `eval_key` names the eval, `service_id` narrows it to one service, and `days` is the same rolling window, or the UTC days from `date_from` through `date_to` when both are sent, so the rows are the verdicts that pass rate counts, placed by when they were computed. `status` keeps the verdicts with any of the statuses given. Without `sort_by`, failed verdicts come first and each group is newest first; `sort_by` orders by `computed_at` or `score` instead. A page is one read. `rationale`, `justification` and `value` can quote the conversation. Requires `Service.view` permission.",
+        "operationId": "list-production-eval-results",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The production eval to list: the `eval_key` of its definition.",
+            "in": "query",
+            "name": "eval_key",
+            "required": true,
+            "schema": {
+              "description": "The production eval to list: the `eval_key` of its definition.",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Eval Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this service's verdicts. A verdict of a check that applies to every service has no service and is left\nout. A value that isn't a UUID gets a 422.",
+            "in": "query",
+            "name": "service_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this service's verdicts. A verdict of a check that applies to every service has no service and is left\nout. A value that isn't a UUID gets a 422.",
+              "title": "Service Id"
+            }
+          },
+          {
+            "description": "Only verdicts with one of these statuses. Repeat the parameter for more than one.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Only verdicts with one of these statuses. Repeat the parameter for more than one.",
+              "items": {
+                "enum": [
+                  "passed",
+                  "failed",
+                  "pending",
+                  "skipped",
+                  "error"
+                ],
+                "type": "string"
+              },
+              "maxItems": 5,
+              "title": "Status",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Verdicts computed in the last `days` days: the rolling window `GET /analytics/eval-quality` takes. Not used\nwhen `date_from` and `date_to` are sent.",
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "description": "Verdicts computed in the last `days` days: the rolling window `GET /analytics/eval-quality` takes. Not used\nwhen `date_from` and `date_to` are sent.",
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "First day of a date range (YYYY-MM-DD, UTC), counted from its start. Send it with `date_to`; the range\nreplaces `days`. A date alone, a range that ends before it starts, or one with more days than\n`GET /analytics/eval-quality` takes for a daily trend gets a 422.",
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of a date range (YYYY-MM-DD, UTC), counted from its start. Send it with `date_to`; the range\nreplaces `days`. A date alone, a range that ends before it starts, or one with more days than\n`GET /analytics/eval-quality` takes for a daily trend gets a 422.",
+              "title": "Date From"
+            }
+          },
+          {
+            "description": "Last day of a date range (YYYY-MM-DD, UTC), counted through its last microsecond. Send it with `date_from`.",
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of a date range (YYYY-MM-DD, UTC), counted through its last microsecond. Send it with `date_from`.",
+              "title": "Date To"
+            }
+          },
+          {
+            "description": "Page order, `+field` or `-field` on `computed_at` or `score`, a numeric metric's value, the number `value` shows;\nrepeat the parameter to break ties. A verdict without a score sorts last either way. Without it, failed verdicts\ncome first and each group is newest first.",
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Page order, `+field` or `-field` on `computed_at` or `score`, a numeric metric's value, the number `value` shows;\nrepeat the parameter to break ties. A verdict without a score sorts last either way. Without it, failed verdicts\ncome first and each group is newest first.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionEvalResultListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List a production eval's verdicts",
+        "tags": [
+          "Evaluations"
+        ]
+      }
+    },
     "/v1/{workspace_id}/prompt-logs": {
       "get": {
         "description": "Lists the prompts the agent rendered (full system prompt, conversation history, tool catalog, LLM model, and response) for auditing and debugging. It's an analytics read: typical latency is 1-5s, with a 15s ceiling on a cold start.\n\n**Conversation filter**: pass ``conversation_id``, the id ``GET /conversations`` returns for a text conversation or a voice call. It resolves through the conversation's record; an older call with no conversation record answers 404, so filter it by ``call_sid``. ``call_sid`` is the legacy direct-SID filter (Twilio CA-SID for voice, session_id UUID otherwise) and is mutually exclusive with ``conversation_id``.\n\n**Other filters**: ``prompt_type``, ``state_name``, ``from_ts``, ``to_ts``. When no selectivity-bearing filter (conversation_id / call_sid / time range) is supplied, the query is auto-capped to the last 7 days; the applied window is reported in ``applied_time_window_days``.\n\n**Pagination**: peek-ahead — ``has_more`` is true when more rows exist; use ``next_offset`` to fetch the next page.\n\n**Auth**: `Audit:View` permission required. Reads are audit-logged (``prompt_logs.queried``); responses can include PHI from prompt history.",
@@ -79415,7 +80062,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. A save that adds a number a live call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to` or an approved destination) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's list in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
@@ -79473,7 +80120,10 @@
             "description": "Name already taken, or a pinned dynamic behavior set is archived."
           },
           "422": {
-            "description": "Invalid request body."
+            "description": "Invalid request body, or a transfer destination a voice use case bound to the service will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels."
+          },
+          "503": {
+            "description": "channel-manager could not be read to check the service's transfer destinations."
           }
         },
         "summary": "Update a service",
@@ -80449,6 +81099,97 @@
         "summary": "Resolve Form Template",
         "tags": [
           "Form Templates"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/settings/http": {
+      "get": {
+        "description": "Get the origins that may call this workspace's API from a browser.\n\nReturns an empty list when none are registered.\n\nPermissions: authenticated (any role).",
+        "operationId": "get-http-settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Get allowed browser origins",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "put": {
+        "description": "Replace the origins that may call this workspace's API from a browser.\n\nA page served from a registered origin can call the workspace-prefixed routes\n(`/v1/{workspace_id}/...`) with a bearer token. The API answers it with that exact origin, without\ncredentials and with `Vary: Origin`. It answers an origin that is not registered with no allow-origin\nheader, so the browser withholds the response.\n\nThe list is replaced as a whole and an empty list clears it. Origins are stored lowercase and without a\ndefault port. A change can take up to a minute to apply.\n\nPermissions: admin, owner.",
+        "operationId": "update-http-settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HttpSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Requires an admin or owner"
+          },
+          "404": {
+            "description": "Workspace not found"
+          },
+          "422": {
+            "description": "An origin is not a plain https origin, or more than 20 were sent"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Update allowed browser origins",
+        "tags": [
+          "Settings"
         ]
       }
     },
@@ -87503,7 +88244,7 @@
         ]
       },
       "put": {
-        "description": "Bind this use case to a platform service in the current workspace. PUT semantics — rebinding to a different service replaces the prior binding. Inbound webhook events for the use case will resolve to this workspace; outbound dispatch from the service will route through this use case for its channel. 409 if a different use case already binds the same (service, channel) pair, or if this use case is bound in another workspace. 404 if the service or use case is missing or the service belongs to another workspace. Requires Channel.create permission.",
+        "description": "Bind this use case to a platform service in the current workspace. PUT semantics — rebinding to a different service replaces the prior binding. Inbound webhook events for the use case will resolve to this workspace; outbound dispatch from the service will route through this use case for its channel. 409 if a different use case already binds the same (service, channel) pair, or if this use case is bound in another workspace. 404 if the service or use case is missing or the service belongs to another workspace. The use case is read from channel-manager fresh, and a read that fails is 503. Binding a voice use case holds the service's transfer destinations to the use case's list: 422 for a number the list lacks or that is one of the use case's own. Requires Channel.create permission.",
         "operationId": "bind-use-case-to-service",
         "parameters": [
           {
@@ -87558,7 +88299,10 @@
             "description": "Service already has a different use case bound for this channel, or the use case is bound in another workspace."
           },
           "422": {
-            "description": "Unsupported use case channel."
+            "description": "Unsupported use case channel, or a transfer destination of the service that the voice use case will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels."
+          },
+          "503": {
+            "description": "channel-manager could not be read for the use case."
           }
         },
         "summary": "Bind a use case to a platform service",

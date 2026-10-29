@@ -9,7 +9,7 @@ import type { VoiceLanguage } from '../../src/index.js'
 
 describe('voice provider constants', () => {
   it('exposes supported voice session providers', () => {
-    expect(VOICE_SESSION_PROVIDERS).toEqual(['amigo', 'gpt_realtime'])
+    expect(VOICE_SESSION_PROVIDERS).toEqual(['amigo', 'gpt_realtime', 'eleven_realtime'])
   })
 
   it('exposes supported STT providers', () => {

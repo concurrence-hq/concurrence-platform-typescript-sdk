@@ -805,7 +805,7 @@ export interface paths {
         };
         /**
          * Eval Quality Analytics
-         * @description Production-eval pass-rate and score trends (channel-agnostic — voice, text, SMS, email).
+         * @description Production-eval pass rates and scores: overall, per eval key and over time. Channel-agnostic: voice, text, SMS and email conversations all count. A verdict counts by `computed_at`, the UTC time its check last ran, not the time of the conversation; evaluating a conversation again replaces its verdict and moves it to the new time. The window is the last `days` days up to now, or the UTC days from `date_from` through `date_to` when both are sent. `service_id` and `eval_key` narrow every number to one service and one eval. `trend` has a point for each `interval` that holds verdicts and none for one that holds none. A point with `judged` 0 had verdicts but no pass or fail outcome (an error, a skip or a check still pending), and its `pass_rate` is null; a `pass_rate` of 0.0 means every judged verdict failed.
          */
         get: operations["get-eval-quality-analytics"];
         put?: never;
@@ -4695,6 +4695,26 @@ export interface paths {
         patch: operations["update-production-eval-definition"];
         trace?: never;
     };
+    "/v1/{workspace_id}/production-evals/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a production eval's verdicts
+         * @description List the verdicts one production eval recorded, a page at a time: one row per conversation it graded, so the conversations behind its pass rate can be opened. The scope is that of `GET /v1/{workspace_id}/analytics/eval-quality`: `eval_key` names the eval, `service_id` narrows it to one service, and `days` is the same rolling window, or the UTC days from `date_from` through `date_to` when both are sent, so the rows are the verdicts that pass rate counts, placed by when they were computed. `status` keeps the verdicts with any of the statuses given. Without `sort_by`, failed verdicts come first and each group is newest first; `sort_by` orders by `computed_at` or `score` instead. A page is one read. `rationale`, `justification` and `value` can quote the conversation. Requires `Service.view` permission.
+         */
+        get: operations["list-production-eval-results"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/prompt-logs": {
         parameters: {
             query?: never;
@@ -5151,7 +5171,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. Requires `Service.update` permission.
+         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. A save that adds a number a live call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to` or an approved destination) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's list in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5455,6 +5475,44 @@ export interface paths {
          *     For returning patient templates, completed optional fields are stripped.
          */
         post: operations["resolve-form-template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/settings/http": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get allowed browser origins
+         * @description Get the origins that may call this workspace's API from a browser.
+         *
+         *     Returns an empty list when none are registered.
+         *
+         *     Permissions: authenticated (any role).
+         */
+        get: operations["get-http-settings"];
+        /**
+         * Update allowed browser origins
+         * @description Replace the origins that may call this workspace's API from a browser.
+         *
+         *     A page served from a registered origin can call the workspace-prefixed routes
+         *     (`/v1/{workspace_id}/...`) with a bearer token. The API answers it with that exact origin, without
+         *     credentials and with `Vary: Origin`. It answers an origin that is not registered with no allow-origin
+         *     header, so the browser withholds the response.
+         *
+         *     The list is replaced as a whole and an empty list clears it. Origins are stored lowercase and without a
+         *     default port. A change can take up to a minute to apply.
+         *
+         *     Permissions: admin, owner.
+         */
+        put: operations["update-http-settings"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7204,7 +7262,7 @@ export interface paths {
         get: operations["get-use-case-service-binding"];
         /**
          * Bind a use case to a platform service
-         * @description Bind this use case to a platform service in the current workspace. PUT semantics — rebinding to a different service replaces the prior binding. Inbound webhook events for the use case will resolve to this workspace; outbound dispatch from the service will route through this use case for its channel. 409 if a different use case already binds the same (service, channel) pair, or if this use case is bound in another workspace. 404 if the service or use case is missing or the service belongs to another workspace. Requires Channel.create permission.
+         * @description Bind this use case to a platform service in the current workspace. PUT semantics — rebinding to a different service replaces the prior binding. Inbound webhook events for the use case will resolve to this workspace; outbound dispatch from the service will route through this use case for its channel. 409 if a different use case already binds the same (service, channel) pair, or if this use case is bound in another workspace. 404 if the service or use case is missing or the service belongs to another workspace. The use case is read from channel-manager fresh, and a read that fails is 503. Binding a voice use case holds the service's transfer destinations to the use case's list: 422 for a number the list lacks or that is one of the use case's own. Requires Channel.create permission.
          */
         put: operations["bind-use-case-to-service"];
         post?: never;
@@ -8097,7 +8155,7 @@ export interface components {
         };
         /**
          * AdvancedCallStatsSummary
-         * @description Production calls in the window: counts, durations and quality scores.
+         * @description Production calls in the window: counts, durations, quality scores and audio latency.
          */
         AdvancedCallStatsSummary: {
             /**
@@ -8140,6 +8198,11 @@ export interface components {
              * @description 95th-percentile call duration in seconds
              */
             p95_duration_seconds?: number | null;
+            /**
+             * P95 Latency Ms
+             * @description 95th percentile of each call's average audio time-to-first-byte, in ms; /analytics/latency reports the same measure as p95_ttfb_ms but only matches this value when no direction or service scope is applied
+             */
+            p95_latency_ms?: number | null;
             /**
              * P95 Quality Score
              * @description 95th-percentile quality score (0-100)
@@ -11047,7 +11110,7 @@ export interface components {
              * Session Provider
              * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("amigo" | "gpt_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
             /** Source */
             source?: string | null;
             /**
@@ -11393,6 +11456,16 @@ export interface components {
              * @description Destination context-graph state after the turn's state transition.
              */
             to: string;
+        };
+        CorrectionLine: string;
+        /**
+         * CorrectionLines
+         * @description What a caller hears in place of the built-in correction, per language. Both languages or neither: a service
+         *     with one authored line would have callers in the other language hear a built-in line that can contradict it.
+         */
+        CorrectionLines: {
+            en?: components["schemas"]["CorrectionLine"] | null;
+            es?: components["schemas"]["CorrectionLine"] | null;
         };
         /**
          * CostModelsResponse
@@ -13486,6 +13559,16 @@ export interface components {
              */
             status: "destroyed";
         };
+        /** DiagnosisCheck */
+        DiagnosisCheck: {
+            correction?: components["schemas"]["CorrectionLines"];
+            /**
+             * Mode
+             * @default cut
+             * @enum {string}
+             */
+            mode?: "cut" | "log" | "off";
+        };
         DialE164: string;
         /**
          * DirectionCalls
@@ -13524,6 +13607,16 @@ export interface components {
              * @default true
              */
             retain_source?: boolean;
+        };
+        /** DosingOrMedChangeCheck */
+        DosingOrMedChangeCheck: {
+            correction?: components["schemas"]["CorrectionLines"];
+            /**
+             * Mode
+             * @default cut
+             * @enum {string}
+             */
+            mode?: "cut" | "log";
         };
         /**
          * DriveFolderMapping
@@ -13828,6 +13921,16 @@ export interface components {
             note: string;
             /** Region */
             region: string;
+        };
+        /**
+         * ElevenRealtimeSessionConfig
+         * @description Eleven Realtime controls for a service: the ElevenLabs voice it speaks in, and the model.
+         */
+        ElevenRealtimeSessionConfig: {
+            /** Model */
+            model?: "eleven_realtime_v1_mini" | null;
+            /** Voice */
+            voice: string;
         };
         /** EmotionEvent */
         EmotionEvent: {
@@ -15150,23 +15253,50 @@ export interface components {
             workspace_id: string;
         };
         /**
+         * EvalKeyQuality
+         * @description One eval key's verdicts: the summary and trend the route returns for ``eval_key`` set to it.
+         */
+        EvalKeyQuality: {
+            /**
+             * Eval Key
+             * @description The eval key the verdicts belong to
+             */
+            eval_key: string;
+            /** @description The eval key's aggregate for the period */
+            summary: components["schemas"]["EvalQualitySummary"];
+            /**
+             * Trend
+             * @description The eval key's trend
+             */
+            trend: components["schemas"]["EvalQualityTrendPoint"][];
+        };
+        /**
          * EvalQualityResponse
          * @description Production-eval quality: overall pass-rate/score, per-eval-key breakdown, and a trend.
          *
          *     The channel-agnostic quality surface. Returns zeroed shapes (empty ``by_eval_key``
-         *     and ``trend``, null rates) when no verdicts exist for the workspace/window — the
+         *     and ``trend``, null rates) when no verdicts exist for the workspace/window. The
          *     console renders an empty-state rather than erroring, so this ships safely ahead of
          *     the eager-eval trigger being enabled in production.
+         *
+         *     A verdict belongs to the window and to its trend bucket by ``computed_at``, the UTC time its check last
+         *     ran. Evaluating a conversation again replaces its verdict and moves it to the new time; the time the
+         *     conversation took place plays no part.
          */
         EvalQualityResponse: {
             /**
              * By Eval Key
-             * @description Per-eval-key aggregates, most-evaluated first
+             * @description Per-eval-key aggregates, most-evaluated first, ties by eval_key. At most 200: a workspace with more lists its most-evaluated keys
              */
             by_eval_key: components["schemas"]["EvalQualitySummary"][];
             /**
+             * Eval Key Groups
+             * @description With group_by=eval_key, one entry per eval key with verdicts in the window, in the order of by_eval_key: most-evaluated first, ties by eval_key, at most 200. Each entry holds the summary and trend the route returns for that eval_key; with service_id, these are that service's eval keys. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=eval_key.
+             */
+            eval_key_groups?: components["schemas"]["EvalKeyQuality"][] | null;
+            /**
              * Groups
-             * @description With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by.
+             * @description With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=service_id.
              */
             groups?: components["schemas"]["ServiceEvalQuality"][] | null;
             /** @description Workspace-wide aggregate for the period */
@@ -15203,7 +15333,7 @@ export interface components {
             judged: number;
             /**
              * Pass Rate
-             * @description Fraction of judged verdicts that passed (0.0-1.0)
+             * @description Fraction of judged verdicts that passed (0.0-1.0). Null when none were judged, which is not 0.0: judged, and none passed
              */
             pass_rate?: number | null;
             /**
@@ -15214,7 +15344,7 @@ export interface components {
         };
         /**
          * EvalQualityTrendPoint
-         * @description Single date-bucket data point in the eval-quality trend series.
+         * @description Single date-bucket data point in the eval-quality trend series. A bucket with no verdicts has no point.
          */
         EvalQualityTrendPoint: {
             /**
@@ -15225,7 +15355,7 @@ export interface components {
             /**
              * Date
              * Format: date
-             * @description Date bucket (granularity follows `interval`)
+             * @description Date of the bucket: the day for a daily bucket, the Monday for a weekly one, and for an hourly bucket the day it falls in, so the buckets of one day share this date
              */
             date: string;
             /**
@@ -15235,7 +15365,7 @@ export interface components {
             judged: number;
             /**
              * Pass Rate
-             * @description Fraction of judged verdicts that passed in this bucket
+             * @description Fraction of judged verdicts that passed in this bucket. Null when none were judged, which is not 0.0: judged, and none passed
              */
             pass_rate?: number | null;
             /**
@@ -16852,6 +16982,11 @@ export interface components {
              * @default false
              */
             after_hours?: boolean;
+            /**
+             * Destination Label
+             * @description The service's label for the line this transfer dialed, or ``forward_to`` for a static service's own line.
+             */
+            destination_label?: string | null;
             /** Forward To */
             forward_to: string;
             /** Forwarded At */
@@ -17001,6 +17136,15 @@ export interface components {
             /** Explanation */
             explanation?: string | null;
         };
+        /** HealthInformationCheck */
+        HealthInformationCheck: {
+            /**
+             * Mode
+             * @default off
+             * @enum {string}
+             */
+            mode?: "log" | "off";
+        };
         /** HipaaReportResponse */
         HipaaReportResponse: {
             /** Access Controls */
@@ -17034,6 +17178,17 @@ export interface components {
              * Format: uuid
              */
             workspace_id: string;
+        };
+        /** HttpSettings */
+        HttpSettings: {
+            /**
+             * Allowed Origins
+             * @description Origins whose web pages may call this workspace's API from a browser, such as `https://app.example.com`.
+             *
+             *     At most 20. Each is `https://host` or `https://host:port`, with no path, query, wildcard or credentials.
+             *     `localhost` origins are for local development and are refused in production.
+             */
+            allowed_origins: string[];
         };
         /** HumanSegment */
         HumanSegment: {
@@ -20453,6 +20608,15 @@ export interface components {
             /** Items */
             items: components["schemas"]["ProductionEvalDefinition"][];
         };
+        /** ProductionEvalResultListResponse */
+        ProductionEvalResultListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["src__routes__production_eval_results__ProductionEvalResultListResponse__Item"][];
+        };
         /**
          * ProductionEvalType
          * @enum {string}
@@ -21659,7 +21823,7 @@ export interface components {
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("amigo" | "gpt_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
             /** Source Call Sid */
             source_call_sid?: string | null;
             /** Source Conversation Id */
@@ -22443,6 +22607,7 @@ export interface components {
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             /** Name */
             name: string;
+            output_checks?: components["schemas"]["ServiceOutputChecks"];
             /**
              * Platform Caller Verification
              * @default true
@@ -22579,7 +22744,7 @@ export interface components {
         ServiceEvalQuality: {
             /**
              * By Eval Key
-             * @description The service's per-eval-key aggregates, most-evaluated first
+             * @description The service's per-eval-key aggregates, most-evaluated first, ties by eval_key. At most 200: a service with more lists its most-evaluated keys
              */
             by_eval_key: components["schemas"]["EvalQualitySummary"][];
             /**
@@ -22640,6 +22805,12 @@ export interface components {
             has_more: boolean;
             /** Items */
             items: components["schemas"]["ServiceResponse"][];
+        };
+        /** ServiceOutputChecks */
+        ServiceOutputChecks: {
+            diagnosis?: components["schemas"]["DiagnosisCheck"];
+            dosing_or_med_change?: components["schemas"]["DosingOrMedChangeCheck"];
+            health_information?: components["schemas"]["HealthInformationCheck"];
         };
         /** ServiceResponse */
         ServiceResponse: {
@@ -22820,6 +22991,7 @@ export interface components {
             barge_in_min_speech_s?: number | null;
             /** Eager Eot Threshold */
             eager_eot_threshold?: number | null;
+            eleven_realtime?: components["schemas"]["ElevenRealtimeSessionConfig"] | null;
             /** Empathy Hold Ms */
             empathy_hold_ms?: number | null;
             /** Eot Timeout Ms */
@@ -22861,7 +23033,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
             /** Tts Config */
@@ -22890,6 +23062,7 @@ export interface components {
             barge_in_min_speech_s?: number | null;
             /** Eager Eot Threshold */
             eager_eot_threshold?: number | null;
+            eleven_realtime?: components["schemas"]["ElevenRealtimeSessionConfig"] | null;
             /** Empathy Hold Ms */
             empathy_hold_ms?: number | null;
             /** Eot Timeout Ms */
@@ -22931,7 +23104,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
             /** Tts Config */
@@ -30064,7 +30237,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
             /**
              * Similarity Boost
              * @default 0
@@ -31471,6 +31644,70 @@ export interface components {
              */
             workspace_id: string;
         };
+        /**
+         * Item
+         * @description One conversation's verdict on the eval, with the reasoning behind it.
+         */
+        src__routes__production_eval_results__ProductionEvalResultListResponse__Item: {
+            /**
+             * Call Sid
+             * @description The conversation's call SID, when it has one.
+             */
+            call_sid: string | null;
+            /**
+             * Cited Turns
+             * @description The turns of the conversation that `justification` cites, by turn number.
+             */
+            cited_turns: number[];
+            /**
+             * Computed At
+             * Format: date-time
+             * @description When the verdict was last computed. Evaluating a conversation again replaces its verdict.
+             */
+            computed_at: string;
+            /**
+             * Conversation Id
+             * Format: uuid
+             * @description The conversation the verdict is for.
+             */
+            conversation_id: string;
+            /**
+             * Justification
+             * @description The grader's explanation of the value. It can quote the conversation.
+             */
+            justification: string | null;
+            /**
+             * Passed
+             * @description True for `passed`, false for `failed` and null for every other status. The pass rate counts the verdicts
+             *     where this isn't null.
+             */
+            passed: boolean | null;
+            /**
+             * Rationale
+             * @description Why the value passed or failed the check's rule, or why there is no pass or fail.
+             */
+            rationale: string | null;
+            /**
+             * Service Id
+             * @description The service the check is assigned to. Null when the check applies to every service.
+             */
+            service_id: string | null;
+            /**
+             * Status
+             * @description How the check graded the conversation: `passed`, `failed`, `skipped` (no pass or fail: the grader found no
+             *     answer, or the check has no pass rule), `error` (the check could not run) or `pending`.
+             * @enum {string}
+             */
+            status: "passed" | "failed" | "pending" | "skipped" | "error";
+            /**
+             * Value
+             * @description What the check observed: the metric's value, a number, a boolean or a label. Null when it observed none, and
+             *     for the older checks that aren't metrics.
+             */
+            value: unknown;
+        };
+        /** @enum {string} */
+        src__routes__production_eval_results___SortField: "computed_at" | "score";
         /** @constant */
         src__routes__production_evals___SortField: "created_at";
         /** CreateRequest */
@@ -34074,12 +34311,19 @@ export interface operations {
     "get-eval-quality-analytics": {
         parameters: {
             query?: {
+                /** @description The last `days` days up to now, by when each verdict was computed. Not used when `date_from` and `date_to` are sent, though it is still limited to 1 to 90. */
                 days?: number;
+                /** @description First day of a date range (YYYY-MM-DD, UTC), counted from its start. Send it with `date_to`; the range replaces `days`. A date alone gets a 422. */
+                date_from?: string | null;
+                /** @description Last day of a date range (YYYY-MM-DD, UTC), counted through its end. Send it with `date_from`. A date alone gets a 422. */
+                date_to?: string | null;
                 interval?: "1h" | "1d" | "1w";
                 /** @description Only this service's results. A value that isn't a UUID gets a 422. */
                 service_id?: string | null;
-                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. The rest of the response is unchanged. */
-                group_by?: "service_id" | null;
+                /** @description Only this production eval's verdicts: the `eval_key` of its definition. */
+                eval_key?: string | null;
+                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged. */
+                group_by?: ("service_id" | "eval_key") | null;
             };
             header?: never;
             path: {
@@ -44061,6 +44305,68 @@ export interface operations {
             };
         };
     };
+    "list-production-eval-results": {
+        parameters: {
+            query: {
+                /** @description The production eval to list: the `eval_key` of its definition. */
+                eval_key: string;
+                /**
+                 * @description Only this service's verdicts. A verdict of a check that applies to every service has no service and is left
+                 *     out. A value that isn't a UUID gets a 422.
+                 */
+                service_id?: string | null;
+                /** @description Only verdicts with one of these statuses. Repeat the parameter for more than one. */
+                status?: ("passed" | "failed" | "pending" | "skipped" | "error")[];
+                /**
+                 * @description Verdicts computed in the last `days` days: the rolling window `GET /analytics/eval-quality` takes. Not used
+                 *     when `date_from` and `date_to` are sent.
+                 */
+                days?: number;
+                /**
+                 * @description First day of a date range (YYYY-MM-DD, UTC), counted from its start. Send it with `date_to`; the range
+                 *     replaces `days`. A date alone, a range that ends before it starts, or one with more days than
+                 *     `GET /analytics/eval-quality` takes for a daily trend gets a 422.
+                 */
+                date_from?: string | null;
+                /** @description Last day of a date range (YYYY-MM-DD, UTC), counted through its last microsecond. Send it with `date_from`. */
+                date_to?: string | null;
+                /**
+                 * @description Page order, `+field` or `-field` on `computed_at` or `score`, a numeric metric's value, the number `value` shows;
+                 *     repeat the parameter to break ties. A verdict without a score sorts last either way. Without it, failed verdicts
+                 *     come first and each group is newest first.
+                 */
+                sort_by?: string[];
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductionEvalResultListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "list-prompt-logs": {
         parameters: {
             query?: {
@@ -45543,8 +45849,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid request body. */
+            /** @description Invalid request body, or a transfer destination a voice use case bound to the service will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description channel-manager could not be read to check the service's transfer destinations. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -46285,6 +46598,89 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "get-http-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpSettings"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "update-http-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HttpSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpSettings"];
+                };
+            };
+            /** @description Requires an admin or owner */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An origin is not a plain https origin, or more than 20 were sent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -51150,8 +51546,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unsupported use case channel. */
+            /** @description Unsupported use case channel, or a transfer destination of the service that the voice use case will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description channel-manager could not be read for the use case. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
