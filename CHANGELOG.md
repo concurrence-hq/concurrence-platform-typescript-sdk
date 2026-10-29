@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.131.0] - 2026-10-29
+
+### Features
+
+- discover mapping-bound group grants (ALL-2353) (#506)
+
 ## [0.130.0] - 2026-10-29
 
 ### Features
