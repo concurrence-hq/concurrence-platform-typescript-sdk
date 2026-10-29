@@ -1,5 +1,17 @@
+import { ConfigurationError } from '../core/errors.js'
 import { IdentityResource } from './identity/base.js'
-import type { SsoIndependentGrant } from './sso-grants.js'
+import type { ListSsoGrants, SsoIndependentGrant, SsoManagedGrant } from './sso-grants.js'
+
+export interface SsoGroupManagedGrant extends SsoManagedGrant {
+  mapping_id: string
+  mapping_revision: string
+}
+
+export interface SsoGroupManagedGrantList {
+  items: SsoGroupManagedGrant[]
+  has_more: boolean
+  continuation_token: unknown
+}
 
 export interface SsoGroupIndependentSnapshot {
   mapping_id: string
@@ -28,6 +40,22 @@ export interface SsoGroupIndependentConversion {
 
 /** Explicit group replacement preserves group-based offboarding without adding an app grant. */
 export class SsoGroupGrantsResource extends IdentityResource {
+  /** Discover stored contributions; conversion still requires a current independent snapshot. */
+  async list(query: ListSsoGrants = {}): Promise<SsoGroupManagedGrantList> {
+    const result = await this.request<SsoGroupManagedGrantList>(
+      'GET',
+      'sso/group-grants',
+      undefined,
+      { query: { ...query } },
+    )
+    for (const grant of result.items) {
+      if (!Number.isSafeInteger(grant.source_version) || grant.source_version < 0) {
+        throw new ConfigurationError('Managed grant revision cannot be represented safely')
+      }
+    }
+    return result
+  }
+
   independent(mappingId: string, grantId: string): Promise<SsoGroupIndependentSnapshot> {
     return this.request(
       'GET',

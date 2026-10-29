@@ -132,6 +132,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `ssoGroupGrants`
 
+- `list`
 - `independent`
 - `convertIndependent`
 
