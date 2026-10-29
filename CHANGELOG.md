@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.130.0] - 2026-10-29
+
+### Features
+
+- add mapping-bound independent conversion SDK (ALL-2344) (#505)
+- listResults lists one eval's verdicts across calls, with a date range (ALL-1456) (#504)
+
 ## [0.129.0] - 2026-10-29
 
 ### Maintenance
