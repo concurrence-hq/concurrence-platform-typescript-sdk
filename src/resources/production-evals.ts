@@ -11,6 +11,12 @@ export type UpdateProductionEvalDefinitionRequest =
 export type ListProductionEvalDefinitionsParams = NonNullable<
   operations['list-production-eval-definitions']['parameters']['query']
 >
+export type ListProductionEvalResultsParams = NonNullable<
+  operations['list-production-eval-results']['parameters']['query']
+>
+export type ProductionEvalResultListResponse =
+  components['schemas']['ProductionEvalResultListResponse']
+export type ProductionEvalResultItem = ProductionEvalResultListResponse['items'][number]
 export type CallEvalResult = components['schemas']['CallEvalResult']
 export type CallEvalResultsResponse = components['schemas']['CallEvalResultsResponse']
 
@@ -65,6 +71,26 @@ export class ProductionEvalsResource extends WorkspaceScopedResource {
     await this.client.DELETE('/v1/{workspace_id}/production-eval-definitions/{definition_id}', {
       params: { path: { workspace_id: this.workspaceId, definition_id: definitionId } },
     })
+  }
+
+  // ─── Verdicts of one eval across calls ────────────────────────────────────
+
+  /**
+   * List one eval's verdicts across the workspace's calls, failed verdicts first unless `sort_by`
+   * says otherwise. `eval_key` is required. Pick the window with `days`, or with `date_from` and
+   * `date_to` together (YYYY-MM-DD, UTC); one date alone, a reversed range, or a range longer than
+   * the daily eval-quality trend takes is a 422.
+   */
+  async listResults(params: ListProductionEvalResultsParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/production-evals/results', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  listResultsAutoPaging(params: ListProductionEvalResultsParams) {
+    return this.iteratePaginatedList((pageParams) => this.listResults(pageParams), params)
   }
 
   // ─── Per-call verdicts ────────────────────────────────────────────────────

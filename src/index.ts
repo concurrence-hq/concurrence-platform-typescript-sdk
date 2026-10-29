@@ -780,8 +780,11 @@ export type {
   CallEvalResultsResponse,
   CreateProductionEvalDefinitionRequest,
   ListProductionEvalDefinitionsParams,
+  ListProductionEvalResultsParams,
   ProductionEvalDefinition,
   ProductionEvalDefinitionListResponse,
+  ProductionEvalResultItem,
+  ProductionEvalResultListResponse,
   UpdateProductionEvalDefinitionRequest,
 } from './resources/production-evals.js'
 

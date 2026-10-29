@@ -452,6 +452,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `createDefinition`
 - `updateDefinition`
 - `deleteDefinition`
+- `listResults`
+- `listResultsAutoPaging`
 - `evaluate`
 - `getResults`
 
