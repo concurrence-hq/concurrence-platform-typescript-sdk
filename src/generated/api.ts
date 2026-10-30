@@ -5148,7 +5148,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id` or to set `output_checks.phi_unverified` to `cut`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -12189,8 +12189,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -12250,6 +12251,11 @@ export interface components {
              */
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             name: components["schemas"]["NameString"];
+            /**
+             * @description Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs
+             *     `Service.update`.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
@@ -20260,6 +20266,15 @@ export interface components {
             /** Namespace */
             namespace: string;
         };
+        /** PhiUnverifiedCheck */
+        PhiUnverifiedCheck: {
+            /**
+             * Mode
+             * @default off
+             * @enum {string}
+             */
+            mode?: "cut" | "off";
+        };
         PhoneE164: string;
         /** PhoneNumberCallVolume */
         PhoneNumberCallVolume: {
@@ -22811,6 +22826,18 @@ export interface components {
             diagnosis?: components["schemas"]["DiagnosisCheck"];
             dosing_or_med_change?: components["schemas"]["DosingOrMedChangeCheck"];
             health_information?: components["schemas"]["HealthInformationCheck"];
+            phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
+        };
+        /**
+         * ServiceOutputChecksRequest
+         * @description The reply checks a service sets. Only `phi_unverified` can be set.
+         */
+        ServiceOutputChecksRequest: {
+            /**
+             * @description On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not
+             *     verified, and the caller hears a correction in its place. `off`, the default, does not run the check.
+             */
+            phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
         };
         /** ServiceResponse */
         ServiceResponse: {
@@ -22826,8 +22853,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -22896,6 +22924,11 @@ export interface components {
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             /** Name */
             name: string;
+            /**
+             * @description The block with its defaults filled in. `phi_unverified` is the only key a service can set and the only one a
+             *     call reads, and it is `off` unless the service sets it to `cut`.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecks"];
             /**
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
@@ -23007,6 +23040,13 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
+            /**
+             * Held Turn Policy
+             * @description What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.
+             * @default always
+             * @enum {string}
+             */
+            held_turn_policy?: "always" | "judged" | "never";
             /** Language Providers */
             language_providers?: {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
@@ -23078,6 +23118,13 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
+            /**
+             * Held Turn Policy
+             * @description What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.
+             * @default always
+             * @enum {string}
+             */
+            held_turn_policy?: "always" | "judged" | "never";
             /** Language Providers */
             language_providers?: {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
@@ -25806,8 +25853,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -29185,8 +29233,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -29225,6 +29274,12 @@ export interface components {
              */
             medical_emergency_ending?: ("stay_on_line" | "end_after_script") | null;
             name?: components["schemas"]["NameString"] | null;
+            /**
+             * Output Checks
+             * @description Which reply checks run. The block replaces what is stored, and `null` or `{}` is the default block, where
+             *     `phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the update.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
@@ -42847,6 +42902,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-metric-catalog": {
@@ -42934,6 +42998,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-metric-trend": {
@@ -42989,6 +43062,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
