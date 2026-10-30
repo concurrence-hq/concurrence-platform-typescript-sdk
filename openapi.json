@@ -10604,7 +10604,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -10681,6 +10681,17 @@
           },
           "name": {
             "$ref": "#/components/schemas/NameString"
+          },
+          "output_checks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceOutputChecksRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs\n`Service.update`."
           },
           "platform_caller_verification": {
             "default": true,
@@ -29262,6 +29273,22 @@
         "title": "PermissionEntry",
         "type": "object"
       },
+      "PhiUnverifiedCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "off",
+            "enum": [
+              "cut",
+              "off"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "PhiUnverifiedCheck",
+        "type": "object"
+      },
       "PhoneE164": {
         "maxLength": 16,
         "minLength": 2,
@@ -34963,9 +34990,24 @@
           },
           "health_information": {
             "$ref": "#/components/schemas/HealthInformationCheck"
+          },
+          "phi_unverified": {
+            "$ref": "#/components/schemas/PhiUnverifiedCheck"
           }
         },
         "title": "ServiceOutputChecks",
+        "type": "object"
+      },
+      "ServiceOutputChecksRequest": {
+        "additionalProperties": false,
+        "description": "The reply checks a service sets. Only `phi_unverified` can be set.",
+        "properties": {
+          "phi_unverified": {
+            "$ref": "#/components/schemas/PhiUnverifiedCheck",
+            "description": "On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not\nverified, and the caller hears a correction in its place. `off`, the default, does not run the check."
+          }
+        },
+        "title": "ServiceOutputChecksRequest",
         "type": "object"
       },
       "ServiceResponse": {
@@ -34995,7 +35037,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -35095,6 +35137,10 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "output_checks": {
+            "$ref": "#/components/schemas/ServiceOutputChecks",
+            "description": "The block with its defaults filled in. `phi_unverified` is the only key a service can set and the only one a\ncall reads, and it is `off` unless the service sets it to `cut`."
           },
           "platform_caller_verification": {
             "default": true,
@@ -35379,6 +35425,17 @@
                 "type": "null"
               }
             ]
+          },
+          "held_turn_policy": {
+            "default": "always",
+            "description": "What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.",
+            "enum": [
+              "always",
+              "judged",
+              "never"
+            ],
+            "title": "Held Turn Policy",
+            "type": "string"
           },
           "language_providers": {
             "anyOf": [
@@ -35685,6 +35742,17 @@
                 "type": "null"
               }
             ]
+          },
+          "held_turn_policy": {
+            "default": "always",
+            "description": "What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.",
+            "enum": [
+              "always",
+              "judged",
+              "never"
+            ],
+            "title": "Held Turn Policy",
+            "type": "string"
           },
           "language_providers": {
             "anyOf": [
@@ -41578,7 +41646,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -49417,7 +49485,7 @@
                 "type": "null"
               }
             ],
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results"
           },
           "caller_verification_endpoint_id": {
@@ -49550,6 +49618,18 @@
                 "type": "null"
               }
             ]
+          },
+          "output_checks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceOutputChecksRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which reply checks run. The block replaces what is stored, and `null` or `{}` is the default block, where\n`phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the update.",
+            "title": "Output Checks"
           },
           "platform_caller_verification": {
             "anyOf": [
@@ -74692,6 +74772,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "List latest metric values",
@@ -74954,6 +75044,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Get values for a specific metric",
@@ -75145,6 +75245,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Get time-series trend for a metric",
@@ -79888,7 +79998,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id` or to set `output_checks.phi_unverified` to `cut`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {

@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
 import type {
+  ServiceVoiceConfigInput,
+  ServiceVoiceConfigOutput,
   TtsProvider,
   VoiceJudgeResultListResponse,
   VoiceSessionProvider,
@@ -178,6 +180,98 @@ describe('ServicesResource', () => {
     expect(created.platform_caller_verification).toBe(false)
     expect(created.medical_emergency_ending).toBe('end_after_script')
     expect(updated.platform_caller_verification).toBe(true)
+  })
+
+  it('sends and reads back the phi_unverified output check', async () => {
+    const service = {
+      id: SERVICE_ID,
+      workspace_id: TEST_WORKSPACE_ID,
+      name: 'Front Desk',
+      description: 'Answers practice questions',
+      agent_id: '00000000-0000-0000-0000-000000000011',
+      context_graph_id: '00000000-0000-0000-0000-000000000012',
+      keyterms: [],
+      is_active: true,
+      version_sets: {},
+      tags: [],
+      tool_capacity: 5,
+      output_checks: { phi_unverified: { mode: 'cut' } },
+      created_at: '2026-10-30T00:00:00Z',
+      updated_at: '2026-10-30T00:00:00Z',
+    } satisfies ServiceResponse
+    const bodies: unknown[] = []
+    const recording = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/services`]: ({ body }) => {
+          bodies.push(body)
+          return Response.json(service, { status: 201 })
+        },
+        [`PUT ${BASE}/services/${SERVICE_ID}`]: ({ body }) => {
+          bodies.push(body)
+          return Response.json({ ...service, output_checks: { phi_unverified: { mode: 'off' } } })
+        },
+      }),
+    })
+
+    const created = await recording.services.create({
+      name: 'Front Desk',
+      agent_id: service.agent_id,
+      context_graph_id: service.context_graph_id,
+      output_checks: { phi_unverified: { mode: 'cut' } },
+    })
+    const switchedOff = await recording.services.update(SERVICE_ID, {
+      output_checks: { phi_unverified: { mode: 'off' } },
+    })
+    await recording.services.update(SERVICE_ID, { output_checks: null })
+
+    expect(bodies).toEqual([
+      {
+        name: 'Front Desk',
+        agent_id: service.agent_id,
+        context_graph_id: service.context_graph_id,
+        output_checks: { phi_unverified: { mode: 'cut' } },
+      },
+      { output_checks: { phi_unverified: { mode: 'off' } } },
+      { output_checks: null },
+    ])
+    expect(created.output_checks?.phi_unverified?.mode).toBe('cut')
+    expect(switchedOff.output_checks?.phi_unverified?.mode).toBe('off')
+    expectTypeOf(created.output_checks?.phi_unverified?.mode).toEqualTypeOf<
+      'cut' | 'off' | undefined
+    >()
+  })
+
+  it('accepts only cut or off for phi_unverified and no other output check on a write', () => {
+    type CreateBody = Parameters<typeof client.services.create>[0]
+    type UpdateBody = Parameters<typeof client.services.update>[1]
+
+    const cut = { phi_unverified: { mode: 'cut' } } satisfies CreateBody['output_checks']
+    const off = { phi_unverified: { mode: 'off' } } satisfies UpdateBody['output_checks']
+    // @ts-expect-error phi_unverified has no log mode
+    const log: CreateBody['output_checks'] = { phi_unverified: { mode: 'log' } }
+    // @ts-expect-error phi_unverified is the only check a service can set
+    const other: UpdateBody['output_checks'] = { diagnosis: { mode: 'cut' } }
+
+    expect([cut, off, log, other]).toHaveLength(4)
+  })
+
+  it('sends held_turn_policy in a service voice config', async () => {
+    await client.services.create({
+      name: 'Front Desk',
+      agent_id: '00000000-0000-0000-0000-000000000011',
+      context_graph_id: '00000000-0000-0000-0000-000000000012',
+      voice_config: { held_turn_policy: 'judged' },
+    })
+
+    expect(lastCreateBody).toMatchObject({ voice_config: { held_turn_policy: 'judged' } })
+    expectTypeOf<ServiceVoiceConfigInput['held_turn_policy']>().toEqualTypeOf<
+      'always' | 'judged' | 'never' | undefined
+    >()
+    expectTypeOf<ServiceVoiceConfigOutput['held_turn_policy']>().toEqualTypeOf<
+      'always' | 'judged' | 'never' | undefined
+    >()
   })
 
   it('lists services', async () => {
