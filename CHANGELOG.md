@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.132.0] - 2026-10-31
+
+### Bug Fixes
+
+- represent absent expiry in reporting responses (#508)
+
 ## [0.131.0] - 2026-10-29
 
 ### Features
