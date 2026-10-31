@@ -1814,9 +1814,16 @@
             "title": "Created By Entity Id"
           },
           "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
           },
           "id": {
             "format": "uuid",
@@ -2360,13 +2367,27 @@
       "AuthInfoResponse": {
         "properties": {
           "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
           },
           "expires_in_seconds": {
-            "title": "Expires In Seconds",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Seconds"
           },
           "key_id": {
             "title": "Key Id",

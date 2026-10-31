@@ -8600,11 +8600,8 @@ export interface components {
             created_by_credential_id: string | null;
             /** Created By Entity Id */
             created_by_entity_id: string | null;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
+            /** Expires At */
+            expires_at: string | null;
             /**
              * Id
              * Format: uuid
@@ -8861,13 +8858,10 @@ export interface components {
         };
         /** AuthInfoResponse */
         AuthInfoResponse: {
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
+            /** Expires At */
+            expires_at: string | null;
             /** Expires In Seconds */
-            expires_in_seconds: number;
+            expires_in_seconds: number | null;
             /** Key Id */
             key_id: string;
             /** Name */

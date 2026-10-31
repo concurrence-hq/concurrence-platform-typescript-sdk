@@ -516,6 +516,18 @@ when retrying a grant approval. Scoped request signals, timeouts, and headers us
 the same `withOptions()` API as other resources. Identity errors preserve status
 and recognized policy conflict codes while omitting arbitrary response details.
 
+### Platform API key reporting
+
+`client.apiKeys.list()` reports an existing key's stored expiration. `expires_at`
+is `null` when no expiry is set; `client.apiKeys.me()` returns `null` for both
+`expires_at` and `expires_in_seconds` in that case. Check for `null` before parsing
+these values as dates or calculating a countdown. New and rotated keys still
+require a 1–90 day lifetime and return a concrete expiration.
+
+A null `last_used_at` means no usage has been recorded. Historical telemetry can
+be incomplete, so it does not prove that a key has never been used or is safe to
+revoke.
+
 ### Identity credential administration
 
 `client.identityCredentials` manages `/admin/credentials` on `identityBaseUrl`.
