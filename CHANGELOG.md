@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.133.0] - 2026-11-01
+
+### Features
+
+- add registered operation grant client (ALL-2471) (#510)
+
 ## [0.132.0] - 2026-10-31
 
 ### Bug Fixes
