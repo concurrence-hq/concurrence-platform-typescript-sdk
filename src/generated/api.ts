@@ -32295,6 +32295,8 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** @constant */
+        src__routes__operation_grants___SortField: "expires_at";
     };
     responses: never;
     parameters: never;
@@ -43191,6 +43193,7 @@ export interface operations {
     "list-operation-grants": {
         parameters: {
             query?: {
+                sort_by?: string[];
                 limit?: number;
                 continuation_token?: unknown;
             };

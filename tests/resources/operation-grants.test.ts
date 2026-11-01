@@ -63,11 +63,18 @@ describe('operation grants', () => {
       })
     })
     const items = []
-    for await (const item of client.operationGrants.listAutoPaging({ limit: 1 })) items.push(item)
+    for await (const item of client.operationGrants.listAutoPaging({
+      limit: 1,
+      sort_by: ['-expires_at'],
+    }))
+      items.push(item)
     expect(items).toEqual([grant, revoked])
     expect(requests).toHaveLength(2)
     expect(new URL(requests[1]!.url).searchParams.get('continuation_token')).toBe('opaque+/=')
     expect(new URL(requests[1]!.url).searchParams.get('limit')).toBe('1')
+    for (const request of requests) {
+      expect(new URL(request.url).searchParams.getAll('sort_by')).toEqual(['-expires_at'])
+    }
   })
 
   it('invokes through the scoped token and options without changing the input', async () => {

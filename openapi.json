@@ -56928,6 +56928,10 @@
         ],
         "title": "Item",
         "type": "object"
+      },
+      "src__routes__operation_grants___SortField": {
+        "const": "expires_at",
+        "type": "string"
       }
     },
     "securitySchemes": {
@@ -75463,6 +75467,19 @@
               "format": "uuid",
               "title": "Workspace Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
             }
           },
           {

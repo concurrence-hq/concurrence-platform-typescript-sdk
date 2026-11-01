@@ -585,8 +585,9 @@ the SDK does not renew `apiKey` automatically. Keep client secrets on the server
 Invocations never retry automatically, even when `withOptions()` requests retries:
 an error can follow a committed write, so reconcile the result before retrying.
 
-`listAutoPaging()` forwards opaque continuation tokens and includes retained
-revoked approvals. `revoke()` prevents future authorization without deleting
+`listAutoPaging({ sort_by: ['-expires_at'] })` lists the latest expirations first,
+preserves that sort across opaque continuation tokens, and includes retained
+revoked approvals. The default is earliest expiration first. `revoke()` prevents future authorization without deleting
 history; an already-authorized call may finish. Changing an operation's definition
 requires a new approval and an updated grant ID in the consumer.
 
