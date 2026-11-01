@@ -513,6 +513,14 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `invoke`
 - `test`
 
+### `operationGrants`
+
+- `create`
+- `list`
+- `listAutoPaging`
+- `revoke`
+- `invoke`
+
 ### `observers`
 
 - `subscribe`

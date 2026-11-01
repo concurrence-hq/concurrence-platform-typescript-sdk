@@ -4099,6 +4099,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/operation_grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Operation Grants */
+        get: operations["list-operation-grants"];
+        put?: never;
+        /** Create Operation Grant */
+        post: operations["create-operation-grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/operation_grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Operation Grant */
+        delete: operations["revoke-operation-grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/operation_grants/{grant_id}/invoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invoke Operation Grant */
+        post: operations["invoke-operation-grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/operators": {
         parameters: {
             query?: never;
@@ -11991,6 +12043,33 @@ export interface components {
              */
             sticky_turns?: number;
         };
+        /** CreateOperationGrantRequest */
+        CreateOperationGrantRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "read" | "write" | "invoke";
+            /**
+             * Credential Id
+             * Format: uuid
+             */
+            credential_id: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Function Name */
+            function_name?: string | null;
+            /** Operation Id */
+            operation_id?: string | null;
+            /**
+             * Operation Kind
+             * @enum {string}
+             */
+            operation_kind: "data_query" | "function";
+        };
         /** CreateOperatorRequest */
         CreateOperatorRequest: {
             /**
@@ -17718,6 +17797,22 @@ export interface components {
             /** Items */
             items: components["schemas"]["InternalSkillResponse"][];
         };
+        /** InvokeOperationGrantRequest */
+        InvokeOperationGrantRequest: {
+            /** Input */
+            input?: {
+                [key: string]: unknown;
+            };
+        };
+        /** InvokeOperationGrantResponse */
+        InvokeOperationGrantResponse: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Result */
+            result: unknown;
+            /** Row Count */
+            row_count: number;
+        };
         /**
          * InvokeRequest
          * @description Invoke a registered function with caller-supplied args.
@@ -19117,6 +19212,62 @@ export interface components {
              *     platform has no report of the opener.
              */
             reason?: ("timeout" | "connection" | "http_4xx" | "http_5xx" | "error" | "opted_out" | "invalid_content" | "no_opener" | "llm_timeout" | "lease_contended" | "session_init" | "persist" | "agent_error" | "unanswered") | null;
+        };
+        /** OperationGrantListResponse */
+        OperationGrantListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["OperationGrantResponse"][];
+        };
+        /** OperationGrantResponse */
+        OperationGrantResponse: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "read" | "write" | "invoke";
+            /**
+             * Credential Id
+             * Format: uuid
+             */
+            credential_id: string;
+            /** Definition Sha256 */
+            definition_sha256: string;
+            /**
+             * Entity Id
+             * Format: uuid
+             */
+            entity_id: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Operation Kind
+             * @enum {string}
+             */
+            operation_kind: "data_query" | "function";
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
         };
         /**
          * OperatorIntelligenceSummary
@@ -43034,6 +43185,141 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "list-operation-grants": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationGrantListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "create-operation-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOperationGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationGrantResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "revoke-operation-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "invoke-operation-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvokeOperationGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvokeOperationGrantResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

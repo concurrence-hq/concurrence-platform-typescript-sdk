@@ -80,6 +80,7 @@ import { AuditResource } from './resources/audit.js'
 import { ComplianceResource } from './resources/compliance.js'
 import { EventsResource } from './resources/events.js'
 import { FunctionsResource } from './resources/functions.js'
+import { OperationGrantsResource } from './resources/operation-grants.js'
 import { ObserversResource } from './resources/observers.js'
 import { FhirResource } from './resources/fhir.js'
 import { InsightsResource } from './resources/insights.js'
@@ -261,6 +262,8 @@ export class AmigoClient {
   readonly compliance!: ComplianceResource
   readonly events!: EventsResource
   readonly functions!: FunctionsResource
+  /** Approve and invoke exact registered operations with dedicated machine credentials. */
+  readonly operationGrants!: OperationGrantsResource
   /**
    * Voice-call observer real-time stream. Subscribe with
    * ``client.observers.subscribe({ callSid, token, onEvent })``. See
@@ -544,6 +547,7 @@ export class AmigoClient {
     mutable.compliance = new ComplianceResource(client, workspaceId)
     mutable.events = new EventsResource(client, workspaceId)
     mutable.functions = new FunctionsResource(client, workspaceId)
+    mutable.operationGrants = new OperationGrantsResource(client, workspaceId)
     mutable.observers = new ObserversResource(client, workspaceId, agentBaseUrl)
     mutable.fhir = new FhirResource(client, workspaceId)
     mutable.insights = new InsightsResource(client, workspaceId)
@@ -876,6 +880,15 @@ export type {
   WorkspaceDataQueryListItem,
   WorkspaceDataQueryListResponse,
 } from './resources/workspace-data-queries.js'
+
+export type {
+  CreateOperationGrantRequest,
+  InvokeOperationGrantRequest,
+  InvokeOperationGrantResponse,
+  ListOperationGrantsParams,
+  OperationGrant,
+  OperationGrantListResponse,
+} from './resources/operation-grants.js'
 
 export type { ClientConfig } from './resources/client-config.js'
 
