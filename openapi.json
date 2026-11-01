@@ -10169,6 +10169,72 @@
         "title": "CreateDynamicBehaviorSetVersionRequest",
         "type": "object"
       },
+      "CreateOperationGrantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "read",
+              "write",
+              "invoke"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "credential_id": {
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "function_name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Function Name"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "operation_kind": {
+            "enum": [
+              "data_query",
+              "function"
+            ],
+            "title": "Operation Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential_id",
+          "operation_kind",
+          "action",
+          "expires_at"
+        ],
+        "title": "CreateOperationGrantRequest",
+        "type": "object"
+      },
       "CreateOperatorRequest": {
         "properties": {
           "connection_method": {
@@ -23466,6 +23532,41 @@
         "title": "InternalSkillsListResponse",
         "type": "object"
       },
+      "InvokeOperationGrantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "additionalProperties": true,
+            "maxProperties": 32,
+            "title": "Input",
+            "type": "object"
+          }
+        },
+        "title": "InvokeOperationGrantRequest",
+        "type": "object"
+      },
+      "InvokeOperationGrantResponse": {
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "result",
+          "row_count",
+          "duration_ms"
+        ],
+        "title": "InvokeOperationGrantResponse",
+        "type": "object"
+      },
       "InvokeRequest": {
         "description": "Invoke a registered function with caller-supplied args.",
         "properties": {
@@ -26617,6 +26718,111 @@
           "detail"
         ],
         "title": "OpenerFailureResponse",
+        "type": "object"
+      },
+      "OperationGrantListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OperationGrantResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "OperationGrantListResponse",
+        "type": "object"
+      },
+      "OperationGrantResponse": {
+        "properties": {
+          "action": {
+            "enum": [
+              "read",
+              "write",
+              "invoke"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "credential_id": {
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "definition_sha256": {
+            "title": "Definition Sha256",
+            "type": "string"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "operation_kind": {
+            "enum": [
+              "data_query",
+              "function"
+            ],
+            "title": "Operation Kind",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "credential_id",
+          "entity_id",
+          "operation_id",
+          "operation_kind",
+          "action",
+          "definition_sha256",
+          "expires_at",
+          "revoked_at"
+        ],
+        "title": "OperationGrantResponse",
         "type": "object"
       },
       "OperatorIntelligenceSummary": {
@@ -56722,6 +56928,10 @@
         ],
         "title": "Item",
         "type": "object"
+      },
+      "src__routes__operation_grants___SortField": {
+        "const": "expires_at",
+        "type": "string"
       }
     },
     "securitySchemes": {
@@ -75242,6 +75452,242 @@
         "summary": "Get egress IP addresses",
         "tags": [
           "Network"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/operation_grants": {
+      "get": {
+        "operationId": "list-operation-grants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationGrantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Operation Grants",
+        "tags": [
+          "Operation Grants"
+        ]
+      },
+      "post": {
+        "operationId": "create-operation-grant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOperationGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationGrantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Operation Grant",
+        "tags": [
+          "Operation Grants"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/operation_grants/{grant_id}": {
+      "delete": {
+        "operationId": "revoke-operation-grant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Operation Grant",
+        "tags": [
+          "Operation Grants"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/operation_grants/{grant_id}/invoke": {
+      "post": {
+        "operationId": "invoke-operation-grant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvokeOperationGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvokeOperationGrantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invoke Operation Grant",
+        "tags": [
+          "Operation Grants"
         ]
       }
     },

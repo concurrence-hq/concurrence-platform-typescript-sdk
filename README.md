@@ -561,6 +561,36 @@ await client.identityCredentials.update(credentialId, {
 })
 ```
 
+### Registered-operation machine access
+
+`client.operationGrants` approves, lists, invokes and revokes access to one
+registered Lakebase query or SQL function. An independently authenticated Admin
+or Owner approves a dedicated `client_credentials` credential with exactly
+`tools:execute` and no role. Each grant pins the workspace, credential, operation,
+action, definition and expiration. This requires the Platform operation-grants
+API release.
+
+Use the machine's current Identity access token when invoking its approved grant:
+
+```typescript
+const machine = new AmigoClient({ apiKey: accessToken, workspaceId })
+const result = await machine.operationGrants.invoke(grantId, {
+  input: { record_id: recordId, expected_revision: revision },
+})
+```
+
+The input must match that registered operation's parameter schema. Renew the
+machine token before expiration and construct the client with the renewed token;
+the SDK does not renew `apiKey` automatically. Keep client secrets on the server.
+Invocations never retry automatically, even when `withOptions()` requests retries:
+an error can follow a committed write, so reconcile the result before retrying.
+
+`listAutoPaging({ sort_by: ['-expires_at'] })` lists the latest expirations first,
+preserves that sort across opaque continuation tokens, and includes retained
+revoked approvals. The default is earliest expiration first. `revoke()` prevents future authorization without deleting
+history; an already-authorized call may finish. Changing an operation's definition
+requires a new approval and an updated grant ID in the consumer.
+
 ### Agents
 
 ```typescript
