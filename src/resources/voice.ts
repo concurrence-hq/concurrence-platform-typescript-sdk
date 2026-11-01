@@ -19,7 +19,7 @@ export type VoiceSettingsResponse = components['schemas']['VoiceSettingsResponse
 type ExhaustiveProviderList<Union extends string, Values extends readonly Union[]> =
   Exclude<Union, Values[number]> extends never ? Values : never
 
-// Voice MODEL FAMILIES: amigo = Amigo's own pipeline (the default), gpt_realtime = OpenAI's
+// Voice MODEL FAMILIES: amigo and cascade = Amigo's own pipeline (the default), gpt_realtime = OpenAI's
 // GPT-Realtime family (served by the raw-WebSocket bridge), eleven_realtime = ElevenLabs' Eleven
 // Realtime family (app voice sessions; a workspace in a regional deployment is refused). Families name models; runtimes are
 // platform-internal. The gpt_live family + the Atlas SDK runtime were retired in the 2026-07-19
@@ -27,6 +27,7 @@ type ExhaustiveProviderList<Union extends string, Values extends readonly Union[
 // and never appear here.
 const voiceSessionProviders = [
   'amigo',
+  'cascade',
   'gpt_realtime',
   'eleven_realtime',
 ] as const satisfies readonly VoiceSessionProvider[]

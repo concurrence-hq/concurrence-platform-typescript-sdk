@@ -11104,7 +11104,7 @@ export interface components {
              * Session Provider
              * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "cascade" | "gpt_realtime" | "eleven_realtime") | null;
             /** Source */
             source?: string | null;
             /**
@@ -21817,7 +21817,7 @@ export interface components {
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "cascade" | "gpt_realtime" | "eleven_realtime") | null;
             /** Source Call Sid */
             source_call_sid?: string | null;
             /** Source Conversation Id */
@@ -23027,7 +23027,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "cascade" | "gpt_realtime" | "eleven_realtime") | null;
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
             /** Tts Config */
@@ -23098,7 +23098,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "cascade" | "gpt_realtime" | "eleven_realtime") | null;
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
             /** Tts Config */
@@ -30231,7 +30231,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "cascade" | "gpt_realtime" | "eleven_realtime") | null;
             /**
              * Similarity Boost
              * @default 0

@@ -8027,6 +8027,7 @@
               {
                 "enum": [
                   "amigo",
+                  "cascade",
                   "gpt_realtime",
                   "eleven_realtime"
                 ],
@@ -32869,6 +32870,7 @@
               {
                 "enum": [
                   "amigo",
+                  "cascade",
                   "gpt_realtime",
                   "eleven_realtime"
                 ],
@@ -35536,6 +35538,7 @@
               {
                 "enum": [
                   "amigo",
+                  "cascade",
                   "gpt_realtime",
                   "eleven_realtime"
                 ],
@@ -35842,6 +35845,7 @@
               {
                 "enum": [
                   "amigo",
+                  "cascade",
                   "gpt_realtime",
                   "eleven_realtime"
                 ],
@@ -52154,6 +52158,7 @@
               {
                 "enum": [
                   "amigo",
+                  "cascade",
                   "gpt_realtime",
                   "eleven_realtime"
                 ],
