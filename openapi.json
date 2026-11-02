@@ -1857,6 +1857,11 @@
             ],
             "title": "Name"
           },
+          "non_production": {
+            "description": "True for a test key: what it creates is stored with source `test` and kept out of production analytics.",
+            "title": "Non Production",
+            "type": "boolean"
+          },
           "permissions": {
             "items": {
               "type": "string"
@@ -1888,6 +1893,7 @@
           "name",
           "role",
           "permissions",
+          "non_production",
           "expires_at",
           "last_used_at",
           "created_at",
@@ -2420,6 +2426,30 @@
         "title": "AuthInfoResponse",
         "type": "object"
       },
+      "Availability": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AvailabilityReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "available",
+          "reason"
+        ],
+        "title": "Availability",
+        "type": "object"
+      },
       "AvailabilityDate": {
         "properties": {
           "date": {
@@ -2440,6 +2470,24 @@
           "date"
         ],
         "title": "AvailabilityDate",
+        "type": "object"
+      },
+      "AvailabilityReason": {
+        "properties": {
+          "code": {
+            "maxLength": 128,
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/DescriptionString"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "AvailabilityReason",
         "type": "object"
       },
       "AvailabilityResponse": {
@@ -2790,7 +2838,7 @@
               }
             ],
             "default": null,
-            "description": "The choice's confidence. Null where the route reports none, as in AU and CA.",
+            "description": "The choice's confidence. Null where the decision got no usable answer.",
             "title": "Confidence"
           },
           "context_graph_version": {
@@ -3205,6 +3253,63 @@
           "value"
         ],
         "title": "BooleanMetricValueResponse",
+        "type": "object"
+      },
+      "BoundFamily": {
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dynamic_behaviors_configured": {
+            "title": "Dynamic Behaviors Configured",
+            "type": "boolean"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "amigo",
+                  "gpt_realtime",
+                  "eleven_realtime",
+                  "gpt_live"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "source": {
+            "enum": [
+              "service",
+              "agent",
+              "engine_default",
+              "agent_missing"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "version_set": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          }
+        },
+        "required": [
+          "version_set",
+          "family",
+          "source",
+          "capabilities",
+          "dynamic_behaviors_configured"
+        ],
+        "title": "BoundFamily",
         "type": "object"
       },
       "BrandingConfig": {
@@ -3749,6 +3854,7 @@
               {
                 "enum": [
                   "completed",
+                  "silence_hangup",
                   "abandoned",
                   "escalated",
                   "transferred",
@@ -4141,6 +4247,7 @@
           "completion_reason": {
             "enum": [
               "completed",
+              "silence_hangup",
               "abandoned",
               "escalated",
               "transferred",
@@ -4460,6 +4567,7 @@
               {
                 "enum": [
                   "completed",
+                  "silence_hangup",
                   "abandoned",
                   "escalated",
                   "transferred",
@@ -5171,6 +5279,7 @@
               {
                 "enum": [
                   "completed",
+                  "silence_hangup",
                   "abandoned",
                   "escalated",
                   "transferred",
@@ -7183,6 +7292,137 @@
         "title": "Constraint",
         "type": "object"
       },
+      "ContactLine": {
+        "additionalProperties": false,
+        "description": "A service's declared contact line.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available_24h": {
+            "title": "Available 24H",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "crisis",
+              "domestic_violence",
+              "child_abuse",
+              "poison_help",
+              "clinical_24h",
+              "front_desk"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "may_read_aloud": {
+            "title": "May Read Aloud",
+            "type": "boolean"
+          },
+          "number": {
+            "maxLength": 16,
+            "minLength": 2,
+            "title": "Number",
+            "type": "string"
+          },
+          "spoken_name": {
+            "$ref": "#/components/schemas/NameString",
+            "maxLength": 80
+          },
+          "spoken_name_es": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "number",
+          "spoken_name",
+          "available_24h",
+          "may_read_aloud"
+        ],
+        "title": "ContactLine",
+        "type": "object"
+      },
+      "ContactLineInput": {
+        "additionalProperties": false,
+        "description": "Save-time number policy; persisted declarations remain readable after policy changes.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available_24h": {
+            "title": "Available 24H",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "crisis",
+              "domestic_violence",
+              "child_abuse",
+              "poison_help",
+              "clinical_24h",
+              "front_desk"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "may_read_aloud": {
+            "title": "May Read Aloud",
+            "type": "boolean"
+          },
+          "number": {
+            "$ref": "#/components/schemas/DialE164"
+          },
+          "spoken_name": {
+            "$ref": "#/components/schemas/NameString",
+            "maxLength": 80
+          },
+          "spoken_name_es": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "number",
+          "spoken_name",
+          "available_24h",
+          "may_read_aloud"
+        ],
+        "title": "ContactLineInput",
+        "type": "object"
+      },
       "ContentPartPayload": {
         "description": "HTTP/WebSocket shape for a modality-neutral conversation content part.",
         "properties": {
@@ -7710,6 +7950,7 @@
             "description": "Canonical completion reason of the session that ended the conversation.",
             "enum": [
               "completed",
+              "silence_hangup",
               "abandoned",
               "escalated",
               "transferred",
@@ -8028,7 +8269,8 @@
                 "enum": [
                   "amigo",
                   "gpt_realtime",
-                  "eleven_realtime"
+                  "eleven_realtime",
+                  "gpt_live"
                 ],
                 "type": "string"
               },
@@ -8048,6 +8290,7 @@
                 "type": "null"
               }
             ],
+            "description": "What started the conversation. A text conversation reads ``test`` when a test key or the ``test`` marker started it, ``playground`` when the developer console Playground did, and null otherwise. A call reads the source its call intelligence recorded (``real``, ``simulation`` or ``playground``), and null when it recorded none, as a test call does.",
             "title": "Source"
           },
           "status": {
@@ -9600,6 +9843,12 @@
               }
             ]
           },
+          "non_production": {
+            "default": false,
+            "description": "Create a test key. Conversations, sessions and outbound calls made with it are stored with source `test`: analytics, production evaluations and billing leave them out, and their tools run in simulation mode, returning a dry-run result instead of reaching an integration. The setting is made here and never changes; rotating the key keeps it. Requires `Workspace.update` (admin or owner).",
+            "title": "Non Production",
+            "type": "boolean"
+          },
           "permissions": {
             "description": "Permission names. Max 128 entries; each entry up to 128 chars.",
             "items": {
@@ -9670,6 +9919,11 @@
             ],
             "title": "Name"
           },
+          "non_production": {
+            "description": "True for a test key: what it creates is stored with source `test`.",
+            "title": "Non Production",
+            "type": "boolean"
+          },
           "permissions": {
             "items": {
               "type": "string"
@@ -9688,6 +9942,7 @@
           "name",
           "role",
           "permissions",
+          "non_production",
           "expires_at",
           "created_by_entity_id",
           "created_by_credential_id"
@@ -9872,14 +10127,17 @@
           "source": {
             "anyOf": [
               {
-                "const": "playground",
+                "enum": [
+                  "playground",
+                  "test"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Set to ``playground`` when the developer console Playground starts the conversation. A Playground session writes only to conversations a Playground session or test credential started, never a real one. Web only (422 on another channel); an external user gets 403.",
+            "description": "Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``, and every turn on it runs as a test turn, as for a conversation started with a test key. It stays out of analytics, production evaluations and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.",
             "title": "Source"
           },
           "use_case_id": {
@@ -10691,7 +10949,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -10717,10 +10975,29 @@
             "title": "Channel Type",
             "type": "string"
           },
+          "contact_lines": {
+            "description": "Declared direct contact lines. Public emergency and N11 short codes are refused.",
+            "items": {
+              "$ref": "#/components/schemas/ContactLineInput"
+            },
+            "maxItems": 50,
+            "title": "Contact Lines",
+            "type": "array"
+          },
           "context_graph_id": {
             "format": "uuid",
             "title": "Context Graph Id",
             "type": "string"
+          },
+          "crisis_call_911_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrisisCall911Reply"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "demo_mode": {
             "default": false,
@@ -10768,6 +11045,17 @@
           },
           "name": {
             "$ref": "#/components/schemas/NameString"
+          },
+          "output_checks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceOutputChecksRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs\n`Service.update`."
           },
           "platform_caller_verification": {
             "default": true,
@@ -11657,6 +11945,28 @@
           "name"
         ],
         "title": "CreateWorkspaceRequest",
+        "type": "object"
+      },
+      "CrisisCall911Reply": {
+        "additionalProperties": false,
+        "description": "Per-service wording added when a caller already in crisis asks for emergency dispatch.",
+        "properties": {
+          "en": {
+            "$ref": "#/components/schemas/DescriptionString",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "es": {
+            "$ref": "#/components/schemas/DescriptionString",
+            "maxLength": 1000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "en",
+          "es"
+        ],
+        "title": "CrisisCall911Reply",
         "type": "object"
       },
       "CustomTokenExchangeAuthDict": {
@@ -13014,10 +13324,7 @@
         "type": "object"
       },
       "DeciderKind": {
-        "enum": [
-          "decisions",
-          "regional"
-        ],
+        "const": "decisions",
         "type": "string"
       },
       "DecisionFactor": {
@@ -13531,6 +13838,48 @@
         "maxLength": 16,
         "minLength": 2,
         "type": "string"
+      },
+      "Dialability": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadinessLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UseCaseDialability"
+              },
+              {
+                "const": "use_case_missing",
+                "type": "string"
+              }
+            ],
+            "title": "Reason"
+          },
+          "will_dial": {
+            "description": "Passes the use case's current dial gate when this line is selected.",
+            "title": "Will Dial",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "channel",
+          "will_dial",
+          "reason"
+        ],
+        "title": "Dialability",
+        "type": "object"
       },
       "DirectionCalls": {
         "description": "One direction's calls in ``by_direction``.",
@@ -19073,6 +19422,103 @@
         ],
         "type": "string"
       },
+      "Family": {
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/Availability"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/SessionCapabilities"
+          },
+          "config_key": {
+            "anyOf": [
+              {
+                "enum": [
+                  "realtime",
+                  "eleven_realtime",
+                  "gpt_live"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Key"
+          },
+          "id": {
+            "enum": [
+              "amigo",
+              "gpt_realtime",
+              "eleven_realtime",
+              "gpt_live"
+            ],
+            "title": "Id",
+            "type": "string"
+          },
+          "legacy_keys": {
+            "items": {
+              "const": "realtime_voice",
+              "type": "string"
+            },
+            "title": "Legacy Keys",
+            "type": "array"
+          },
+          "models": {
+            "items": {
+              "maxLength": 256,
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "name": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "propertyNames": {
+                  "maxLength": 256
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DescriptionString"
+          },
+          "voices": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Voices"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "availability",
+          "capabilities",
+          "config_key",
+          "legacy_keys",
+          "models",
+          "voices",
+          "options"
+        ],
+        "title": "Family",
+        "type": "object"
+      },
       "FhirAppointmentListResponse": {
         "properties": {
           "appointments": {
@@ -22187,6 +22633,61 @@
         "title": "GetSimulationBenchmarkResultsRequest",
         "type": "object"
       },
+      "GptLiveSessionConfig": {
+        "additionalProperties": false,
+        "description": "Live startup settings. Language comes from the agent's instructions, not a protocol field.",
+        "properties": {
+          "model": {
+            "default": "gpt-live-1",
+            "enum": [
+              "gpt-live-1",
+              "gpt-live-1.1-leopard-2-alpha"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "voice": {
+            "default": "marin",
+            "enum": [
+              "alloy",
+              "ash",
+              "ballad",
+              "beacon",
+              "bossa",
+              "brise",
+              "cedar",
+              "cinder",
+              "coral",
+              "delta",
+              "echo",
+              "flitz",
+              "gleam",
+              "harema",
+              "juni",
+              "marin",
+              "meridian",
+              "nira",
+              "noeul",
+              "nuri",
+              "quartz",
+              "ripple",
+              "sage",
+              "shida",
+              "shimmer",
+              "sillage",
+              "stone",
+              "tempo",
+              "verse",
+              "vesper",
+              "willow"
+            ],
+            "title": "Voice",
+            "type": "string"
+          }
+        },
+        "title": "GptLiveSessionConfig",
+        "type": "object"
+      },
       "GraphQLSuccess": {
         "description": "The request is a GraphQL mutation, and every mutation payload holds something other than null\npast its user errors. Top-level ``errors`` in an answer with no ``data`` are a request that never\nran. Beside ``data`` they're read by their ``path``: one at the mutation's own field, with that\nfield null, is its resolver refusing, and one below it came after the write, so a payload that\nstill holds its result wrote. A request that never ran, or a resolver that refused, is a write\nthat didn't happen. Any other answer with errors leaves the outcome unknown, such as a payload\nGraphQL nulled on the way up, or an error with no path beside ``data``. So does a null ``data`` in\na document of more than one mutation: they run in order, and the null hides what the ones before\nthe failing one did.",
         "properties": {
@@ -24069,6 +24570,49 @@
         "title": "LatencySummary",
         "type": "object"
       },
+      "Launch": {
+        "properties": {
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "human_line_configured": {
+            "description": "A fallback_to or static forward_to is configured for the safe exit; pickup is not verified.",
+            "title": "Human Line Configured",
+            "type": "boolean"
+          },
+          "medical_emergency_ending": {
+            "enum": [
+              "stay_on_line",
+              "end_after_script"
+            ],
+            "title": "Medical Emergency Ending",
+            "type": "string"
+          },
+          "output_check_modes": {
+            "$ref": "#/components/schemas/OutputCheckModes"
+          },
+          "test_callers_registered": {
+            "title": "Test Callers Registered",
+            "type": "boolean"
+          },
+          "verification_callers_registered": {
+            "description": "Every configured verification caller is a registered test caller; false when none are configured.",
+            "title": "Verification Callers Registered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "demo_mode",
+          "medical_emergency_ending",
+          "output_check_modes",
+          "test_callers_registered",
+          "verification_callers_registered",
+          "human_line_configured"
+        ],
+        "title": "Launch",
+        "type": "object"
+      },
       "LeaveCallRequest": {
         "description": "Request to remove operator from an active call.",
         "properties": {
@@ -24114,6 +24658,40 @@
         },
         "title": "Limits",
         "type": "object"
+      },
+      "Line": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LineKind"
+          },
+          "label": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          },
+          "use_cases": {
+            "items": {
+              "$ref": "#/components/schemas/Dialability"
+            },
+            "title": "Use Cases",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "use_cases"
+        ],
+        "title": "Line",
+        "type": "object"
+      },
+      "LineKind": {
+        "enum": [
+          "forward_to",
+          "approved_destination",
+          "fallback_to",
+          "after_hours_destination",
+          "test_destination"
+        ],
+        "type": "string"
       },
       "ListSimulationSuiteRunSummariesResponse": {
         "properties": {
@@ -27702,6 +28280,31 @@
         "title": "OutboundSummary",
         "type": "object"
       },
+      "OutputCheckModes": {
+        "description": "Mode values follow the library's read model as it adds supported modes.",
+        "properties": {
+          "diagnosis": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          },
+          "dosing_or_med_change": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          },
+          "health_information": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          },
+          "phi_unverified": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          }
+        },
+        "required": [
+          "dosing_or_med_change",
+          "diagnosis",
+          "health_information",
+          "phi_unverified"
+        ],
+        "title": "OutputCheckModes",
+        "type": "object"
+      },
       "OutreachRule": {
         "description": "A single outreach rule — defines WHEN, WHAT, and HOW to reach a patient.",
         "properties": {
@@ -29489,6 +30092,22 @@
         "title": "PermissionEntry",
         "type": "object"
       },
+      "PhiUnverifiedCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "off",
+            "enum": [
+              "cut",
+              "off"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "PhiUnverifiedCheck",
+        "type": "object"
+      },
       "PhoneE164": {
         "maxLength": 16,
         "minLength": 2,
@@ -29815,6 +30434,39 @@
           "duration_seconds"
         ],
         "title": "PlaybackTimeline",
+        "type": "object"
+      },
+      "Policies": {
+        "properties": {
+          "authored_corrections": {
+            "title": "Authored Corrections",
+            "type": "boolean"
+          },
+          "forward_call_configured": {
+            "title": "Forward Call Configured",
+            "type": "boolean"
+          },
+          "hours_configured": {
+            "title": "Hours Configured",
+            "type": "boolean"
+          },
+          "verification_callers_configured": {
+            "title": "Verification Callers Configured",
+            "type": "boolean"
+          },
+          "warm_transfer": {
+            "title": "Warm Transfer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "forward_call_configured",
+          "warm_transfer",
+          "hours_configured",
+          "verification_callers_configured",
+          "authored_corrections"
+        ],
+        "title": "Policies",
         "type": "object"
       },
       "PreloadSpec": {
@@ -30505,6 +31157,17 @@
             ],
             "title": "Llm Response"
           },
+          "prompt_renderer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Renderer"
+          },
           "prompt_type": {
             "anyOf": [
               {
@@ -30515,6 +31178,17 @@
               }
             ],
             "title": "Prompt Type"
+          },
+          "rendered_prompt_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendered Prompt Hash"
           },
           "service_id": {
             "anyOf": [
@@ -30707,6 +31381,210 @@
           "has_more"
         ],
         "title": "PromptLogListResponse",
+        "type": "object"
+      },
+      "PromptPreviewContext-Input": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DescriptionString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "crisis_resource": {
+            "$ref": "#/components/schemas/DescriptionString"
+          },
+          "has_tools": {
+            "title": "Has Tools",
+            "type": "boolean"
+          },
+          "has_write_tools": {
+            "title": "Has Write Tools",
+            "type": "boolean"
+          },
+          "language": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "message_tool": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state_name": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Tool"
+                },
+                "maxItems": 100,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "transfer_offered": {
+            "title": "Transfer Offered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "language",
+          "crisis_resource",
+          "has_tools",
+          "has_write_tools",
+          "transfer_offered"
+        ],
+        "title": "PromptPreviewContext",
+        "type": "object"
+      },
+      "PromptPreviewContext-Output": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DescriptionString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "crisis_resource": {
+            "$ref": "#/components/schemas/DescriptionString"
+          },
+          "has_tools": {
+            "title": "Has Tools",
+            "type": "boolean"
+          },
+          "has_write_tools": {
+            "title": "Has Write Tools",
+            "type": "boolean"
+          },
+          "language": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "message_tool": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state_name": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Tool"
+                },
+                "maxItems": 100,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "transfer_offered": {
+            "title": "Transfer Offered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "language",
+          "crisis_resource",
+          "has_tools",
+          "has_write_tools",
+          "transfer_offered"
+        ],
+        "title": "PromptPreviewContext",
+        "type": "object"
+      },
+      "PromptPreviewResponse": {
+        "properties": {
+          "agent_version": {
+            "title": "Agent Version",
+            "type": "integer"
+          },
+          "context": {
+            "$ref": "#/components/schemas/PromptPreviewContext-Output"
+          },
+          "context_graph_version": {
+            "title": "Context Graph Version",
+            "type": "integer"
+          },
+          "family": {
+            "enum": [
+              "cascade",
+              "gpt_realtime",
+              "eleven_realtime",
+              "gpt_live"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "instructions": {
+            "title": "Instructions",
+            "type": "string"
+          },
+          "renderer": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "state_name": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "version_set": {
+            "$ref": "#/components/schemas/NameString"
+          }
+        },
+        "required": [
+          "family",
+          "version_set",
+          "agent_version",
+          "context_graph_version",
+          "state_name",
+          "instructions",
+          "renderer",
+          "context"
+        ],
+        "title": "PromptPreviewResponse",
         "type": "object"
       },
       "ProviderFamily": {
@@ -31026,6 +31904,9 @@
         "title": "RankedAnomalyRow",
         "type": "object"
       },
+      "ReadinessLabel": {
+        "type": "string"
+      },
       "RealtimeCustomVoice": {
         "additionalProperties": false,
         "description": "Approved OpenAI custom voice reference.",
@@ -31073,19 +31954,6 @@
         "additionalProperties": false,
         "description": "Volume-based turn detection controls.",
         "properties": {
-          "idle_timeout_ms": {
-            "anyOf": [
-              {
-                "maximum": 30000,
-                "minimum": 5000,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Idle Timeout Ms"
-          },
           "prefix_padding_ms": {
             "anyOf": [
               {
@@ -31188,13 +32056,30 @@
             "description": "Input noise reduction. Omit or set null to use the Platform default; set 'off' to disable it.",
             "title": "Noise Reduction"
           },
+          "noise_reduction_strength": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "OpenAI audio.input.noise_reduction.strength. Higher values suppress more noise.",
+            "docs_url": "https://developers.openai.com/api/reference/resources/realtime/client-events",
+            "title": "Noise Reduction Strength"
+          },
           "reasoning_effort": {
             "anyOf": [
               {
                 "enum": [
+                  "minimal",
                   "low",
                   "medium",
-                  "high"
+                  "high",
+                  "xhigh"
                 ],
                 "type": "string"
               },
@@ -31311,6 +32196,25 @@
         "additionalProperties": false,
         "description": "Asynchronous caller-audio transcription used for transcripts and observability.",
         "properties": {
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Literal transcription hints. Unset, use the service keyterms.",
+            "docs_url": "https://developers.openai.com/api/docs/guides/transcription",
+            "title": "Keywords"
+          },
           "language": {
             "anyOf": [
               {
@@ -31514,6 +32418,8 @@
           },
           "type": {
             "default": "auto",
+            "description": "Use auto or retention_ratio. Legacy disabled values are readable but refused by voice sessions.",
+            "docs_url": "https://developers.openai.com/api/docs/guides/voice-latency-cost?api=realtime#truncation",
             "enum": [
               "auto",
               "disabled",
@@ -33076,7 +33982,8 @@
                 "enum": [
                   "amigo",
                   "gpt_realtime",
-                  "eleven_realtime"
+                  "eleven_realtime",
+                  "gpt_live"
                 ],
                 "type": "string"
               },
@@ -33086,6 +33993,18 @@
             ],
             "description": "The voice runtime that handled the run, as its session recorded it at start: ``amigo``\n(also every text run) or ``gpt_realtime``. Null on a run recorded before the platform kept\nit, on a text conversation before its first session starts, and on a framework run. A live\nin-house call reports it before its row exists.",
             "title": "Session Provider"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What started the run's conversation: ``test`` when a test key or the ``test`` marker did, ``playground``\nwhen the developer console Playground did. Null on an ordinary conversation, on a call (its row carries no\nsource), and on a framework run.",
+            "title": "Source"
           },
           "source_call_sid": {
             "anyOf": [
@@ -33503,7 +34422,7 @@
                 "type": "null"
               }
             ],
-            "description": "How the session's region decides: ``decisions``, OpenAI Decisions through the gateway, or\n``regional``, a constrained choice on the region's own gateway. Navigation and the reply\nchecks both decide through it."
+            "description": "How the session's region decides: ``decisions``, OpenAI Decisions through the region's gateway.\nNavigation and the reply checks both decide through it."
           },
           "dynamic_behavior_prompt_template_hash": {
             "anyOf": [
@@ -33605,6 +34524,39 @@
               }
             ],
             "description": "``sha256:`` over the agent and graph version ids, the LLM model and, when the service pins dynamic\nbehaviors, each pinned set's id and version: one value per config generation."
+          },
+          "prompt_model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model identifier submitted with these instructions; aliases are not resolved snapshots."
+          },
+          "prompt_renderer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Renderer that produced the recorded instructions."
+          },
+          "rendered_prompt_hash": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA256 of the opening rendered instructions, without normalization."
           },
           "runtime_release_id": {
             "anyOf": [
@@ -33766,6 +34718,29 @@
             "title": "Concurrency",
             "type": "integer"
           },
+          "context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 8192,
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Optional start context for every selected saved-case run, added to each case's `grounding.context` and winning where both name a key. A case whose service refuses the result (a missing required key, an unknown key or a value of the wrong type) is skipped, with the keys at fault in its reason.",
+            "maxProperties": 50,
+            "propertyNames": {
+              "$ref": "#/components/schemas/SlugString"
+            },
+            "title": "Context",
+            "type": "object"
+          },
           "entity_id": {
             "anyOf": [
               {
@@ -33873,6 +34848,29 @@
             "minimum": 1,
             "title": "Concurrency",
             "type": "integer"
+          },
+          "context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 8192,
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Optional start context for this saved-case run, added to the case's `grounding.context` (the key-value pairs a conversation is created with) and winning where both name a key. The result is checked against the service's `accepted_context` before the run starts: a missing required key, an unknown key or a value of the wrong type is a 422.",
+            "maxProperties": 50,
+            "propertyNames": {
+              "$ref": "#/components/schemas/SlugString"
+            },
+            "title": "Context",
+            "type": "object"
           },
           "entity_id": {
             "anyOf": [
@@ -34713,6 +35711,14 @@
             "title": "Channel Type",
             "type": "string"
           },
+          "contact_lines": {
+            "items": {
+              "$ref": "#/components/schemas/ContactLine"
+            },
+            "maxItems": 50,
+            "title": "Contact Lines",
+            "type": "array"
+          },
           "context_graph_id": {
             "format": "uuid",
             "title": "Context Graph Id",
@@ -34729,6 +35735,16 @@
               }
             ],
             "title": "Created At"
+          },
+          "crisis_call_911_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrisisCall911Reply"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "demo_mode": {
             "default": false,
@@ -35144,15 +36160,110 @@
             "type": "object"
           },
           "warm_transfer": {
+            "default": false,
+            "title": "Warm Transfer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "forward_to"
+        ],
+        "title": "ServiceForwardingConfig",
+        "type": "object"
+      },
+      "ServiceForwardingResponse": {
+        "description": "Forwarding responses always include defaults; the input keeps its existing schema name.",
+        "properties": {
+          "after_hours_destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approved_destinations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 50,
+            "propertyNames": {
+              "$ref": "#/components/schemas/DialE164"
+            },
+            "title": "Approved Destinations",
+            "type": "object"
+          },
+          "fallback_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forward_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffedHours"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test_destinations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 20,
+            "propertyNames": {
+              "$ref": "#/components/schemas/DialE164"
+            },
+            "title": "Test Destinations",
+            "type": "object"
+          },
+          "verification_callers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 10,
+            "propertyNames": {
+              "$ref": "#/components/schemas/PhoneE164"
+            },
+            "title": "Verification Callers",
+            "type": "object"
+          },
+          "warm_transfer": {
+            "default": false,
             "title": "Warm Transfer",
             "type": "boolean"
           }
         },
         "required": [
           "forward_to",
-          "warm_transfer"
+          "warm_transfer",
+          "approved_destinations",
+          "fallback_to",
+          "test_destinations",
+          "verification_callers",
+          "hours",
+          "after_hours_destination"
         ],
-        "title": "ServiceForwardingConfig",
+        "title": "ServiceForwardingResponse",
         "type": "object"
       },
       "ServiceListResponse": {
@@ -35190,9 +36301,64 @@
           },
           "health_information": {
             "$ref": "#/components/schemas/HealthInformationCheck"
+          },
+          "phi_unverified": {
+            "$ref": "#/components/schemas/PhiUnverifiedCheck"
           }
         },
         "title": "ServiceOutputChecks",
+        "type": "object"
+      },
+      "ServiceOutputChecksRequest": {
+        "additionalProperties": false,
+        "description": "The reply checks a service sets. Only `phi_unverified` can be set.",
+        "properties": {
+          "phi_unverified": {
+            "$ref": "#/components/schemas/PhiUnverifiedCheck",
+            "description": "On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not\nverified, and the caller hears a correction in its place. `off`, the default, does not run the check."
+          }
+        },
+        "title": "ServiceOutputChecksRequest",
+        "type": "object"
+      },
+      "ServiceReadinessResponse": {
+        "properties": {
+          "families": {
+            "items": {
+              "$ref": "#/components/schemas/BoundFamily"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "launch": {
+            "$ref": "#/components/schemas/Launch"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "policies": {
+            "$ref": "#/components/schemas/Policies"
+          },
+          "voice_use_cases": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceUseCase"
+            },
+            "title": "Voice Use Cases",
+            "type": "array"
+          }
+        },
+        "required": [
+          "voice_use_cases",
+          "lines",
+          "families",
+          "policies",
+          "launch"
+        ],
+        "title": "ServiceReadinessResponse",
         "type": "object"
       },
       "ServiceResponse": {
@@ -35222,7 +36388,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -35248,6 +36414,15 @@
             "title": "Channel Type",
             "type": "string"
           },
+          "contact_lines": {
+            "description": "Declared direct contact lines. Public emergency and N11 short codes are refused.",
+            "items": {
+              "$ref": "#/components/schemas/ContactLine"
+            },
+            "maxItems": 50,
+            "title": "Contact Lines",
+            "type": "array"
+          },
           "context_graph_id": {
             "format": "uuid",
             "title": "Context Graph Id",
@@ -35268,6 +36443,16 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "crisis_call_911_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrisisCall911Reply"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "demo_mode": {
             "default": false,
@@ -35322,6 +36507,10 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "output_checks": {
+            "$ref": "#/components/schemas/ServiceOutputChecks",
+            "description": "The block with its defaults filled in. `phi_unverified` is the only key a service can set and the only one a\ncall reads, and it is `off` unless the service sets it to `cut`."
           },
           "platform_caller_verification": {
             "default": true,
@@ -35607,6 +36796,27 @@
               }
             ]
           },
+          "gpt_live": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GptLiveSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "held_turn_policy": {
+            "default": "always",
+            "description": "What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.",
+            "enum": [
+              "always",
+              "judged",
+              "never"
+            ],
+            "title": "Held Turn Policy",
+            "type": "string"
+          },
           "language_providers": {
             "anyOf": [
               {
@@ -35743,7 +36953,8 @@
                 "enum": [
                   "amigo",
                   "gpt_realtime",
-                  "eleven_realtime"
+                  "eleven_realtime",
+                  "gpt_live"
                 ],
                 "type": "string"
               },
@@ -35752,6 +36963,9 @@
               }
             ],
             "title": "Session Provider"
+          },
+          "silence_policy": {
+            "$ref": "#/components/schemas/SilencePolicy"
           },
           "transition_deadline_ms": {
             "anyOf": [
@@ -35906,12 +37120,33 @@
           "forwarding": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ServiceForwardingConfig"
+                "$ref": "#/components/schemas/ServiceForwardingResponse"
               },
               {
                 "type": "null"
               }
             ]
+          },
+          "gpt_live": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GptLiveSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "held_turn_policy": {
+            "default": "always",
+            "description": "What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.",
+            "enum": [
+              "always",
+              "judged",
+              "never"
+            ],
+            "title": "Held Turn Policy",
+            "type": "string"
           },
           "language_providers": {
             "anyOf": [
@@ -36049,7 +37284,8 @@
                 "enum": [
                   "amigo",
                   "gpt_realtime",
-                  "eleven_realtime"
+                  "eleven_realtime",
+                  "gpt_live"
                 ],
                 "type": "string"
               },
@@ -36058,6 +37294,9 @@
               }
             ],
             "title": "Session Provider"
+          },
+          "silence_policy": {
+            "$ref": "#/components/schemas/SilencePolicy"
           },
           "transition_deadline_ms": {
             "anyOf": [
@@ -36099,6 +37338,97 @@
           }
         },
         "title": "ServiceVoiceConfig",
+        "type": "object"
+      },
+      "SessionCapabilities": {
+        "properties": {
+          "authored_lines": {
+            "default": "clips",
+            "enum": [
+              "tts",
+              "model_checked",
+              "clips"
+            ],
+            "title": "Authored Lines",
+            "type": "string"
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "app",
+                "phone",
+                "playground",
+                "test_call"
+              ],
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "completion_navigation": {
+            "title": "Completion Navigation",
+            "type": "boolean"
+          },
+          "dynamic_behaviors": {
+            "title": "Dynamic Behaviors",
+            "type": "boolean"
+          },
+          "end_call": {
+            "title": "End Call",
+            "type": "boolean"
+          },
+          "floor_enforced": {
+            "default": false,
+            "title": "Floor Enforced",
+            "type": "boolean"
+          },
+          "multi_state": {
+            "title": "Multi State",
+            "type": "boolean"
+          },
+          "operator_takeover": {
+            "title": "Operator Takeover",
+            "type": "boolean"
+          },
+          "outbound_calls": {
+            "title": "Outbound Calls",
+            "type": "boolean"
+          },
+          "state_carrier": {
+            "anyOf": [
+              {
+                "enum": [
+                  "session_update_and_note",
+                  "note_only"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Carrier"
+          },
+          "warm_transfer": {
+            "default": false,
+            "title": "Warm Transfer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "multi_state",
+          "dynamic_behaviors",
+          "completion_navigation",
+          "channels",
+          "outbound_calls",
+          "operator_takeover",
+          "end_call",
+          "warm_transfer",
+          "authored_lines",
+          "floor_enforced",
+          "state_carrier"
+        ],
+        "title": "SessionCapabilities",
         "type": "object"
       },
       "SessionEndEvent": {
@@ -36471,6 +37801,35 @@
           "alignment"
         ],
         "title": "SignalResponseAlignment",
+        "type": "object"
+      },
+      "SilencePolicy": {
+        "additionalProperties": false,
+        "description": "Per-service delivery retries around the signed silence cadence.",
+        "properties": {
+          "cap_warning_retry_seconds": {
+            "default": 10,
+            "maximum": 60,
+            "minimum": 1,
+            "title": "Cap Warning Retry Seconds",
+            "type": "number"
+          },
+          "max_cap_warning_attempts": {
+            "default": 2,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Max Cap Warning Attempts",
+            "type": "integer"
+          },
+          "max_closing_attempts": {
+            "default": 2,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Max Closing Attempts",
+            "type": "integer"
+          }
+        },
+        "title": "SilencePolicy",
         "type": "object"
       },
       "SimCaseAssertionResponse": {
@@ -37609,6 +38968,29 @@
       "SimulationCaseGrounding": {
         "description": "Optional bindings that start the sim from existing workspace data.",
         "properties": {
+          "context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 8192,
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Start context a run of this case begins with: key-value pairs, each key one the service accepts (`accepted_context`) and each value a string or a number. A tool parameter the service's graph binds to a key is filled from it on every turn and branch. A run is refused, and a suite skips the case, when a required key is missing, a key is not one the service accepts, or a value has the wrong type. A launch's own `context` is added to it and wins where both name a key.",
+            "maxProperties": 50,
+            "propertyNames": {
+              "$ref": "#/components/schemas/SlugString"
+            },
+            "title": "Context",
+            "type": "object"
+          },
           "patient_entity_id": {
             "anyOf": [
               {
@@ -41805,7 +43187,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -41831,10 +43213,29 @@
             "title": "Channel Type",
             "type": "string"
           },
+          "contact_lines": {
+            "description": "Declared direct contact lines. Public emergency and N11 short codes are refused.",
+            "items": {
+              "$ref": "#/components/schemas/ContactLineInput"
+            },
+            "maxItems": 50,
+            "title": "Contact Lines",
+            "type": "array"
+          },
           "context_graph_id": {
             "format": "uuid",
             "title": "Context Graph Id",
             "type": "string"
+          },
+          "crisis_call_911_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrisisCall911Reply"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "demo_mode": {
             "default": false,
@@ -43988,6 +45389,7 @@
           "submitted_at": {
             "anyOf": [
               {
+                "maxLength": 64,
                 "type": "string"
               },
               {
@@ -45431,6 +46833,22 @@
           }
         },
         "title": "TimelineTimebase",
+        "type": "object"
+      },
+      "Tool": {
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/DescriptionString"
+          },
+          "name": {
+            "$ref": "#/components/schemas/NameString"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "Tool",
         "type": "object"
       },
       "ToolCall": {
@@ -47096,6 +48514,7 @@
             "type": "string"
           },
           "status": {
+            "maxLength": 32,
             "title": "Status",
             "type": "string"
           },
@@ -47105,6 +48524,7 @@
             "type": "string"
           },
           "trigger_name": {
+            "maxLength": 256,
             "title": "Trigger Name",
             "type": "string"
           }
@@ -49644,7 +51064,7 @@
                 "type": "null"
               }
             ],
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check, so the agent may\nread them back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
             "title": "Allow Unverified Integration Results"
           },
           "caller_verification_endpoint_id": {
@@ -49675,6 +51095,22 @@
             ],
             "title": "Channel Type"
           },
+          "contact_lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ContactLineInput"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replace declared contact lines. Omit to keep them; an empty list clears them.",
+            "title": "Contact Lines"
+          },
           "context_graph_id": {
             "anyOf": [
               {
@@ -49686,6 +51122,17 @@
               }
             ],
             "title": "Context Graph Id"
+          },
+          "crisis_call_911_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrisisCall911Reply"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null restores the signed default."
           },
           "demo_mode": {
             "anyOf": [
@@ -49777,6 +51224,18 @@
                 "type": "null"
               }
             ]
+          },
+          "output_checks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceOutputChecksRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which reply checks run. The block replaces what is stored, and `null` or `{}` is the default block, where\n`phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the update.",
+            "title": "Output Checks"
           },
           "platform_caller_verification": {
             "anyOf": [
@@ -52005,6 +53464,14 @@
         "title": "UsageTotals",
         "type": "object"
       },
+      "UseCaseDialability": {
+        "enum": [
+          "own_number",
+          "listed",
+          "not_listed"
+        ],
+        "type": "string"
+      },
       "UserTranscriptEvent": {
         "properties": {
           "eot_confidence": {
@@ -52338,6 +53805,70 @@
         "title": "VersionSetBehaviorPin",
         "type": "object"
       },
+      "Voice": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DescriptionString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "maxLength": 256,
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "name": {
+            "$ref": "#/components/schemas/NameString"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Voice",
+        "type": "object"
+      },
       "VoiceConfig": {
         "properties": {
           "language_providers": {
@@ -52361,7 +53892,8 @@
                 "enum": [
                   "amigo",
                   "gpt_realtime",
-                  "eleven_realtime"
+                  "eleven_realtime",
+                  "gpt_live"
                 ],
                 "type": "string"
               },
@@ -52726,6 +54258,22 @@
         "title": "VoiceDetail",
         "type": "object"
       },
+      "VoiceFamilyListResponse": {
+        "properties": {
+          "families": {
+            "items": {
+              "$ref": "#/components/schemas/Family"
+            },
+            "title": "Families",
+            "type": "array"
+          }
+        },
+        "required": [
+          "families"
+        ],
+        "title": "VoiceFamilyListResponse",
+        "type": "object"
+      },
       "VoiceJudgeRecentResponse": {
         "properties": {
           "count": {
@@ -52973,6 +54521,35 @@
           "call_sid"
         ],
         "title": "VoiceJudgeResultRow",
+        "type": "object"
+      },
+      "VoiceListResponse": {
+        "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "voices": {
+            "items": {
+              "$ref": "#/components/schemas/Voice"
+            },
+            "maxItems": 100,
+            "title": "Voices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "voices"
+        ],
+        "title": "VoiceListResponse",
         "type": "object"
       },
       "VoiceMetrics": {
@@ -53381,6 +54958,57 @@
           "text_model"
         ],
         "title": "VoiceSettingsResponse",
+        "type": "object"
+      },
+      "VoiceUseCase": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadinessLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          }
+        },
+        "required": [
+          "label",
+          "channel",
+          "available"
+        ],
+        "title": "VoiceUseCase",
+        "type": "object"
+      },
+      "Voices": {
+        "properties": {
+          "listing": {
+            "enum": [
+              "static",
+              "vendor"
+            ],
+            "title": "Listing",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 512,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "listing",
+          "path"
+        ],
+        "title": "Voices",
         "type": "object"
       },
       "WorkspaceBenchmarks": {
@@ -55589,6 +57217,10 @@
         ],
         "type": "string"
       },
+      "src__routes__operation_grants___SortField": {
+        "const": "expires_at",
+        "type": "string"
+      },
       "src__routes__operators_models__AuditEventResponse": {
         "properties": {
           "created_at": {
@@ -56928,10 +58560,6 @@
         ],
         "title": "Item",
         "type": "object"
-      },
-      "src__routes__operation_grants___SortField": {
-        "const": "expires_at",
-        "type": "string"
       }
     },
     "securitySchemes": {
@@ -61464,7 +63092,7 @@
         ]
       },
       "post": {
-        "description": "Create a new API key for a workspace. The response includes the plaintext `api_key` — store it securely, it cannot be retrieved again.",
+        "description": "Create a new API key for a workspace. The response includes the plaintext `api_key`; store it securely, it cannot be retrieved again. Set `non_production` for a test harness's key: the conversations, sessions and outbound calls made with it are stored with source `test`. A test key is refused with a 422 on voice notes, text-message conversations and channel switches, app voice sessions, and outbound calls that name an outbound_task_entity_id, which cannot carry the test marker yet.",
         "operationId": "create-api-key",
         "parameters": [
           {
@@ -62764,7 +64392,10 @@
                 }
               }
             },
-            "description": "Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id"
+            "description": "Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id. A test key's call is also refused when it names an outbound_task_entity_id, because the task's outcome events can't carry the test marker yet"
+          },
+          "424": {
+            "description": "The call was placed, but not as the call asked for: a test key's call was taken by a voice agent that does not apply the test marker, so it runs as a production call. Do not retry. The call is placed; the error names its call_sid"
           },
           "429": {
             "description": "Rate limit exceeded"
@@ -74923,6 +76554,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "List latest metric values",
@@ -75185,6 +76826,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Get values for a specific metric",
@@ -75376,6 +77027,16 @@
           },
           "429": {
             "description": "Rate limited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Get time-series trend for a metric",
@@ -80355,7 +82016,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id` or to set `output_checks.phi_unverified` to `cut`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -80594,6 +82255,157 @@
           }
         },
         "summary": "Update a service",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/services/{service_id}/prompt-preview": {
+      "post": {
+        "description": "Return configuration-only instructions for explicit call context.\n\nThe request supplies tool and transfer availability, language and the crisis resource.\nIt does not include caller history or decide which dynamic behavior is in force.\nPOST carries render inputs only; it creates no run and changes no saved configuration.",
+        "operationId": "preview-service-prompt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "family",
+            "required": true,
+            "schema": {
+              "enum": [
+                "cascade",
+                "gpt_realtime",
+                "eleven_realtime",
+                "gpt_live"
+              ],
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version_set",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/NameString",
+              "default": "release"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptPreviewContext-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview rendered service instructions without starting a call",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/services/{service_id}/readiness": {
+      "get": {
+        "description": "Read current configuration and uncached dial eligibility using service read permission.\n\nLabels have all digits redacted. No phone numbers, identifiers, authored speech or model versions are returned.\nA listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call\npolicy still decide which line is selected. This read does not place a call or verify human pickup. An unbound\nservice has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.\nFamily capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's\namigo default. A missing agent version remains unavailable.",
+        "operationId": "get-service-readiness",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Service not found"
+          },
+          "409": {
+            "description": "Stored service configuration is incompatible"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Readiness source unavailable"
+          }
+        },
+        "summary": "Read service launch readiness",
         "tags": [
           "Services"
         ]
@@ -88775,6 +90587,168 @@
         "summary": "Bind a use case to a platform service",
         "tags": [
           "Use Cases"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/voice-families": {
+      "get": {
+        "description": "Discover every family, including unavailable ones. Any workspace role.\n\nTo switch families, set session_provider and clear every other family's config_key\nand legacy_keys. Options describe runnable settings; legacy stored values may\nremain readable outside discovery. GPT-Realtime supports one ActionState or 2-12 linked\nActionStates; Eleven Realtime supports one ActionState.",
+        "operationId": "list-voice-families",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceFamilyListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List voice families and customization options",
+        "tags": [
+          "Voice Families"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/voice-families/{family}/voices": {
+      "get": {
+        "description": "Page voices even when this workspace cannot use the family.\n\nReuse next_cursor with the same filters. Static voices have no language metadata,\nso a nonempty language filter matches none. Eleven filters and pages at the vendor.",
+        "operationId": "list-family-voices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family",
+            "required": true,
+            "schema": {
+              "enum": [
+                "amigo",
+                "gpt_realtime",
+                "eleven_realtime",
+                "gpt_live"
+              ],
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 4096,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "This family has no voice list"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "Voice vendor unavailable"
+          }
+        },
+        "summary": "List voices for a voice family",
+        "tags": [
+          "Voice Families"
         ]
       }
     },
