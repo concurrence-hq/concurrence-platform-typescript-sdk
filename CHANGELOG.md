@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.134.0] - 2026-11-02
+
+### Maintenance
+
+- sync API types from platform (fb642632) (#511)
+
 ## [0.133.0] - 2026-11-01
 
 ### Features
