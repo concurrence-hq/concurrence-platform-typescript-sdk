@@ -9392,7 +9392,7 @@ export interface components {
             /** Dynamic Behaviors Configured */
             dynamic_behaviors_configured: boolean;
             /** Family */
-            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             /**
              * Source
              * @enum {string}
@@ -11325,7 +11325,7 @@ export interface components {
              * Session Provider
              * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             /**
              * Source
              * @description What started the conversation. A text conversation reads ``test`` when a test key or the ``test`` marker started it, ``playground`` when the developer console Playground did, and null otherwise. A call reads the source its call intelligence recorded (``real``, ``simulation`` or ``playground``), and null when it recorded none, as a test call does.
@@ -16254,12 +16254,12 @@ export interface components {
             availability: components["schemas"]["Availability"];
             capabilities: components["schemas"]["SessionCapabilities"];
             /** Config Key */
-            config_key: ("realtime" | "eleven_realtime" | "gpt_live") | null;
+            config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             /**
              * Id
              * @enum {string}
              */
-            id: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+            id: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
             /** Legacy Keys */
             legacy_keys: "realtime_voice"[];
             /** Models */
@@ -17367,6 +17367,27 @@ export interface components {
              * @enum {string}
              */
             reported_by: "graphql";
+        };
+        /**
+         * GrokVoiceSessionConfig
+         * @description Grok Voice controls for a service. Every field is optional: the provider supplies the defaults.
+         */
+        GrokVoiceSessionConfig: {
+            /**
+             * Keyterms
+             * @description Transcription hints. Unset, use the service keyterms. https://docs.x.ai/developers/model-capabilities/audio/speech-to-speech
+             */
+            keyterms?: string[] | null;
+            /** Language Hint */
+            language_hint?: ("en" | "ar-EG" | "ar-SA" | "ar-AE" | "bn" | "zh" | "fr" | "de" | "hi" | "id" | "it" | "ja" | "ko" | "pt-BR" | "pt-PT" | "ru" | "es-MX" | "es-ES" | "tr" | "vi") | null;
+            /** Model */
+            model?: "grok-voice-3.0" | null;
+            /** Reasoning Effort */
+            reasoning_effort?: ("none" | "high") | null;
+            /** Speed */
+            speed?: number | null;
+            /** Voice */
+            voice?: ("altair" | "ara" | "atlas" | "aurora" | "carina" | "castor" | "celeste" | "cosmo" | "eve" | "helios" | "helix" | "iris" | "kepler" | "leo" | "liora" | "lumen" | "luna" | "lux" | "naksh" | "orion" | "perseus" | "rex" | "rigel" | "sal" | "sirius" | "ursa" | "zagan" | "zenith") | null;
         };
         /**
          * Guardrail
@@ -21299,7 +21320,7 @@ export interface components {
              * Family
              * @enum {string}
              */
-            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
             /** Instructions */
             instructions: string;
             renderer: components["schemas"]["NameString"];
@@ -22352,7 +22373,7 @@ export interface components {
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             /**
              * Source
              * @description What started the run's conversation: ``test`` when a test key or the ``test`` marker did, ``playground``
@@ -23631,6 +23652,7 @@ export interface components {
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
+            grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
             /**
              * Held Turn Policy
              * @description What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.
@@ -23664,7 +23686,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -23711,6 +23733,7 @@ export interface components {
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingResponse"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
+            grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
             /**
              * Held Turn Policy
              * @description What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.
@@ -23744,7 +23767,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -30982,7 +31005,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
             /**
              * Similarity Boost
              * @default 0
@@ -46865,7 +46888,7 @@ export interface operations {
     "preview-service-prompt": {
         parameters: {
             query: {
-                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
                 version_set?: components["schemas"]["NameString"];
             };
             header?: never;
@@ -52677,7 +52700,7 @@ export interface operations {
             header?: never;
             path: {
                 workspace_id: string;
-                family: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+                family: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
             };
             cookie?: never;
         };

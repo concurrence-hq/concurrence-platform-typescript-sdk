@@ -3278,7 +3278,8 @@
                   "amigo",
                   "gpt_realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -8270,7 +8271,8 @@
                   "amigo",
                   "gpt_realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -19436,7 +19438,8 @@
                 "enum": [
                   "realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -19451,7 +19454,8 @@
               "amigo",
               "gpt_realtime",
               "eleven_realtime",
-              "gpt_live"
+              "gpt_live",
+              "grok_voice"
             ],
             "title": "Id",
             "type": "string"
@@ -22701,6 +22705,146 @@
           "reported_by"
         ],
         "title": "GraphQLSuccess",
+        "type": "object"
+      },
+      "GrokVoiceSessionConfig": {
+        "additionalProperties": false,
+        "description": "Grok Voice controls for a service. Every field is optional: the provider supplies the defaults.",
+        "properties": {
+          "keyterms": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 50,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Transcription hints. Unset, use the service keyterms. https://docs.x.ai/developers/model-capabilities/audio/speech-to-speech",
+            "title": "Keyterms"
+          },
+          "language_hint": {
+            "anyOf": [
+              {
+                "enum": [
+                  "en",
+                  "ar-EG",
+                  "ar-SA",
+                  "ar-AE",
+                  "bn",
+                  "zh",
+                  "fr",
+                  "de",
+                  "hi",
+                  "id",
+                  "it",
+                  "ja",
+                  "ko",
+                  "pt-BR",
+                  "pt-PT",
+                  "ru",
+                  "es-MX",
+                  "es-ES",
+                  "tr",
+                  "vi"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Hint"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "const": "grok-voice-3.0",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "maximum": 1.5,
+                "minimum": 0.7,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "enum": [
+                  "altair",
+                  "ara",
+                  "atlas",
+                  "aurora",
+                  "carina",
+                  "castor",
+                  "celeste",
+                  "cosmo",
+                  "eve",
+                  "helios",
+                  "helix",
+                  "iris",
+                  "kepler",
+                  "leo",
+                  "liora",
+                  "lumen",
+                  "luna",
+                  "lux",
+                  "naksh",
+                  "orion",
+                  "perseus",
+                  "rex",
+                  "rigel",
+                  "sal",
+                  "sirius",
+                  "ursa",
+                  "zagan",
+                  "zenith"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice"
+          }
+        },
+        "title": "GrokVoiceSessionConfig",
         "type": "object"
       },
       "Guardrail": {
@@ -31555,7 +31699,8 @@
               "cascade",
               "gpt_realtime",
               "eleven_realtime",
-              "gpt_live"
+              "gpt_live",
+              "grok_voice"
             ],
             "title": "Family",
             "type": "string"
@@ -33983,7 +34128,8 @@
                   "amigo",
                   "gpt_realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -36806,6 +36952,16 @@
               }
             ]
           },
+          "grok_voice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrokVoiceSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "held_turn_policy": {
             "default": "always",
             "description": "What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.",
@@ -36954,7 +37110,8 @@
                   "amigo",
                   "gpt_realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -37137,6 +37294,16 @@
               }
             ]
           },
+          "grok_voice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrokVoiceSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "held_turn_policy": {
             "default": "always",
             "description": "What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.",
@@ -37285,7 +37452,8 @@
                   "amigo",
                   "gpt_realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -53893,7 +54061,8 @@
                   "amigo",
                   "gpt_realtime",
                   "eleven_realtime",
-                  "gpt_live"
+                  "gpt_live",
+                  "grok_voice"
                 ],
                 "type": "string"
               },
@@ -82294,7 +82463,8 @@
                 "cascade",
                 "gpt_realtime",
                 "eleven_realtime",
-                "gpt_live"
+                "gpt_live",
+                "grok_voice"
               ],
               "title": "Family",
               "type": "string"
@@ -90648,7 +90818,8 @@
                 "amigo",
                 "gpt_realtime",
                 "eleven_realtime",
-                "gpt_live"
+                "gpt_live",
+                "grok_voice"
               ],
               "title": "Family",
               "type": "string"
