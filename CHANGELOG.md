@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.135.0] - 2026-11-02
+
+### Maintenance
+
+- sync API types from platform (dfe12602) (#512)
+
 ## [0.134.0] - 2026-11-02
 
 ### Maintenance
