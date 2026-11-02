@@ -1011,7 +1011,7 @@ export interface paths {
         put?: never;
         /**
          * Create an API key
-         * @description Create a new API key for a workspace. The response includes the plaintext `api_key` — store it securely, it cannot be retrieved again.
+         * @description Create a new API key for a workspace. The response includes the plaintext `api_key`; store it securely, it cannot be retrieved again. Set `non_production` for a test harness's key: the conversations, sessions and outbound calls made with it are stored with source `test`. A test key is refused with a 422 on voice notes, text-message conversations and channel switches, app voice sessions, and outbound calls that name an outbound_task_entity_id, which cannot carry the test marker yet.
          */
         post: operations["create-api-key"];
         delete?: never;
@@ -5200,7 +5200,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id` or to set `output_checks.phi_unverified` to `cut`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -5232,6 +5232,57 @@ export interface paths {
          * @description Delete a service. Requires `Service.delete` permission.
          */
         delete: operations["delete-service"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/prompt-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview rendered service instructions without starting a call
+         * @description Return configuration-only instructions for explicit call context.
+         *
+         *     The request supplies tool and transfer availability, language and the crisis resource.
+         *     It does not include caller history or decide which dynamic behavior is in force.
+         *     POST carries render inputs only; it creates no run and changes no saved configuration.
+         */
+        post: operations["preview-service-prompt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read service launch readiness
+         * @description Read current configuration and uncached dial eligibility using service read permission.
+         *
+         *     Labels have all digits redacted. No phone numbers, identifiers, authored speech or model versions are returned.
+         *     A listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call
+         *     policy still decide which line is selected. This read does not place a call or verify human pickup. An unbound
+         *     service has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.
+         *     Family capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's
+         *     amigo default. A missing agent version remains unavailable.
+         */
+        get: operations["get-service-readiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -7328,6 +7379,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/voice-families": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List voice families and customization options
+         * @description Discover every family, including unavailable ones. Any workspace role.
+         *
+         *     To switch families, set session_provider and clear every other family's config_key
+         *     and legacy_keys. Options describe runnable settings; legacy stored values may
+         *     remain readable outside discovery. GPT-Realtime supports one ActionState or 2-12 linked
+         *     ActionStates; Eleven Realtime supports one ActionState.
+         */
+        get: operations["list-voice-families"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/voice-families/{family}/voices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List voices for a voice family
+         * @description Page voices even when this workspace cannot use the family.
+         *
+         *     Reuse next_cursor with the same filters. Static voices have no language metadata,
+         *     so a nonempty language filter matches none. Eleven filters and pages at the vendor.
+         */
+        get: operations["list-family-voices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/world/connectors/{data_source_id}/entities": {
         parameters: {
             query?: never;
@@ -8665,6 +8764,11 @@ export interface components {
             last_used_at: string | null;
             /** Name */
             name: string | null;
+            /**
+             * Non Production
+             * @description True for a test key: what it creates is stored with source `test` and kept out of production analytics.
+             */
+            non_production: boolean;
             /** Permissions */
             permissions: string[];
             /** Role */
@@ -8924,12 +9028,24 @@ export interface components {
              */
             workspace_id: string;
         };
+        /** Availability */
+        Availability: {
+            /** Available */
+            available: boolean;
+            reason: components["schemas"]["AvailabilityReason"] | null;
+        };
         /** AvailabilityDate */
         AvailabilityDate: {
             /** Date */
             date: string;
             /** Slots */
             slots?: components["schemas"]["AvailabilitySlot"][];
+        };
+        /** AvailabilityReason */
+        AvailabilityReason: {
+            /** Code */
+            code: string;
+            message: components["schemas"]["DescriptionString"];
         };
         /**
          * AvailabilityResponse
@@ -9110,7 +9226,7 @@ export interface components {
             cited_message_indexes?: number[];
             /**
              * Confidence
-             * @description The choice's confidence. Null where the route reports none, as in AU and CA.
+             * @description The choice's confidence. Null where the decision got no usable answer.
              * @default null
              */
             confidence?: number | null;
@@ -9269,6 +9385,20 @@ export interface components {
              * @description The value this row counts. A list-metrics latest row gives its period's more frequent value.
              */
             value: boolean | null;
+        };
+        /** BoundFamily */
+        BoundFamily: {
+            capabilities: components["schemas"]["SessionCapabilities"] | null;
+            /** Dynamic Behaviors Configured */
+            dynamic_behaviors_configured: boolean;
+            /** Family */
+            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "service" | "agent" | "engine_default" | "agent_missing";
+            version_set: components["schemas"]["ReadinessLabel"];
         };
         /**
          * BrandingConfig
@@ -9480,7 +9610,7 @@ export interface components {
             /** Caller Id */
             caller_id?: string | null;
             /** Completion Reason */
-            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
+            completion_reason?: ("completed" | "silence_hangup" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
             /** Conference Sid */
             conference_sid?: string | null;
             config?: components["schemas"]["ConversationConfig"] | null;
@@ -9580,7 +9710,7 @@ export interface components {
              * Completion Reason
              * @enum {string}
              */
-            completion_reason: "completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed";
+            completion_reason: "completed" | "silence_hangup" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed";
             /**
              * Direction
              * @enum {string}
@@ -9713,7 +9843,7 @@ export interface components {
              * Completion Reason
              * @description Why the call ended
              */
-            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
+            completion_reason?: ("completed" | "silence_hangup" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
             /** @description Conversation flow metrics */
             conversation_summary?: components["schemas"]["ConversationSummary"] | null;
             /**
@@ -10044,7 +10174,7 @@ export interface components {
              * Completion Reason
              * @description Why the call ended
              */
-            completion_reason?: ("completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
+            completion_reason?: ("completed" | "silence_hangup" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed") | null;
             /**
              * Direction
              * @description Call direction
@@ -10854,6 +10984,45 @@ export interface components {
             name: string;
         };
         /**
+         * ContactLine
+         * @description A service's declared contact line.
+         */
+        ContactLine: {
+            area?: components["schemas"]["NameString"] | null;
+            /** Available 24H */
+            available_24h: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "crisis" | "domestic_violence" | "child_abuse" | "poison_help" | "clinical_24h" | "front_desk";
+            /** May Read Aloud */
+            may_read_aloud: boolean;
+            /** Number */
+            number: string;
+            spoken_name: components["schemas"]["NameString"];
+            spoken_name_es?: components["schemas"]["NameString"] | null;
+        };
+        /**
+         * ContactLineInput
+         * @description Save-time number policy; persisted declarations remain readable after policy changes.
+         */
+        ContactLineInput: {
+            area?: components["schemas"]["NameString"] | null;
+            /** Available 24H */
+            available_24h: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "crisis" | "domestic_violence" | "child_abuse" | "poison_help" | "clinical_24h" | "front_desk";
+            /** May Read Aloud */
+            may_read_aloud: boolean;
+            number: components["schemas"]["DialE164"];
+            spoken_name: components["schemas"]["NameString"];
+            spoken_name_es?: components["schemas"]["NameString"] | null;
+        };
+        /**
          * ContentPartPayload
          * @description HTTP/WebSocket shape for a modality-neutral conversation content part.
          */
@@ -11080,7 +11249,7 @@ export interface components {
              * @description Canonical completion reason of the session that ended the conversation.
              * @enum {string}
              */
-            completion_reason: "completed" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed";
+            completion_reason: "completed" | "silence_hangup" | "abandoned" | "escalated" | "transferred" | "timeout" | "error" | "voicemail" | "no_answer" | "caller_hangup" | "forwarded" | "terminal_state" | "warm_transfer_completed" | "no_inbound_audio" | "cancelled" | "closed";
             /**
              * Ended At
              * Format: date-time
@@ -11156,8 +11325,11 @@ export interface components {
              * Session Provider
              * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
-            /** Source */
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            /**
+             * Source
+             * @description What started the conversation. A text conversation reads ``test`` when a test key or the ``test`` marker started it, ``playground`` when the developer console Playground did, and null otherwise. A call reads the source its call intelligence recorded (``real``, ``simulation`` or ``playground``), and null when it recorded none, as a test call does.
+             */
             source?: string | null;
             /**
              * Status
@@ -11819,6 +11991,12 @@ export interface components {
             duration_days: number;
             name?: components["schemas"]["NameString"] | null;
             /**
+             * Non Production
+             * @description Create a test key. Conversations, sessions and outbound calls made with it are stored with source `test`: analytics, production evaluations and billing leave them out, and their tools run in simulation mode, returning a dry-run result instead of reaching an integration. The setting is made here and never changes; rotating the key keeps it. Requires `Workspace.update` (admin or owner).
+             * @default false
+             */
+            non_production?: boolean;
+            /**
              * Permissions
              * @description Permission names. Max 128 entries; each entry up to 128 chars.
              */
@@ -11843,6 +12021,11 @@ export interface components {
             key_id: string;
             /** Name */
             name: string | null;
+            /**
+             * Non Production
+             * @description True for a test key: what it creates is stored with source `test`.
+             */
+            non_production: boolean;
             /** Permissions */
             permissions: string[];
             /** Role */
@@ -11921,9 +12104,9 @@ export interface components {
             service_id: string;
             /**
              * Source
-             * @description Set to ``playground`` when the developer console Playground starts the conversation. A Playground session writes only to conversations a Playground session or test credential started, never a real one. Web only (422 on another channel); an external user gets 403.
+             * @description Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``, and every turn on it runs as a test turn, as for a conversation started with a test key. It stays out of analytics, production evaluations and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.
              */
-            source?: "playground" | null;
+            source?: ("playground" | "test") | null;
             /**
              * Use Case Id
              * @description The use case the outbound conversation is sent through. Required for non-web; the sender (FROM) is resolved from it, never caller-supplied. Must be owned by this workspace.
@@ -12262,8 +12445,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -12288,10 +12472,16 @@ export interface components {
              */
             channel_type?: "voice" | "text";
             /**
+             * Contact Lines
+             * @description Declared direct contact lines. Public emergency and N11 short codes are refused.
+             */
+            contact_lines?: components["schemas"]["ContactLineInput"][];
+            /**
              * Context Graph Id
              * Format: uuid
              */
             context_graph_id: string;
+            crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
@@ -12323,6 +12513,11 @@ export interface components {
              */
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             name: components["schemas"]["NameString"];
+            /**
+             * @description Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs
+             *     `Service.update`.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
@@ -12676,6 +12871,14 @@ export interface components {
             name: components["schemas"]["StrippedNonemptyString"];
             slug: components["schemas"]["SlugString"];
             staging_source?: components["schemas"]["StagingWorkspaceSource"] | null;
+        };
+        /**
+         * CrisisCall911Reply
+         * @description Per-service wording added when a caller already in crisis asks for emergency dispatch.
+         */
+        CrisisCall911Reply: {
+            en: components["schemas"]["DescriptionString"];
+            es: components["schemas"]["DescriptionString"];
         };
         /**
          * CustomTokenExchangeAuthDict
@@ -13440,8 +13643,8 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
-        /** @enum {string} */
-        DeciderKind: "decisions" | "regional";
+        /** @constant */
+        DeciderKind: "decisions";
         /**
          * DecisionFactor
          * @description A specific audio input that drove an agent decision.
@@ -13643,6 +13846,18 @@ export interface components {
             mode?: "cut" | "log" | "off";
         };
         DialE164: string;
+        /** Dialability */
+        Dialability: {
+            channel: components["schemas"]["ReadinessLabel"] | null;
+            label: components["schemas"]["ReadinessLabel"];
+            /** Reason */
+            reason: components["schemas"]["UseCaseDialability"] | "use_case_missing";
+            /**
+             * Will Dial
+             * @description Passes the use case's current dial gate when this line is selected.
+             */
+            will_dial: boolean;
+        };
         /**
          * DirectionCalls
          * @description One direction's calls in ``by_direction``.
@@ -16034,6 +16249,29 @@ export interface components {
         FailureClass: "timeout" | "input_rejected" | "rounds_exhausted" | "generic";
         /** @enum {string} */
         FailureReason: "refusal" | "out_of_set" | "malformed" | "http_4xx" | "http_retryable" | "connection" | "timeout" | "breaker_open" | "options_exceeded";
+        /** Family */
+        Family: {
+            availability: components["schemas"]["Availability"];
+            capabilities: components["schemas"]["SessionCapabilities"];
+            /** Config Key */
+            config_key: ("realtime" | "eleven_realtime" | "gpt_live") | null;
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+            /** Legacy Keys */
+            legacy_keys: "realtime_voice"[];
+            /** Models */
+            models: string[];
+            name: components["schemas"]["NameString"];
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            } | null;
+            summary: components["schemas"]["DescriptionString"];
+            voices: components["schemas"]["Voices"] | null;
+        };
         /** FhirAppointmentListResponse */
         FhirAppointmentListResponse: {
             /** Appointments */
@@ -17094,6 +17332,24 @@ export interface components {
             run_ids: string[];
         };
         /**
+         * GptLiveSessionConfig
+         * @description Live startup settings. Language comes from the agent's instructions, not a protocol field.
+         */
+        GptLiveSessionConfig: {
+            /**
+             * Model
+             * @default gpt-live-1
+             * @enum {string}
+             */
+            model?: "gpt-live-1" | "gpt-live-1.1-leopard-2-alpha";
+            /**
+             * Voice
+             * @default marin
+             * @enum {string}
+             */
+            voice?: "alloy" | "ash" | "ballad" | "beacon" | "bossa" | "brise" | "cedar" | "cinder" | "coral" | "delta" | "echo" | "flitz" | "gleam" | "harema" | "juni" | "marin" | "meridian" | "nira" | "noeul" | "nuri" | "quartz" | "ripple" | "sage" | "shida" | "shimmer" | "sillage" | "stone" | "tempo" | "verse" | "vesper" | "willow";
+        };
+        /**
          * GraphQLSuccess
          * @description The request is a GraphQL mutation, and every mutation payload holds something other than null
          *     past its user errors. Top-level ``errors`` in an answer with no ``data`` are a request that never
@@ -18060,6 +18316,29 @@ export interface components {
              */
             turn_count?: number | null;
         };
+        /** Launch */
+        Launch: {
+            /** Demo Mode */
+            demo_mode: boolean;
+            /**
+             * Human Line Configured
+             * @description A fallback_to or static forward_to is configured for the safe exit; pickup is not verified.
+             */
+            human_line_configured: boolean;
+            /**
+             * Medical Emergency Ending
+             * @enum {string}
+             */
+            medical_emergency_ending: "stay_on_line" | "end_after_script";
+            output_check_modes: components["schemas"]["OutputCheckModes"];
+            /** Test Callers Registered */
+            test_callers_registered: boolean;
+            /**
+             * Verification Callers Registered
+             * @description Every configured verification caller is a registered test caller; false when none are configured.
+             */
+            verification_callers_registered: boolean;
+        };
         /**
          * LeaveCallRequest
          * @description Request to remove operator from an active call.
@@ -18078,6 +18357,15 @@ export interface components {
             /** Max Size Mb */
             max_size_mb?: number | null;
         };
+        /** Line */
+        Line: {
+            kind: components["schemas"]["LineKind"];
+            label: components["schemas"]["ReadinessLabel"];
+            /** Use Cases */
+            use_cases: components["schemas"]["Dialability"][];
+        };
+        /** @enum {string} */
+        LineKind: "forward_to" | "approved_destination" | "fallback_to" | "after_hours_destination" | "test_destination";
         /** ListSimulationSuiteRunSummariesResponse */
         ListSimulationSuiteRunSummariesResponse: {
             /**
@@ -19730,6 +20018,16 @@ export interface components {
             total?: number;
         };
         /**
+         * OutputCheckModes
+         * @description Mode values follow the library's read model as it adds supported modes.
+         */
+        OutputCheckModes: {
+            diagnosis: components["schemas"]["ReadinessLabel"];
+            dosing_or_med_change: components["schemas"]["ReadinessLabel"];
+            health_information: components["schemas"]["ReadinessLabel"];
+            phi_unverified: components["schemas"]["ReadinessLabel"];
+        };
+        /**
          * OutreachRule
          * @description A single outreach rule — defines WHEN, WHAT, and HOW to reach a patient.
          */
@@ -20405,6 +20703,15 @@ export interface components {
             /** Namespace */
             namespace: string;
         };
+        /** PhiUnverifiedCheck */
+        PhiUnverifiedCheck: {
+            /**
+             * Mode
+             * @default off
+             * @enum {string}
+             */
+            mode?: "cut" | "off";
+        };
         PhoneE164: string;
         /** PhoneNumberCallVolume */
         PhoneNumberCallVolume: {
@@ -20570,6 +20877,19 @@ export interface components {
             total_user_speech_seconds?: number;
             /** Turns */
             turns: components["schemas"]["TurnTimeline"][];
+        };
+        /** Policies */
+        Policies: {
+            /** Authored Corrections */
+            authored_corrections: boolean;
+            /** Forward Call Configured */
+            forward_call_configured: boolean;
+            /** Hours Configured */
+            hours_configured: boolean;
+            /** Verification Callers Configured */
+            verification_callers_configured: boolean;
+            /** Warm Transfer */
+            warm_transfer: boolean;
         };
         /**
          * PreloadSpec
@@ -20868,8 +21188,12 @@ export interface components {
             llm_model?: string | null;
             /** Llm Response */
             llm_response?: string | null;
+            /** Prompt Renderer */
+            prompt_renderer?: string | null;
             /** Prompt Type */
             prompt_type?: string | null;
+            /** Rendered Prompt Hash */
+            rendered_prompt_hash?: string | null;
             /** Service Id */
             service_id?: string | null;
             /** Session Id */
@@ -20931,6 +21255,56 @@ export interface components {
              * @description What ``conversation_id`` named when it was supplied: ``call`` for a voice call, ``conversation`` for a text conversation (web, sms, whatsapp, email). Null otherwise.
              */
             resolved_conversation_kind?: ("call" | "conversation") | null;
+        };
+        /** PromptPreviewContext */
+        "PromptPreviewContext-Input": {
+            action?: components["schemas"]["DescriptionString"] | null;
+            crisis_resource: components["schemas"]["DescriptionString"];
+            /** Has Tools */
+            has_tools: boolean;
+            /** Has Write Tools */
+            has_write_tools: boolean;
+            language: components["schemas"]["NameString"];
+            message_tool?: components["schemas"]["NameString"] | null;
+            state_name?: components["schemas"]["NameString"] | null;
+            /** Tools */
+            tools?: components["schemas"]["Tool"][] | null;
+            /** Transfer Offered */
+            transfer_offered: boolean;
+        };
+        /** PromptPreviewContext */
+        "PromptPreviewContext-Output": {
+            action?: components["schemas"]["DescriptionString"] | null;
+            crisis_resource: components["schemas"]["DescriptionString"];
+            /** Has Tools */
+            has_tools: boolean;
+            /** Has Write Tools */
+            has_write_tools: boolean;
+            language: components["schemas"]["NameString"];
+            message_tool?: components["schemas"]["NameString"] | null;
+            state_name?: components["schemas"]["NameString"] | null;
+            /** Tools */
+            tools?: components["schemas"]["Tool"][] | null;
+            /** Transfer Offered */
+            transfer_offered: boolean;
+        };
+        /** PromptPreviewResponse */
+        PromptPreviewResponse: {
+            /** Agent Version */
+            agent_version: number;
+            context: components["schemas"]["PromptPreviewContext-Output"];
+            /** Context Graph Version */
+            context_graph_version: number;
+            /**
+             * Family
+             * @enum {string}
+             */
+            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+            /** Instructions */
+            instructions: string;
+            renderer: components["schemas"]["NameString"];
+            state_name: components["schemas"]["NameString"];
+            version_set: components["schemas"]["NameString"];
         };
         /** @enum {string} */
         ProviderFamily: "anthropic" | "google" | "openai" | "xai";
@@ -21092,6 +21466,7 @@ export interface components {
              */
             territory_mean?: number;
         };
+        ReadinessLabel: string;
         /**
          * RealtimeCustomVoice
          * @description Approved OpenAI custom voice reference.
@@ -21122,8 +21497,6 @@ export interface components {
          * @description Volume-based turn detection controls.
          */
         RealtimeServerVadConfig: {
-            /** Idle Timeout Ms */
-            idle_timeout_ms?: number | null;
             /** Prefix Padding Ms */
             prefix_padding_ms?: number | null;
             /** Silence Duration Ms */
@@ -21150,8 +21523,13 @@ export interface components {
              * @description Input noise reduction. Omit or set null to use the Platform default; set 'off' to disable it.
              */
             noise_reduction?: ("near_field" | "far_field" | "off") | null;
+            /**
+             * Noise Reduction Strength
+             * @description OpenAI audio.input.noise_reduction.strength. Higher values suppress more noise.
+             */
+            noise_reduction_strength?: number | null;
             /** Reasoning Effort */
-            reasoning_effort?: ("low" | "medium" | "high") | null;
+            reasoning_effort?: ("minimal" | "low" | "medium" | "high" | "xhigh") | null;
             /**
              * Required Tool On First Caller Turn
              * @description Force one named function on the first caller-generated response, excluding the inbound greeting, then restore automatic tool choice. Runtime accepts this only for source_override='test' sessions and tools that the executor verifies are read-only or side-effect-free.
@@ -21171,6 +21549,11 @@ export interface components {
          * @description Asynchronous caller-audio transcription used for transcripts and observability.
          */
         RealtimeTranscriptionConfig: {
+            /**
+             * Keywords
+             * @description Literal transcription hints. Unset, use the service keyterms.
+             */
+            keywords?: string[] | null;
             /** Language */
             language?: ("af" | "ar" | "az" | "be" | "bg" | "bn" | "bs" | "ca" | "cs" | "cy" | "da" | "de" | "el" | "en" | "es" | "et" | "fa" | "fi" | "fr" | "gl" | "gu" | "he" | "hi" | "hr" | "hu" | "hy" | "id" | "is" | "it" | "iw" | "ja" | "ka" | "kk" | "kn" | "ko" | "lt" | "lv" | "mi" | "mk" | "ml" | "mr" | "ms" | "nb" | "ne" | "nl" | "no" | "pl" | "pt" | "ro" | "ru" | "sk" | "sl" | "sr" | "sv" | "sw" | "ta" | "te" | "th" | "tl" | "tr" | "uk" | "ur" | "vi" | "zh" | "afr" | "amh" | "ara" | "aze" | "bel" | "ben" | "bos" | "bul" | "cat" | "ces" | "cmn" | "cym" | "dan" | "deu" | "ell" | "eng" | "est" | "fas" | "fil" | "fin" | "fra" | "gle" | "glg" | "guj" | "heb" | "hin" | "hrv" | "hun" | "hye" | "ind" | "isl" | "ita" | "jpn" | "kan" | "kat" | "kaz" | "kor" | "lav" | "lit" | "mal" | "mar" | "mkd" | "mon" | "mri" | "msa" | "mya" | "nep" | "nld" | "nor" | "pol" | "por" | "ron" | "rus" | "slk" | "slv" | "som" | "spa" | "srp" | "swa" | "swe" | "tam" | "tel" | "tgl" | "tha" | "tur" | "ukr" | "urd" | "vie" | "yue" | "zh-cn" | "zh-hk" | "zh-tw") | null;
             /**
@@ -21193,6 +21576,7 @@ export interface components {
             retention_ratio?: number | null;
             /**
              * Type
+             * @description Use auto or retention_ratio. Legacy disabled values are readable but refused by voice sessions.
              * @default auto
              * @enum {string}
              */
@@ -21968,7 +22352,14 @@ export interface components {
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            /**
+             * Source
+             * @description What started the run's conversation: ``test`` when a test key or the ``test`` marker did, ``playground``
+             *     when the developer console Playground did. Null on an ordinary conversation, on a call (its row carries no
+             *     source), and on a framework run.
+             */
+            source?: string | null;
             /** Source Call Sid */
             source_call_sid?: string | null;
             /** Source Conversation Id */
@@ -22165,9 +22556,8 @@ export interface components {
              */
             cooperative_stop?: boolean | null;
             /**
-             * @description How the session's region decides: ``decisions``, OpenAI Decisions through the gateway, or
-             *     ``regional``, a constrained choice on the region's own gateway. Navigation and the reply
-             *     checks both decide through it.
+             * @description How the session's region decides: ``decisions``, OpenAI Decisions through the region's gateway.
+             *     Navigation and the reply checks both decide through it.
              */
             decider_kind?: components["schemas"]["DeciderKind"] | null;
             /**
@@ -22203,6 +22593,12 @@ export interface components {
              *     behaviors, each pinned set's id and version: one value per config generation.
              */
             platform_config_fingerprint?: components["schemas"]["NameString"] | null;
+            /** @description Model identifier submitted with these instructions; aliases are not resolved snapshots. */
+            prompt_model?: components["schemas"]["NameString"] | null;
+            /** @description Renderer that produced the recorded instructions. */
+            prompt_renderer?: components["schemas"]["NameString"] | null;
+            /** @description SHA256 of the opening rendered instructions, without normalization. */
+            rendered_prompt_hash?: components["schemas"]["NameString"] | null;
             /** @description The runtime release of the pod the session ran on. */
             runtime_release_id?: components["schemas"]["NameString"] | null;
             stt_model?: components["schemas"]["NameString"] | null;
@@ -22268,6 +22664,13 @@ export interface components {
              */
             concurrency?: number;
             /**
+             * Context
+             * @description Optional start context for every selected saved-case run, added to each case's `grounding.context` and winning where both name a key. A case whose service refuses the result (a missing required key, an unknown key or a value of the wrong type) is skipped, with the keys at fault in its reason.
+             */
+            context?: {
+                [key: string]: number | string;
+            };
+            /**
              * Entity Id
              * @description Optional world entity UUID to bind caller context for every selected saved-case run. When omitted, each case falls back to fixtures.case_specific.entity_id if present.
              */
@@ -22307,6 +22710,13 @@ export interface components {
              * @default 1
              */
             concurrency?: number;
+            /**
+             * Context
+             * @description Optional start context for this saved-case run, added to the case's `grounding.context` (the key-value pairs a conversation is created with) and winning where both name a key. The result is checked against the service's `accepted_context` before the run starts: a missing required key, an unknown key or a value of the wrong type is a 422.
+             */
+            context?: {
+                [key: string]: number | string;
+            };
             /**
              * Entity Id
              * @description Optional world entity UUID to bind caller context for this saved-case run. When omitted, the runner falls back to fixtures.case_specific.entity_id if present.
@@ -22715,6 +23125,8 @@ export interface components {
              * @enum {string}
              */
             channel_type?: "voice" | "text";
+            /** Contact Lines */
+            contact_lines?: components["schemas"]["ContactLine"][];
             /**
              * Context Graph Id
              * Format: uuid
@@ -22722,6 +23134,7 @@ export interface components {
             context_graph_id: string;
             /** Created At */
             created_at?: string | null;
+            crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Demo Mode
              * @default false
@@ -22939,7 +23352,37 @@ export interface components {
             verification_callers?: {
                 [key: string]: components["schemas"]["NameString"];
             };
-            /** Warm Transfer */
+            /**
+             * Warm Transfer
+             * @default false
+             */
+            warm_transfer?: boolean;
+        };
+        /**
+         * ServiceForwardingResponse
+         * @description Forwarding responses always include defaults; the input keeps its existing schema name.
+         */
+        ServiceForwardingResponse: {
+            after_hours_destination: components["schemas"]["DialE164"] | null;
+            /** Approved Destinations */
+            approved_destinations: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            fallback_to: components["schemas"]["DialE164"] | null;
+            forward_to: components["schemas"]["DialE164"] | null;
+            hours: components["schemas"]["StaffedHours"] | null;
+            /** Test Destinations */
+            test_destinations: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            /** Verification Callers */
+            verification_callers: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            /**
+             * Warm Transfer
+             * @default false
+             */
             warm_transfer: boolean;
         };
         /** ServiceListResponse */
@@ -22956,6 +23399,29 @@ export interface components {
             diagnosis?: components["schemas"]["DiagnosisCheck"];
             dosing_or_med_change?: components["schemas"]["DosingOrMedChangeCheck"];
             health_information?: components["schemas"]["HealthInformationCheck"];
+            phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
+        };
+        /**
+         * ServiceOutputChecksRequest
+         * @description The reply checks a service sets. Only `phi_unverified` can be set.
+         */
+        ServiceOutputChecksRequest: {
+            /**
+             * @description On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not
+             *     verified, and the caller hears a correction in its place. `off`, the default, does not run the check.
+             */
+            phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
+        };
+        /** ServiceReadinessResponse */
+        ServiceReadinessResponse: {
+            /** Families */
+            families: components["schemas"]["BoundFamily"][];
+            launch: components["schemas"]["Launch"];
+            /** Lines */
+            lines: components["schemas"]["Line"][];
+            policies: components["schemas"]["Policies"];
+            /** Voice Use Cases */
+            voice_use_cases: components["schemas"]["VoiceUseCase"][];
         };
         /** ServiceResponse */
         ServiceResponse: {
@@ -22971,8 +23437,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -22991,6 +23458,11 @@ export interface components {
              */
             channel_type?: "voice" | "text";
             /**
+             * Contact Lines
+             * @description Declared direct contact lines. Public emergency and N11 short codes are refused.
+             */
+            contact_lines?: components["schemas"]["ContactLine"][];
+            /**
              * Context Graph Id
              * Format: uuid
              */
@@ -23002,6 +23474,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
@@ -23041,6 +23514,11 @@ export interface components {
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             /** Name */
             name: string;
+            /**
+             * @description The block with its defaults filled in. `phi_unverified` is the only key a service can set and the only one a
+             *     call reads, and it is `off` unless the service sets it to `cut`.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecks"];
             /**
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
@@ -23152,6 +23630,14 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
+            gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
+            /**
+             * Held Turn Policy
+             * @description What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.
+             * @default always
+             * @enum {string}
+             */
+            held_turn_policy?: "always" | "judged" | "never";
             /** Language Providers */
             language_providers?: {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
@@ -23178,7 +23664,8 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
             /** Tts Config */
@@ -23222,7 +23709,15 @@ export interface components {
             filler_style?: "backchannel" | "phrase" | "silent";
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
-            forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
+            forwarding?: components["schemas"]["ServiceForwardingResponse"] | null;
+            gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
+            /**
+             * Held Turn Policy
+             * @description What a realtime voice call does with a caller turn committed while the agent's own opening, the notice and the greeting, is still playing. always: the turn is answered once the opening ends. judged: the turn is answered only when it asks for something the opening did not cover, so a greeting, an acknowledgement or an echo of the opening is left unanswered, and a turn that cannot be judged is answered. never: the turn is not answered, and the caller's next turn is answered as usual. Every turn is still recorded and checked for a medical emergency, whatever the setting. It applies to a call the agent opens itself; a call that waits for the caller to speak first answers the first turn.
+             * @default always
+             * @enum {string}
+             */
+            held_turn_policy?: "always" | "judged" | "never";
             /** Language Providers */
             language_providers?: {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
@@ -23249,7 +23744,8 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
+            silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
             /** Tts Config */
@@ -23258,6 +23754,41 @@ export interface components {
             } | null;
             /** Tts Provider */
             tts_provider?: ("cartesia" | "elevenlabs") | null;
+        };
+        /** SessionCapabilities */
+        SessionCapabilities: {
+            /**
+             * Authored Lines
+             * @default clips
+             * @enum {string}
+             */
+            authored_lines: "tts" | "model_checked" | "clips";
+            /** Channels */
+            channels: ("app" | "phone" | "playground" | "test_call")[];
+            /** Completion Navigation */
+            completion_navigation: boolean;
+            /** Dynamic Behaviors */
+            dynamic_behaviors: boolean;
+            /** End Call */
+            end_call: boolean;
+            /**
+             * Floor Enforced
+             * @default false
+             */
+            floor_enforced: boolean;
+            /** Multi State */
+            multi_state: boolean;
+            /** Operator Takeover */
+            operator_takeover: boolean;
+            /** Outbound Calls */
+            outbound_calls: boolean;
+            /** State Carrier */
+            state_carrier: ("session_update_and_note" | "note_only") | null;
+            /**
+             * Warm Transfer
+             * @default false
+             */
+            warm_transfer: boolean;
         };
         /** SessionEndEvent */
         SessionEndEvent: {
@@ -23457,6 +23988,27 @@ export interface components {
              * @description The signal observed (e.g. caller tone shift, tool result, silence)
              */
             signal: string;
+        };
+        /**
+         * SilencePolicy
+         * @description Per-service delivery retries around the signed silence cadence.
+         */
+        SilencePolicy: {
+            /**
+             * Cap Warning Retry Seconds
+             * @default 10
+             */
+            cap_warning_retry_seconds?: number;
+            /**
+             * Max Cap Warning Attempts
+             * @default 2
+             */
+            max_cap_warning_attempts?: number;
+            /**
+             * Max Closing Attempts
+             * @default 2
+             */
+            max_closing_attempts?: number;
         };
         /** SimCaseAssertionResponse */
         SimCaseAssertionResponse: {
@@ -24040,6 +24592,13 @@ export interface components {
          * @description Optional bindings that start the sim from existing workspace data.
          */
         SimulationCaseGrounding: {
+            /**
+             * Context
+             * @description Start context a run of this case begins with: key-value pairs, each key one the service accepts (`accepted_context`) and each value a string or a number. A tool parameter the service's graph binds to a key is filled from it on every turn and branch. A run is refused, and a suite skips the case, when a required key is missing, a key is not one the service accepts, or a value has the wrong type. A launch's own `context` is added to it and wins where both name a key.
+             */
+            context?: {
+                [key: string]: number | string;
+            };
             /** Patient Entity Id */
             patient_entity_id?: string | null;
         };
@@ -25951,8 +26510,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -25977,10 +26537,16 @@ export interface components {
              */
             channel_type?: "voice" | "text";
             /**
+             * Contact Lines
+             * @description Declared direct contact lines. Public emergency and N11 short codes are refused.
+             */
+            contact_lines?: components["schemas"]["ContactLineInput"][];
+            /**
              * Context Graph Id
              * Format: uuid
              */
             context_graph_id: string;
+            crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
@@ -27560,6 +28126,11 @@ export interface components {
              * @constant
              */
             unit?: "seconds";
+        };
+        /** Tool */
+        Tool: {
+            description: components["schemas"]["DescriptionString"];
+            name: components["schemas"]["NameString"];
         };
         /** ToolCall */
         ToolCall: {
@@ -29330,8 +29901,9 @@ export interface components {
             /**
              * Allow Unverified Integration Results
              * @description A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and
-             *     writes, never count as a patient record for the output checker's unverified-caller check, so the agent may
-             *     read them back to any caller, verified or not. Writes are still held to everything else, the platform's own
+             *     writes, never count as a patient record for the output checker's unverified-caller check
+             *     (`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read
+             *     them back to any caller, verified or not. Writes are still held to everything else, the platform's own
              *     patient reads still refuse until the caller verifies, and data queries and skills still count. Never on
              *     beside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it
              *     off needs `Service.update`. Every change is audited.
@@ -29348,8 +29920,15 @@ export interface components {
             caller_verification_endpoint_id?: string | null;
             /** Channel Type */
             channel_type?: ("voice" | "text") | null;
+            /**
+             * Contact Lines
+             * @description Replace declared contact lines. Omit to keep them; an empty list clears them.
+             */
+            contact_lines?: components["schemas"]["ContactLineInput"][] | null;
             /** Context Graph Id */
             context_graph_id?: string | null;
+            /** @description Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null restores the signed default. */
+            crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
@@ -29370,6 +29949,12 @@ export interface components {
              */
             medical_emergency_ending?: ("stay_on_line" | "end_after_script") | null;
             name?: components["schemas"]["NameString"] | null;
+            /**
+             * Output Checks
+             * @description Which reply checks run. The block replaces what is stored, and `null` or `{}` is the default block, where
+             *     `phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the update.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
              * @description Whether the platform verifies a caller who may match a patient record by full name and date of
@@ -30211,6 +30796,8 @@ export interface components {
              */
             unpriced_tokens: number;
         };
+        /** @enum {string} */
+        UseCaseDialability: "own_number" | "listed" | "not_listed";
         /** UserTranscriptEvent */
         UserTranscriptEvent: {
             /**
@@ -30375,6 +30962,19 @@ export interface components {
              */
             version: number;
         };
+        /** Voice */
+        Voice: {
+            /** Category */
+            category?: string | null;
+            description?: components["schemas"]["DescriptionString"] | null;
+            /** Id */
+            id: string;
+            /** Language */
+            language?: string | null;
+            name: components["schemas"]["NameString"];
+            /** Preview Url */
+            preview_url?: string | null;
+        };
         /** VoiceConfig */
         VoiceConfig: {
             /** Language Providers */
@@ -30382,7 +30982,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live") | null;
             /**
              * Similarity Boost
              * @default 0
@@ -30523,6 +31123,11 @@ export interface components {
             /** Twilio Recording Sid */
             twilio_recording_sid?: string | null;
         };
+        /** VoiceFamilyListResponse */
+        VoiceFamilyListResponse: {
+            /** Families */
+            families: components["schemas"]["Family"][];
+        };
         /** VoiceJudgeRecentResponse */
         VoiceJudgeRecentResponse: {
             /** Count */
@@ -30581,6 +31186,13 @@ export interface components {
             warmth_tone_score?: number | null;
             /** Warning Count */
             warning_count?: number | null;
+        };
+        /** VoiceListResponse */
+        VoiceListResponse: {
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Voices */
+            voices: components["schemas"]["Voice"][];
         };
         /** VoiceMetrics */
         VoiceMetrics: {
@@ -30692,6 +31304,23 @@ export interface components {
             voice_id: string | null;
             /** Volume */
             volume: number | null;
+        };
+        /** VoiceUseCase */
+        VoiceUseCase: {
+            /** Available */
+            available: boolean;
+            channel: components["schemas"]["ReadinessLabel"] | null;
+            label: components["schemas"]["ReadinessLabel"];
+        };
+        /** Voices */
+        Voices: {
+            /**
+             * Listing
+             * @enum {string}
+             */
+            listing: "static" | "vendor";
+            /** Path */
+            path: string;
         };
         /**
          * WorkspaceBenchmarks
@@ -31749,6 +32378,8 @@ export interface components {
         };
         /** @enum {string} */
         src__routes__metrics___SortField: "metric_key" | "period_start";
+        /** @constant */
+        src__routes__operation_grants___SortField: "expires_at";
         /** AuditEventResponse */
         src__routes__operators_models__AuditEventResponse: {
             /**
@@ -32295,8 +32926,6 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** @constant */
-        src__routes__operation_grants___SortField: "expires_at";
     };
     responses: never;
     parameters: never;
@@ -35672,7 +36301,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id */
+            /** @description Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id. A test key's call is also refused when it names an outbound_task_entity_id, because the task's outcome events can't carry the test marker yet */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -35680,6 +36309,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The call was placed, but not as the call asked for: a test key's call was taken by a voice agent that does not apply the test marker, so it runs as a production call. Do not retry. The call is placed; the error names its call_sid */
+            424: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Rate limit exceeded */
             429: {
@@ -42994,6 +43630,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-metric-catalog": {
@@ -43081,6 +43726,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-metric-trend": {
@@ -43136,6 +43790,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };
@@ -46196,6 +46859,98 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "preview-service-prompt": {
+        parameters: {
+            query: {
+                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+                version_set?: components["schemas"]["NameString"];
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptPreviewContext-Input"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "get-service-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceReadinessResponse"];
+                };
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stored service configuration is incompatible */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Readiness source unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -51886,6 +52641,79 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "list-voice-families": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceFamilyListResponse"];
+                };
+            };
+        };
+    };
+    "list-family-voices": {
+        parameters: {
+            query?: {
+                search?: string | null;
+                language?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                family: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceListResponse"];
+                };
+            };
+            /** @description This family has no voice list */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Voice vendor unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

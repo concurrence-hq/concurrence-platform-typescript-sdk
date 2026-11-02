@@ -14,6 +14,7 @@ const key: components['schemas']['ApiKeyResponse'] = {
   last_used_at: null,
   created_by_entity_id: null,
   created_by_credential_id: null,
+  non_production: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
