@@ -50,7 +50,6 @@ describe('resource surface smoke tests', () => {
     await client.analytics.getCalls({ days: 7 })
     await client.analytics.getAgents({ period: '7d' })
     await client.analytics.getCallQuality({ days: 7 })
-    await client.analytics.getEmotionTrends({ days: 7 })
     await client.analytics.getLatency({ days: 7 })
     await client.analytics.getToolPerformance({ days: 7 })
     await client.analytics.getDataQuality({ days: 7 })

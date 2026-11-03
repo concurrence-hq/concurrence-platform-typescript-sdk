@@ -61,11 +61,6 @@ const CALL_QUALITY_FIXTURE = {
   quality_distribution: { excellent_90_100: 60, good_70_89: 70, fair_50_69: 15, poor_0_49: 5 },
 } satisfies Schemas['CallQualityAnalyticsResponse']
 
-const EMOTION_TRENDS_FIXTURE = {
-  workspace_id: TEST_WORKSPACE_ID,
-  timeseries: [{ timestamp: '2026-01-01T00:00:00Z', positive: 0.6, neutral: 0.3, negative: 0.1 }],
-}
-
 const LATENCY_FIXTURE = {
   workspace_id: TEST_WORKSPACE_ID,
   avg_ttfb_ms: 320,
@@ -294,7 +289,6 @@ const client = new AmigoClient({
     [`GET ${BASE}/analytics/calls`]: () => Response.json(CALLS_FIXTURE),
     [`GET ${BASE}/analytics/agents`]: () => Response.json(AGENTS_FIXTURE),
     [`GET ${BASE}/analytics/call-quality`]: () => Response.json(CALL_QUALITY_FIXTURE),
-    [`GET ${BASE}/analytics/emotion-trends`]: () => Response.json(EMOTION_TRENDS_FIXTURE),
     [`GET ${BASE}/analytics/latency`]: () => Response.json(LATENCY_FIXTURE),
     [`GET ${BASE}/analytics/tool-performance`]: () => Response.json(TOOL_PERFORMANCE_FIXTURE),
     [`GET ${BASE}/analytics/data-quality`]: () => Response.json(DATA_QUALITY_FIXTURE),
@@ -343,13 +337,6 @@ describe('AnalyticsResource', () => {
     expect(result.summary.avg_quality_score).toBe(82.5)
     expect(result.quality_distribution.excellent_90_100).toBe(60)
     expect(result.trend[0]?.call_count).toBe(50)
-  })
-
-  it('gets emotion trends', async () => {
-    const result = await client.analytics.getEmotionTrends()
-    const timeseries = result.timeseries as { positive: number }[]
-    expect(timeseries).toHaveLength(1)
-    expect(timeseries[0]?.positive).toBe(0.6)
   })
 
   it('gets latency metrics', async () => {

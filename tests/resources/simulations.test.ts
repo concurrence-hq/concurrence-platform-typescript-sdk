@@ -326,15 +326,13 @@ describe('SimulationsResource', () => {
       const { client: recording, requests } = recordingClient(STEP_RESULT_FIXTURE)
       const result = await recording.simulations.stepSession(SESSION_ID, {
         caller_text: "I'd like to schedule an appointment",
-        emotion: 'calm',
-        valence: 0.4,
       })
 
       expect(requests).toHaveLength(1)
       expect(requests[0]).toMatchObject({
         method: 'POST',
         path: `${BASE}/simulations/sessions/${SESSION_ID}/step`,
-        body: { caller_text: "I'd like to schedule an appointment", emotion: 'calm', valence: 0.4 },
+        body: { caller_text: "I'd like to schedule an appointment" },
       })
       expect(result.observation.agent_text).toContain('schedule an appointment')
     })

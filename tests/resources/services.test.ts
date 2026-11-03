@@ -180,6 +180,35 @@ describe('ServicesResource', () => {
     expect(updated.platform_caller_verification).toBe(true)
   })
 
+  it('plans a create and an update without writing', async () => {
+    const plan = { problems: [], changes: [], families: [], readiness: null }
+    const requests: { path: string; body: unknown }[] = []
+    const recording = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/services/plan`]: ({ body }) => {
+          requests.push({ path: 'create', body })
+          return Response.json(plan)
+        },
+        [`POST ${BASE}/services/${SERVICE_ID}/plan`]: ({ body }) => {
+          requests.push({ path: 'update', body })
+          return Response.json(plan)
+        },
+      }),
+    })
+
+    await recording.services.planCreate({ name: 'Front Desk' } as Parameters<
+      typeof recording.services.create
+    >[0])
+    await recording.services.planUpdate(SERVICE_ID, { is_active: false })
+
+    expect(requests).toEqual([
+      { path: 'create', body: { name: 'Front Desk' } },
+      { path: 'update', body: { is_active: false } },
+    ])
+  })
+
   it('lists services', async () => {
     const result = await client.services.list()
     expect(result.items).toHaveLength(1)
