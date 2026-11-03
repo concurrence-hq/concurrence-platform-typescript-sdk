@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- add `services.planCreate` and `services.planUpdate` for the service plan routes (`POST /services/plan`, `POST /services/{service_id}/plan`), and the `ServicePlanResponse` type
+- add the `gemini_live` voice session provider to `VOICE_SESSION_PROVIDERS`
+
+### Breaking Changes
+
+- remove `analytics.getEmotionTrends()`: platform-api no longer serves `GET /analytics/emotion-trends`
+- the platform spec dropped its emotion fields and schemas (`emotional_summary`, `emotion_summary`, the `emotion` and `valence` step inputs, `Turn` emotion labels, `PriorityQueueItem.current_emotion` and `current_valence`, `EmotionEvent` and related), so the generated types no longer carry them
+
+### Maintenance
+
+- sync API types from the platform spec: new `Launch.readiness_requires`, `ServiceVoiceConfig.readiness_requires` and `gemini_live` config, `ToolCallSpec.expects_code`, `RunManifest.service_config_digest`; new Gemini Live config schemas
+
 ## [0.135.0] - 2026-11-02
 
 ### Maintenance
