@@ -826,6 +826,7 @@ export type {
 export type {
   DynamicBehaviorPin,
   ListVoiceJudgeResultsParams,
+  ServicePlanResponse,
   VoiceJudgeResult,
   VoiceJudgeResultListResponse,
 } from './resources/services.js'

@@ -80,21 +80,6 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Emotion trend data over time */
-  async getEmotionTrends(params?: {
-    days?: number
-    date_from?: string | null
-    date_to?: string | null
-    interval?: '1h' | '1d' | '1w'
-    service_id?: string | null
-  }) {
-    return extractData(
-      await this.client.GET('/v1/{workspace_id}/analytics/emotion-trends', {
-        params: { path: { workspace_id: this.workspaceId }, query: params },
-      }),
-    )
-  }
-
   /** Voice pipeline latency metrics (TTFB, response time) */
   async getLatency(params?: {
     days?: number

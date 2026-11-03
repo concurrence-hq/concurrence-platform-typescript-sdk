@@ -23,7 +23,7 @@ type ExhaustiveProviderList<Union extends string, Values extends readonly Union[
 // GPT-Realtime family, eleven_realtime = ElevenLabs' Eleven Realtime family, gpt_live = OpenAI's
 // GPT-Live front end with the platform's reasoning engine as its backend (US workspaces without
 // regional data residency), grok_voice = xAI's Grok Voice family (workspaces without regional data
-// residency). A workspace in a regional deployment is refused eleven_realtime, gpt_live and grok_voice. Families name models; runtimes are platform-internal. Discover each family's models,
+// residency), gemini_live = Google's Gemini Live family. A workspace in a regional deployment is refused eleven_realtime, gpt_live and grok_voice. Families name models; runtimes are platform-internal. Discover each family's models,
 // voices and options with GET /v1/{workspace_id}/voice-families rather than baking them in.
 const voiceSessionProviders = [
   'amigo',
@@ -31,6 +31,7 @@ const voiceSessionProviders = [
   'eleven_realtime',
   'gpt_live',
   'grok_voice',
+  'gemini_live',
 ] as const satisfies readonly VoiceSessionProvider[]
 export const VOICE_SESSION_PROVIDERS = voiceSessionProviders satisfies ExhaustiveProviderList<
   VoiceSessionProvider,
