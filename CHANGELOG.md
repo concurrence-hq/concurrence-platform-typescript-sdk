@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.136.0] - 2026-11-03
+
+### Improvements
+
+- fix(data-sources)!: type dataSources.list params from the generated spec (ALL-1088) (#515)
+
+### Documentation
+
+- drop the emotion engine from the README architecture diagram (#513)
+
+### Maintenance
+
+- sync API types from platform (2518565b) (#516)
+
 ## [Unreleased]
 
 ### Maintenance
