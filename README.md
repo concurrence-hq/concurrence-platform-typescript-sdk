@@ -1008,7 +1008,11 @@ Data sources are stored records. Nothing polls or syncs them since the
 was retired, so send source records with `client.fhir.import()` or `client.intake`.
 
 ```typescript
-const { items: sources } = await client.dataSources.list()
+const { items: sources } = await client.dataSources.list({
+  source_type: ['ehr'],
+  is_active: true,
+  search: 'chart',
+})
 const source = await client.dataSources.get('source-id')
 console.log(source.source_type, source.is_active, source.updated_at)
 

@@ -77,7 +77,7 @@ describe('resource surface smoke tests', () => {
     await client.contextGraphs.getVersion('cg-001', 2)
 
     await client.dataSources.create(EMPTY_BODY)
-    await client.dataSources.list({ limit: 5, status: 'healthy' })
+    await client.dataSources.list({ limit: 5, is_active: true })
     await client.dataSources.get('ds-001')
     await client.dataSources.update('ds-001', EMPTY_BODY)
     await client.dataSources.delete('ds-001')

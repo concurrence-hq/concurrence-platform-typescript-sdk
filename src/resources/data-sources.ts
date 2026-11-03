@@ -1,12 +1,10 @@
-import type { components } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
 import type { DataSourceId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
-import type { ListParams } from '../core/utils.js'
 
-export interface ListDataSourcesParams extends ListParams {
-  type?: string
-  status?: string
-}
+export type ListDataSourcesParams = NonNullable<
+  operations['list-data-sources']['parameters']['query']
+>
 
 /**
  * Manage data sources — connections to external databases, warehouses,
