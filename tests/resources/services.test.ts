@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
 import type {
+  ServicePlanResponse,
   TtsProvider,
   VoiceJudgeResultListResponse,
   VoiceSessionProvider,
@@ -17,6 +18,7 @@ type ServiceResponse = components['schemas']['ServiceResponse']
 const SERVICE_ID = 'svc-00000000-0000-0000-0000-000000000001'
 let lastCreateBody: unknown
 let lastUpdateBody: unknown
+let lastPlanBody: unknown
 
 const SERVICE_FIXTURE = {
   id: SERVICE_ID,
@@ -55,6 +57,22 @@ const VOICE_JUDGE_FIXTURE = {
   ],
 } satisfies VoiceJudgeResultListResponse
 
+const PLAN_FIXTURE = {
+  problems: [
+    {
+      status: 422,
+      code: 'family_warm_transfer_unsupported',
+      message: 'Warm transfer is not supported by this family',
+      where: ['voice_config.forwarding'],
+      detail: { error: 'family_warm_transfer_unsupported' },
+    },
+  ],
+  changes: [{ path: ['name'], change: 'changed', before: 'Old', after: 'New' }],
+  families: [],
+  readiness: null,
+  readiness_unavailable: null,
+} as unknown as ServicePlanResponse
+
 const BASE = `/v1/${TEST_WORKSPACE_ID}`
 
 const client = new AmigoClient({
@@ -84,6 +102,16 @@ const client = new AmigoClient({
       })
     },
 
+    [`POST ${BASE}/services/plan`]: ({ body }) => {
+      lastPlanBody = body
+      return Response.json(PLAN_FIXTURE)
+    },
+
+    [`POST ${BASE}/services/${SERVICE_ID}/plan`]: ({ body }) => {
+      lastPlanBody = body
+      return Response.json(PLAN_FIXTURE)
+    },
+
     [`DELETE ${BASE}/services/${SERVICE_ID}`]: () => new Response(null, { status: 204 }),
   }),
 })
@@ -92,6 +120,24 @@ describe('ServicesResource', () => {
   beforeEach(() => {
     lastCreateBody = undefined
     lastUpdateBody = undefined
+    lastPlanBody = undefined
+  })
+
+  it('plans a service create without writing', async () => {
+    const body = { name: 'Scheduling Service' } as Parameters<typeof client.services.planCreate>[0]
+    const plan = await client.services.planCreate(body)
+    expect(plan.problems[0]?.code).toBe('family_warm_transfer_unsupported')
+    expect(plan.changes?.[0]?.path).toEqual(['name'])
+    expect(lastPlanBody).toEqual(body)
+    expect(lastCreateBody).toBeUndefined()
+  })
+
+  it('plans a service update without writing', async () => {
+    const body = { name: 'New' } as Parameters<typeof client.services.planUpdate>[1]
+    const plan = await client.services.planUpdate(SERVICE_ID, body)
+    expect(plan.problems).toHaveLength(1)
+    expect(lastPlanBody).toEqual(body)
+    expect(lastUpdateBody).toBeUndefined()
   })
 
   it('creates a service', async () => {
