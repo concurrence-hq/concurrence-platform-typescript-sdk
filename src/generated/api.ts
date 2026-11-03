@@ -60,7 +60,7 @@ export interface paths {
          * Get Availability
          * @description Return available appointment slots for the surface's workspace.
          *
-         *     Queries FHIR Slot resources from world.entities_synced that are free
+         *     Queries FHIR Slot resources from the entity projection that are free
          *     and within the requested date range. Token-authenticated, no Bearer auth.
          */
         get: operations["get-surface-availability"];
@@ -776,26 +776,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/{workspace_id}/analytics/emotion-trends": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Emotion Trends
-         * @description Emotion distribution and valence/arousal trends.
-         */
-        get: operations["get-emotion-trends"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/{workspace_id}/analytics/eval-quality": {
         parameters: {
             query?: never;
@@ -1299,7 +1279,7 @@ export interface paths {
         put?: never;
         /**
          * Create an outbound call
-         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. A patient is optional: give patient_entity_id or patient_canonical_id, not both, to tie the call to a patient, or neither for a call with no patient, such as a call to a payer line. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.
+         * @description Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. A patient is optional: give patient_entity_id or patient_canonical_id, not both, to tie the call to a patient, or neither for a call with no patient, such as a call to a payer line. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take outbound_task_entity_id, or on a voice runtime that takes none of system_prompt, goal or outbound_task_entity_id, so place the call without the fields the 422 names. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.
          */
         post: operations["create-outbound-call"];
         delete?: never;
@@ -2909,16 +2889,16 @@ export interface paths {
         get: operations["get-function"];
         /**
          * Deploy (validate + upsert) a platform function
-         * @description Validate + upsert a platform function row.
+         * @description Validate and save a platform function.
          *
-         *     Atomic: validation + (python/udtf only) UC UDF materialization +
-         *     upsert into ``platform.functions`` happen as one logical operation.
-         *     Repeat deploys against the same ``(workspace, name)`` replace the
-         *     row in place and clear stale ``last_test_*`` telemetry.
+         *     Validation runs first. For ``python`` and ``udtf`` functions, the Unity Catalog function is then created or
+         *     replaced, and the save follows. If the save fails after that, the Unity Catalog function already has the new
+         *     body, and the saved function is not updated. On a first deploy there is no saved function to keep, so the
+         *     Unity Catalog function is left without one. A repeat deploy of the same name in the same workspace
+         *     replaces the saved function and clears the results of its earlier test runs.
          *
-         *     The function name comes from the URL path; the request body's
-         *     ``name`` field must match or a 400 is raised. The URL is the
-         *     authoritative source.
+         *     The function name comes from the URL path; the request body's ``name`` field must match or a 400 is
+         *     raised. The URL is the authoritative source.
          *
          *     Permissions: admin, owner.
          */
@@ -2978,11 +2958,11 @@ export interface paths {
         put?: never;
         /**
          * Test invoke + persist last_test_* telemetry on the row
-         * @description Test invoke — same as invoke + persists last_test_* on the row.
+         * @description Test invoke: runs the function as invoke does, and stores the result on the function as its last test run.
          *
-         *     Returns 200 with ``status="fail"`` + populated ``error`` on
-         *     execution failure (instead of a 5xx) so the DC has a single
-         *     happy-path rendering.
+         *     Returns 200 with ``status="fail"`` and a populated ``error`` when the run fails or is refused: the arguments do
+         *     not match the function's parameters, the stored body is refused, or the workspace's data residency refuses the
+         *     function. Other client errors keep their status, for example 404 when the function does not exist.
          *
          *     Permissions: admin, owner.
          */
@@ -3971,6 +3951,7 @@ export interface paths {
          *
          *     A categorical or boolean series folds its newest period into one row:
          *     ``distribution`` counts each value and ``value`` is the most frequent.
+         *     Only defined metrics are listed (builtins and saved definitions), the keys the get and trend routes accept.
          *     Pages cover the first 10,000 values; narrow the filters or dates to read past them.
          *
          *     Permissions: authenticated (any role).
@@ -4326,7 +4307,7 @@ export interface paths {
         };
         /**
          * Priority-ranked operator queue
-         * @description Active calls ranked by operator priority: risk, wait time, emotion, loops, and safety concerns.
+         * @description Active calls ranked by operator priority: risk, wait time, loops, and safety concerns.
          */
         get: operations["get-operator-queue"];
         put?: never;
@@ -5209,6 +5190,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/services/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan a service create
+         * @description Plan `POST /v1/{workspace_id}/services` with the body it takes, under its permission (`Service.create`) and scope. A permission the create would need for a field it sets (`Service.update`, `platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.
+         */
+        post: operations["plan-service-create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/services/{service_id}": {
         parameters: {
             query?: never;
@@ -5223,7 +5224,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. A save that adds a number a live call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to` or an approved destination) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's list in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.
+         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5232,6 +5233,26 @@ export interface paths {
          * @description Delete a service. Requires `Service.delete` permission.
          */
         delete: operations["delete-service"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan a service update
+         * @description Plan `PUT /v1/{workspace_id}/services/{service_id}` with the body it takes, under its permission (`Service.update`) and scope. A permission the update would need for a field it sets (`platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.
+         */
+        post: operations["plan-service-update"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5776,9 +5797,9 @@ export interface paths {
          *     - **voice_id**: Voice identity UUID — determines the agent's voice persona
          *     - **tone**: Emotional baseline (``calm``, ``sympathetic``,
          *       ``enthusiastic``, ``content``, ``curious``, ``cheerful``,
-         *       ``serious``, ``friendly``). The system also adapts tone dynamically
-         *       based on real-time caller emotion analysis; this setting provides
-         *       the baseline when no strong emotional signal is detected.
+         *       ``serious``, ``friendly``). The system also picks a tone for each
+         *       reply from the conversation; this setting is the baseline when a
+         *       reply has none.
          *     - **speed**: Speech rate multiplier (0.5-2.0)
          *     - **volume**: Volume multiplier (0.0-1.0)
          *     - **language**: The language calls are spoken in (default ``en``), or
@@ -6858,7 +6879,7 @@ export interface paths {
          * Create Surface
          * @description Create a new data collection surface.
          *
-         *     Stores the surface spec as a world.event with domain="surface".
+         *     Stores the surface spec as a world event with domain="surface".
          *     The entity_id is stored inside event data (not on the event row)
          *     to avoid entity state recomputation.
          *
@@ -7393,7 +7414,8 @@ export interface paths {
          *     To switch families, set session_provider and clear every other family's config_key
          *     and legacy_keys. Options describe runnable settings; legacy stored values may
          *     remain readable outside discovery. GPT-Realtime supports one ActionState or 2-12 linked
-         *     ActionStates; Eleven Realtime supports one ActionState.
+         *     ActionStates; Eleven Realtime supports one ActionState. Phonic is for synthetic test calls only
+         *     until Phonic's BAA is signed.
          */
         get: operations["list-voice-families"];
         put?: never;
@@ -7586,7 +7608,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve entity by identifier
-         * @description Polymorphic identifier → ranked entity candidates. Accepts any subset of {phone, email, canonical_id, external_id, entity_id} plus a required ``entity_type``. Served from the SDP serving surfaces: entity rows from ``world.entities_synced``; canonical_id and external_id resolve through ``world.canonical_entity_map_synced`` point reads. Returns matches ranked by confidence + number of identifiers matched. Summary narrowing: ``external_ids`` is always ``{}``, ``tags`` is always ``[]``, and ``canonical_id`` is the canonical-map value or the entity's MRN.
+         * @description Polymorphic identifier → ranked entity candidates. Accepts any subset of {phone, email, canonical_id, external_id, entity_id} plus a required ``entity_type``. Served from the SDP serving surfaces: entity rows from the entity projection; canonical_id and external_id resolve through the canonical entity map by point reads. Returns matches ranked by confidence + number of identifiers matched. Summary narrowing: ``external_ids`` is always ``{}``, ``tags`` is always ``[]``, and ``canonical_id`` is the canonical-map value or the entity's MRN.
          */
         post: operations["resolve-entity"];
         delete?: never;
@@ -7624,7 +7646,7 @@ export interface paths {
         };
         /**
          * List current enrichment values for an entity
-         * @description Current winners per (entity, key) from world.enrichment_synced (Synced-Table-populated view of SDP's enrichment_current_v3). Each row carries value, value_type, confidence, source, effective_at.
+         * @description Current winners per (entity, key) from the enrichment projection. Each row carries value, value_type, confidence, source, effective_at.
          */
         get: operations["list-entity-enrichment"];
         put?: never;
@@ -9129,17 +9151,17 @@ export interface components {
         };
         /**
          * BatchProcessingManifest
-         * @description Per-file extraction params for a document batch's still-``received`` files —
-         *     consumed by the batch-extract job, which runs ONCE per batch and extracts
-         *     every file (instead of one run-now per file, which blows the request/gateway
-         *     timeout for large batches). Authenticated by the same short-lived
-         *     workspace-scoped token as the status write-back. ``document_processing`` is
-         *     dataset-wide (the contract); ``file_type`` is per-file (V265 multi-type).
+         * @description Per-file extraction parameters for a document batch's files that are still ``received``.
          *
-         *     Source provenance mirrors the single-file path (resolve_source_identity, PHI
-         *     gate): source_file_id/source_url (opaque ids) always populate; source_folder_path
-         *     + filename (operator-named free text) populate ONLY for contains_phi=false
-         *     datasets; otherwise they stay None, so PHI never leaves the file's record.
+         *     The batch extraction job reads this once per batch and extracts every file. One request per file would
+         *     exceed the request timeout on large batches. The job authenticates with the same short-lived,
+         *     workspace-scoped token as the status write-back. ``document_processing`` applies to the whole dataset.
+         *     ``file_type`` is per file, because a dataset can accept more than one type.
+         *
+         *     ``source_file_id`` is an opaque id, set whenever the file's document has one. ``source_url`` is the Google Drive
+         *     link for a document that came from a Google Shared Drive, and is null otherwise. ``source_folder_path`` and
+         *     ``filename`` are free text that the operator named, so they are set only for datasets marked as containing
+         *     no PHI. Otherwise they are null, so PHI never leaves the file's record.
          */
         BatchProcessingManifest: {
             /** Document Processing */
@@ -9392,7 +9414,7 @@ export interface components {
             /** Dynamic Behaviors Configured */
             dynamic_behaviors_configured: boolean;
             /** Family */
-            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Source
              * @enum {string}
@@ -9620,7 +9642,6 @@ export interface components {
             } | null;
             /** Direction */
             direction?: ("inbound" | "outbound" | "playground" | "simulated" | "test") | null;
-            emotional_summary?: components["schemas"]["EmotionalSummary"] | null;
             /** Error */
             error?: string | null;
             escalation?: components["schemas"]["EscalationState"] | null;
@@ -9864,8 +9885,6 @@ export interface components {
              * @default 0
              */
             duration_seconds?: number;
-            /** @description Emotional analysis */
-            emotion_summary?: components["schemas"]["EmotionSummary"] | null;
             /**
              * Final State
              * @description Final conversation state name
@@ -9926,10 +9945,6 @@ export interface components {
             direction: "inbound" | "outbound" | "playground" | "simulated" | "test";
             /** Duration Seconds */
             duration_seconds: number;
-            /** Emotion Summary */
-            emotion_summary?: {
-                [key: string]: unknown;
-            };
             /**
              * Final State
              * @default
@@ -10830,18 +10845,6 @@ export interface components {
             /** Total Credentials */
             total_credentials: number;
         };
-        /** CompoundEmotionEvent */
-        CompoundEmotionEvent: {
-            /** Compounds */
-            compounds: components["schemas"]["EmotionScore"][];
-            /** Turn Index */
-            turn_index: number;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "compound_emotion";
-        };
         /** ConceptMatch */
         ConceptMatch: {
             /** Agent Action */
@@ -10938,7 +10941,7 @@ export interface components {
             read_model_status: "ready" | "empty" | "unavailable";
             /**
              * Read Model Synced At
-             * @description Most recent platform.connector_health_summary synced_at value in this response.
+             * @description The most recent time the connector health data in this response was synced.
              */
             read_model_synced_at?: string | null;
             /** Sources */
@@ -11311,7 +11314,7 @@ export interface components {
              * @enum {string}
              */
             lifecycle: "active" | "dormant" | "closed";
-            /** @description What the conversation executed with, as its first session recorded it: the agent and context graph versions, the version set and config fingerprint, the build, the models and how they sampled, the prompt templates, the voice's language, the program flags and how the region decides. A call that changed its STT or its voice's language mid-call reads as it last stood. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models. */
+            /** @description What the conversation executed with, as its first session recorded it: the agent and context graph versions, the version set and config fingerprint, the digest of the whole service config it received, the build, the models and how they sampled, the prompt templates, the voice's language, the program flags and how the region decides. A call that changed its STT or its voice's language mid-call reads as it last stood. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models. */
             manifest?: components["schemas"]["RunManifest"] | null;
             /** Phone Number */
             phone_number?: string | null;
@@ -11325,7 +11328,7 @@ export interface components {
              * Session Provider
              * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Source
              * @description What started the conversation. A text conversation reads ``test`` when a test key or the ``test`` marker started it, ``playground`` when the developer console Playground did, and null otherwise. A call reads the source its call intelligence recorded (``real``, ``simulation`` or ``playground``), and null when it recorded none, as a test call does.
@@ -12323,7 +12326,7 @@ export interface components {
              * @description World model outbound_task entity ID for completion feedback.
              */
             outbound_task_entity_id?: string | null;
-            /** @description Patient world model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString rejects spaces, names, DOBs, and similar regulated content so PHI cannot leak into audit events or pipeline projections. The raw value is deliberately not recorded in the outbound.initiated event: correlation back to the source system is via the resolved entity_id joined to world.entities_synced.canonical_id. Resolved against the SDP-projected world.entities_synced table; an entity created moments ago may not yet be visible if the projection is lagging. Optional: leave out both patient_canonical_id and patient_entity_id for a call with no patient. Not together with patient_entity_id. */
+            /** @description Patient world model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString rejects spaces, names, DOBs, and similar regulated content so PHI cannot leak into audit events or pipeline projections. The raw value is deliberately not recorded in the outbound.initiated event: correlation back to the source system is via the resolved entity_id joined to the entity projection's canonical_id. Resolved against the SDP-projected entity table; an entity created moments ago may not yet be visible if the projection is lagging. Optional: leave out both patient_canonical_id and patient_entity_id for a call with no patient. Not together with patient_entity_id. */
             patient_canonical_id?: components["schemas"]["CanonicalIdString"] | null;
             /**
              * Patient Entity Id
@@ -13180,7 +13183,7 @@ export interface components {
          *
          *     The engine presents fields conversationally, tracks completion, and
          *     optionally falls back to a Surface form after N turns. Each collected
-         *     field produces a world.event with confidence 0.5.
+         *     field produces a world event with confidence 0.5.
          */
         "DataCollectionState-Input": {
             /**
@@ -13243,7 +13246,7 @@ export interface components {
          *
          *     The engine presents fields conversationally, tracks completion, and
          *     optionally falls back to a Surface form after N turns. Each collected
-         *     field produces a world.event with confidence 0.5.
+         *     field produces a world event with confidence 0.5.
          */
         "DataCollectionState-Output": {
             /**
@@ -13381,8 +13384,7 @@ export interface components {
          * DataQueryDeclarations
          * @description What a data query's author declares about its calls. Each declaration is optional, and one
          *     left out is unknown, never a default the platform guesses. A reader ignores a key it doesn't
-         *     know, so a later declaration never breaks an older reader. The data query API refuses one at the
-         *     write boundary instead (``DataQueryDeclarationsBody`` in platform-api).
+         *     know, so a later declaration never breaks an older reader.
          */
         DataQueryDeclarations: {
             /**
@@ -13584,12 +13586,12 @@ export interface components {
         };
         /**
          * DatasetRow
-         * @description A registered schema in the Schemas list (intake-ui-mvp-design.md §5.3).
+         * @description A registered schema in the Schemas list.
          */
         DatasetRow: {
             /**
              * Accepted File Types
-             * @description Document datasets: the full accepted-type set (V265). Empty for snapshot
+             * @description Document datasets: the full accepted-type set. Empty for snapshot
              *     or legacy single-type documents (the UI falls back to ``file_type``).
              * @default []
              */
@@ -13878,10 +13880,8 @@ export interface components {
          * DocumentProcessingSpec
          * @description Processing config for a document dataset (``ingestion_mode=document``).
          *
-         *     Documents have no schema/primary-key/CDC; this is what the contract carries
-         *     instead (docs/plans/intake_file_processing_pipeline.md §5.9). Page-split /
-         *     output-metadata rules are stored in the same jsonb and may be added later
-         *     without a migration.
+         *     Documents have no schema, primary key or change data capture, so this config is what the contract carries
+         *     instead.
          */
         DocumentProcessingSpec: {
             /**
@@ -14220,152 +14220,6 @@ export interface components {
             /** Voice */
             voice: string;
         };
-        /** EmotionEvent */
-        EmotionEvent: {
-            /** Arousal */
-            arousal: number;
-            /**
-             * Barge In Count
-             * @default 0
-             */
-            barge_in_count?: number;
-            /**
-             * Call Duration S
-             * @default null
-             */
-            call_duration_s?: number | null;
-            /**
-             * Coherence
-             * @default null
-             */
-            coherence?: number | null;
-            /**
-             * Dominance
-             * @default null
-             */
-            dominance?: number | null;
-            /** Dominant */
-            dominant: string;
-            /**
-             * Emotional Shifts
-             * @default null
-             */
-            emotional_shifts?: number | null;
-            /**
-             * Language Sentiment
-             * @default null
-             */
-            language_sentiment?: number | null;
-            /**
-             * Language Toxicity
-             * @default null
-             */
-            language_toxicity?: {
-                [key: string]: number;
-            } | null;
-            /**
-             * Provider
-             * @default null
-             */
-            provider?: string | null;
-            /**
-             * Scores
-             * @default null
-             */
-            scores?: components["schemas"]["EmotionScore"][] | null;
-            /**
-             * Segment Arousal
-             * @default null
-             */
-            segment_arousal?: number | null;
-            /**
-             * Segment Dominant
-             * @default null
-             */
-            segment_dominant?: string | null;
-            /**
-             * Segment Valence
-             * @default null
-             */
-            segment_valence?: number | null;
-            /** @default null */
-            speaker?: components["schemas"]["SpeakerAcoustics"] | null;
-            /**
-             * Speaker Similarity
-             * @default null
-             */
-            speaker_similarity?: number | null;
-            /**
-             * Total Segments
-             * @default null
-             */
-            total_segments?: number | null;
-            /**
-             * Trend
-             * @default null
-             */
-            trend?: ("improving" | "stable" | "deteriorating") | null;
-            /**
-             * Turn Count
-             * @default null
-             */
-            turn_count?: number | null;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "emotion";
-            /** Valence */
-            valence: number;
-            /**
-             * Verified Speaker Id
-             * @default null
-             */
-            verified_speaker_id?: string | null;
-        };
-        /** EmotionScore */
-        EmotionScore: {
-            /** Name */
-            name: string;
-            /** Score */
-            score: number;
-        };
-        /**
-         * EmotionSummary
-         * @description Aggregated emotional analysis across the call.
-         *
-         *     Free-form residual on the raw ``emotion_summary`` JSONB:
-         *     ``compound_emotions: list[{name, score}]``. Not exposed via this
-         *     typed shape — readers wanting it consume the JSONB endpoint.
-         */
-        EmotionSummary: {
-            /**
-             * Average Arousal
-             * @description Average emotional arousal 0.0 to 1.0
-             */
-            average_arousal?: number | null;
-            /**
-             * Average Valence
-             * @description Average emotional valence -1.0 to 1.0
-             */
-            average_valence?: number | null;
-            /**
-             * Barge In Count
-             * @description Number of caller interruptions (emotion-tagged)
-             * @default 0
-             */
-            barge_in_count?: number;
-            /**
-             * Dominant Emotion
-             * @description Most frequent emotion (e.g. 'neutral', 'happy', 'angry')
-             */
-            dominant_emotion?: string | null;
-            /**
-             * Peak Negative Valence
-             * @description Most negative valence observed
-             */
-            peak_negative_valence?: number | null;
-        };
         /**
          * EmotionalShift
          * @description A critical emotional state change detected in the caller's voice.
@@ -14403,31 +14257,6 @@ export interface components {
              * @description What caused the shift - exact words and tone
              */
             trigger?: string | null;
-        };
-        /** EmotionalSummary */
-        EmotionalSummary: {
-            /** Average Arousal */
-            average_arousal?: number | null;
-            /** Average Valence */
-            average_valence?: number | null;
-            /** Barge In Count */
-            barge_in_count?: number | null;
-            /** Compound Emotions */
-            compound_emotions?: {
-                [key: string]: unknown;
-            }[] | null;
-            /** Dominant Emotion */
-            dominant_emotion?: string | null;
-            /** Emotional Shifts */
-            emotional_shifts?: number | null;
-            /** Final Trend */
-            final_trend?: string | null;
-            /** Peak Negative Emotion */
-            peak_negative_emotion?: string | null;
-            /** Peak Negative Valence */
-            peak_negative_valence?: number | null;
-            /** Segment Count */
-            segment_count?: number | null;
         };
         /** EmpathyClassifiedEvent */
         EmpathyClassifiedEvent: {
@@ -14521,7 +14350,7 @@ export interface components {
         EndpointReads: components["schemas"]["PatientInParams"] | components["schemas"]["PatientsInResponse"] | components["schemas"]["NoPatient"];
         /**
          * EndpointResponse
-         * @description Per-endpoint response (V186 flat shape).
+         * @description Per-endpoint response.
          */
         EndpointResponse: {
             /**
@@ -14625,15 +14454,17 @@ export interface components {
              */
             timeout_seconds?: number;
         };
-        EndpointWriteKind: components["schemas"]["WriteKind"] | ("none" | "varies");
+        EndpointWriteKind: components["schemas"]["WriteKind"] | ("none" | "varies" | "verification");
         /**
          * EndpointWrites
          * @description What a successful call to an endpoint writes, and how its response reports the write.
          */
         "EndpointWrites-Input": {
             /**
-             * @description What the write does, ``none`` when the endpoint never writes, or ``varies`` when the
-             *     companion skill that calls it says.
+             * @description What the write does, ``none`` when the endpoint never writes, ``varies`` when the
+             *     companion skill that calls it says, or ``verification`` for a step that verifies the caller
+             *     by sending or checking a one-time code, which the voice agent runs without asking the caller
+             *     to agree or read back its destination first.
              */
             kind: components["schemas"]["EndpointWriteKind"];
             /**
@@ -14658,8 +14489,10 @@ export interface components {
          */
         "EndpointWrites-Output": {
             /**
-             * @description What the write does, ``none`` when the endpoint never writes, or ``varies`` when the
-             *     companion skill that calls it says.
+             * @description What the write does, ``none`` when the endpoint never writes, ``varies`` when the
+             *     companion skill that calls it says, or ``verification`` for a step that verifies the caller
+             *     by sending or checking a one-time code, which the voice agent runs without asking the caller
+             *     to agree or read back its destination first.
              */
             kind: components["schemas"]["EndpointWriteKind"];
             /**
@@ -15055,7 +14888,7 @@ export interface components {
          *
          *     ``system`` labels which system minted the value (``epic``, ``charm``,
          *     ``charmhealth``, …). Resolution probes the canonical entity map
-         *     (``world.canonical_entity_map_synced``) with the candidate key forms
+         *     with the candidate key forms
          *     ``{system}:{ResourceType}:{value}`` (Patient / Practitioner /
          *     Organization / Appointment) plus the bare ``value`` — so ``system``
          *     constrains the probe keys, and the request's ``entity_type``
@@ -16149,7 +15982,7 @@ export interface components {
          * @description A human-review proposal for an external (EHR) write-back — the Review Queue.
          *
          *     Staged by connector-runner when a `review_required` sink would otherwise
-         *     auto-push (world.external_write_proposals); a reviewer approves/rejects, and the
+         *     auto-push (the external write proposals table); a reviewer approves/rejects, and the
          *     egress drain delivers approved ones. ``proposed_payload`` is the full FHIR write
          *     body and MAY contain PHI — this surface is workspace-scoped (FORCE-RLS) and
          *     permission-gated (ReviewQueue); never log it. ``connector_type``/``fhir_*``/
@@ -16254,12 +16087,12 @@ export interface components {
             availability: components["schemas"]["Availability"];
             capabilities: components["schemas"]["SessionCapabilities"];
             /** Config Key */
-            config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Id
              * @enum {string}
              */
-            id: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
+            id: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
             /** Legacy Keys */
             legacy_keys: "realtime_voice"[];
             /** Models */
@@ -16271,6 +16104,42 @@ export interface components {
             } | null;
             summary: components["schemas"]["DescriptionString"];
             voices: components["schemas"]["Voices"] | null;
+        };
+        /**
+         * FamilyDelivery
+         * @description The voice family one version set would run, as readiness reads it, and the family's delivery rules held to
+         *     the whole config.
+         */
+        FamilyDelivery: {
+            capabilities: components["schemas"]["SessionCapabilities"] | null;
+            /** Dynamic Behaviors Configured */
+            dynamic_behaviors_configured: boolean;
+            /** Family */
+            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            /**
+             * Refusals
+             * @description What the config the save would store asks of the family that it can't deliver (warm transfer,
+             *     service-written lines), whether or not this save moves the version set. Empty when it delivers it all.
+             */
+            refusals: components["schemas"]["FamilyPolicyRefusal"][];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "service" | "agent" | "engine_default" | "agent_missing";
+            version_set: components["schemas"]["ReadinessLabel"];
+        };
+        /** FamilyPolicyRefusal */
+        FamilyPolicyRefusal: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "family_warm_transfer_unsupported" | "family_cannot_speak_service_lines";
+            /** Fields */
+            fields: string[];
+            /** Message */
+            message: string;
         };
         /** FhirAppointmentListResponse */
         FhirAppointmentListResponse: {
@@ -16824,6 +16693,26 @@ export interface components {
             /** Data Source Id */
             data_source_id?: string | null;
         };
+        /**
+         * FieldChange
+         * @description A field the save would change.
+         */
+        FieldChange: {
+            /** @description What the save would store. Null for a removed field. */
+            after?: components["schemas"]["JsonValue"];
+            /** @description What is stored. Null for an added field. */
+            before?: components["schemas"]["JsonValue"];
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "added" | "removed" | "changed";
+            /**
+             * Path
+             * @description Where the field is: `name`, or a key of the service's config, then each key under it.
+             */
+            path: string[];
+        };
         /** FieldSaveRequest */
         FieldSaveRequest: {
             /**
@@ -16999,10 +16888,6 @@ export interface components {
         ForkAlternative: {
             /** Caller Text */
             caller_text: string;
-            /** Emotion */
-            emotion?: string | null;
-            /** Valence */
-            valence?: number | null;
         };
         /** ForkBranch */
         ForkBranch: {
@@ -17307,11 +17192,7 @@ export interface components {
         };
         /**
          * FunctionExample
-         * @description One example call, surfaced to the LLM and the DC test panel.
-         *
-         *     Examples are first-class metadata, not buried in a UC ``COMMENT``
-         *     clause the way Databricks' native authoring requires. The DC
-         *     tool-picker shows them; the LLM tool spec includes them inline.
+         * @description One example call. The developer console's tool picker shows it, and the LLM tool spec includes it inline.
          */
         FunctionExample: {
             /**
@@ -17325,6 +17206,67 @@ export interface components {
             };
             /** Output */
             output: unknown;
+        };
+        /** GeminiLiveCompressionConfig */
+        GeminiLiveCompressionConfig: {
+            /**
+             * Target Tokens
+             * @default 80000
+             */
+            target_tokens?: number;
+            /**
+             * Trigger Tokens
+             * @default 100000
+             */
+            trigger_tokens?: number;
+        };
+        /** GeminiLiveSessionConfig */
+        GeminiLiveSessionConfig: {
+            compression?: components["schemas"]["GeminiLiveCompressionConfig"];
+            /** Custom Vocabulary */
+            custom_vocabulary?: string[];
+            /** Language Code */
+            language_code?: string | null;
+            /**
+             * Model
+             * @default gemini-3.8-live
+             * @enum {string}
+             */
+            model?: "gemini-3.8-live" | "gemini-live-2.5-flash-native-audio";
+            /** Transcription Language Codes */
+            transcription_language_codes?: string[];
+            vad?: components["schemas"]["GeminiLiveVadConfig"];
+            /**
+             * Voice
+             * @default Kore
+             * @enum {string}
+             */
+            voice?: "Zephyr" | "Puck" | "Charon" | "Kore" | "Fenrir" | "Leda" | "Orus" | "Aoede" | "Callirrhoe" | "Autonoe" | "Enceladus" | "Iapetus" | "Umbriel" | "Algieba" | "Despina" | "Erinome" | "Algenib" | "Rasalgethi" | "Laomedeia" | "Achernar" | "Alnilam" | "Schedar" | "Gacrux" | "Pulcherrima" | "Achird" | "Zubenelgenubi" | "Vindemiatrix" | "Sadachbia" | "Sadaltager" | "Sulafat";
+        };
+        /** GeminiLiveVadConfig */
+        GeminiLiveVadConfig: {
+            /**
+             * End Sensitivity
+             * @default low
+             * @enum {string}
+             */
+            end_sensitivity?: "high" | "low";
+            /**
+             * Prefix Padding Ms
+             * @default 20
+             */
+            prefix_padding_ms?: number;
+            /**
+             * Silence Duration Ms
+             * @default 500
+             */
+            silence_duration_ms?: number;
+            /**
+             * Start Sensitivity
+             * @default low
+             * @enum {string}
+             */
+            start_sensitivity?: "high" | "low";
         };
         /** GetSimulationBenchmarkResultsRequest */
         GetSimulationBenchmarkResultsRequest: {
@@ -17742,7 +17684,7 @@ export interface components {
         IntakeFieldType: "str" | "int" | "float" | "bool" | "date" | "datetime";
         /**
          * IntakeFileRow
-         * @description A file in the Files list (intake-ui-mvp-design.md §5.1).
+         * @description A file in the Files list.
          */
         IntakeFileRow: {
             /**
@@ -17752,8 +17694,7 @@ export interface components {
             dataset: string;
             /**
              * Doc Metadata
-             * @description Caller-supplied tags linking the document to a real-world subject (V385) —
-             *     e.g. ``{"patient_id": "…"}``. Set at upload for the whole document version
+             * @description Caller-supplied tags linking the document to a real-world subject, e.g. ``{"patient_id": "…"}``. Set at upload for the whole document version
              *     chain. ``{}`` for a document with no tags; null only for snapshot/CSV rows.
              */
             doc_metadata?: {
@@ -17761,8 +17702,8 @@ export interface components {
             } | null;
             /**
              * Document Id
-             * @description The document this version belongs to (§5.9). Null for snapshot/CSV rows;
-             *     set for documents — the console groups versions by it and the version chain.
+             * @description The document this version belongs to. Null for snapshot and CSV rows; set for documents. The console
+             *     groups versions by it to show each document's version history.
              */
             document_id?: string | null;
             /**
@@ -17799,17 +17740,15 @@ export interface components {
             source_file_id?: string | null;
             /**
              * Source Folder Path
-             * @description Where the file lived within the mapped Drive folder tree (V279) — the
-             *     relative path, folder names joined by ``/`` (e.g. ``clinical/notes``); ``''``
-             *     at the mapped root. Lets the console show the original folder structure. Null
-             *     for manual uploads and snapshot rows.
+             * @description Where the file lived within the mapped Drive folder tree, as a relative path with folder names joined by
+             *     ``/`` (e.g. ``clinical/notes``), and ``''`` at the mapped root. Lets the console show the original folder
+             *     structure. Null for manual uploads and snapshot rows.
              */
             source_folder_path?: string | null;
             /**
              * Source Type
-             * @description Origin of the document this version belongs to — ``manual`` for console
-             *     uploads, ``google_shared_drive`` for the Drive connector (V269). Null for
-             *     snapshot/CSV rows.
+             * @description Origin of the document this version belongs to: ``manual`` for console uploads, ``google_shared_drive``
+             *     for the Drive connector. Null for snapshot and CSV rows.
              */
             source_type?: string | null;
             status: components["schemas"]["_FileStatus"];
@@ -18227,11 +18166,8 @@ export interface components {
          * LLMExperienceControls
          * @description Typed model-tuning controls for a version set's LLM preference.
          *
-         *     ``params`` remains available as a provider-specific escape hatch. These three
-         *     fields are the ones deployments actually use; the surface was trimmed from
-         *     nineteen in V370 after a production census found the other sixteen had never
-         *     been set to a non-null value by anyone. Token budgets are intentionally
-         *     excluded so version sets do not reintroduce accidental response truncation.
+         *     ``params`` stays available as a provider-specific escape hatch. These three fields are the ones deployments
+         *     use. Token budgets are left out on purpose, so a version set cannot cut a response short by accident.
          */
         LLMExperienceControls: {
             /** Reasoning Effort */
@@ -18352,6 +18288,11 @@ export interface components {
              */
             medical_emergency_ending: "stay_on_line" | "end_after_script";
             output_check_modes: components["schemas"]["OutputCheckModes"];
+            /**
+             * Readiness Requires
+             * @description What the live voice-call readiness check gates this service's phone calls on: the base set every call needs, then the voice config's saved readiness_requires.
+             */
+            readiness_requires: ("binding" | "service_active" | "residency" | "fleet" | "valkey" | "lakebase" | "platform_api" | "openai_realtime" | "decisions" | "warehouse")[];
             /** Test Callers Registered */
             test_callers_registered: boolean;
             /**
@@ -18654,7 +18595,7 @@ export interface components {
              * Source
              * @enum {string}
              */
-            source: "call_intelligence" | "world_events" | "surface_events" | "emotion_events" | "connector_events" | "zerobus_events" | "voice_judge_results" | "custom";
+            source: "call_intelligence" | "world_events" | "surface_events" | "connector_events" | "zerobus_events" | "voice_judge_results" | "custom";
             /** Unit */
             unit?: string | null;
         };
@@ -18665,18 +18606,10 @@ export interface components {
         };
         /**
          * MetricDefinition
-         * @description A single metric definition — what to extract and how.
+         * @description A metric the platform computes for a workspace: what to extract from events, and how to aggregate it.
          *
-         *     Two broad modes:
-         *     - Built-in metrics: extraction is handled by hardcoded pipeline logic
-         *       (extract_path + aggregation). Shipped with every workspace.
-         *     - Custom metrics: extraction uses AI functions or static JSONB paths.
-         *       Defined per-workspace via settings API.
-         *
-         *     Frozen: builtins are process-wide singletons exposed via the
-         *     ``BUILTIN_METRICS`` list. A mutable list field (e.g.
-         *     ``applies_to_product_types``) could otherwise be mutated by one caller
-         *     and leak into every subsequent call in the same process.
+         *     Built-in metrics ship with every workspace. Custom metrics are defined per workspace through the settings
+         *     API, and they extract with AI functions or with static paths into the event data.
          */
         MetricDefinition: {
             /**
@@ -18829,7 +18762,7 @@ export interface components {
              * @description Source key for the producer that supplies this metric. Built-ins include 'call_intelligence', 'world_events', and 'surface_events'. Use 'custom' with custom_source_key for extension producers.
              * @enum {string}
              */
-            source: "call_intelligence" | "world_events" | "surface_events" | "emotion_events" | "connector_events" | "zerobus_events" | "voice_judge_results" | "custom";
+            source: "call_intelligence" | "world_events" | "surface_events" | "connector_events" | "zerobus_events" | "voice_judge_results" | "custom";
             /**
              * Source Filter
              * @description Optional SQL WHERE fragment for additional filtering (e.g. "source = 'voice_agent'"). Applied after event_type filter.
@@ -19449,7 +19382,7 @@ export interface components {
              */
             type: "oauth2_jwt_bearer";
         };
-        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["CompoundEmotionEvent"] | components["schemas"]["DynamicBehaviorDecidedEvent"] | components["schemas"]["EmotionEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
+        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["DynamicBehaviorDecidedEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
         /** OcrRequest */
         OcrRequest: {
             /**
@@ -20767,6 +20700,53 @@ export interface components {
              */
             total_calls: number;
         };
+        /** PhonicPronunciation */
+        PhonicPronunciation: {
+            /** Pronunciation */
+            pronunciation: string;
+            /** Word */
+            word: string;
+        };
+        /**
+         * PhonicSessionConfig
+         * @description Phonic controls for a service.
+         */
+        PhonicSessionConfig: {
+            /** Audio Speed */
+            audio_speed?: number | null;
+            /**
+             * Boosted Keywords
+             * @description Recognition hints. Unset, use the service keyterms.
+             */
+            boosted_keywords?: string[] | null;
+            /** Intelligence Level */
+            intelligence_level?: ("standard" | "high") | null;
+            /** Model */
+            model?: "phonic-1" | null;
+            /** Multilingual Mode */
+            multilingual_mode?: ("auto" | "request" | "initial") | null;
+            /** Pronunciation Dictionary */
+            pronunciation_dictionary?: components["schemas"]["PhonicPronunciation"][] | null;
+            vad?: components["schemas"]["PhonicVadConfig"] | null;
+            /** Voice */
+            voice?: ("sabrina" | "grant" | "sandeep" | "landon" | "shelby" | "mason" | "virginia" | "eleanor" | "gabrielle" | "paula" | "nolan" | "roberto" | "hikari" | "tomoya" | "eloise" | "jerome" | "daniela" | "juliana" | "valeria" | "eduardo" | "henri" | "kourtney" | "kaspar" | "mei" | "stella" | "karoline" | "amelia" | "william" | "joon" | "hana" | "mia" | "derek" | "divya" | "alice" | "karin" | "phillip" | "jackson" | "gina" | "michelle") | null;
+        };
+        /**
+         * PhonicVadConfig
+         * @description Phonic's server VAD. Unset fields keep Phonic's defaults.
+         */
+        PhonicVadConfig: {
+            /** Min Silence Duration Ms */
+            min_silence_duration_ms?: number | null;
+            /** Min Speech Duration Ms */
+            min_speech_duration_ms?: number | null;
+            /** Min Words To Interrupt */
+            min_words_to_interrupt?: number | null;
+            /** Prebuffer Duration Ms */
+            prebuffer_duration_ms?: number | null;
+            /** Threshold */
+            threshold?: number | null;
+        };
         /** PinningService */
         PinningService: {
             /**
@@ -20953,15 +20933,11 @@ export interface components {
              * @description Caller E.164 phone number for console clients
              */
             caller_phone?: string | null;
-            /** Current Emotion */
-            current_emotion?: string | null;
             /**
              * Current State
              * @default
              */
             current_state?: string;
-            /** Current Valence */
-            current_valence?: number | null;
             /**
              * Data Quality Flags
              * @default []
@@ -20985,10 +20961,10 @@ export interface components {
              * Priority Reasons
              * @default []
              */
-            priority_reasons?: ("high_risk" | "long_wait" | "negative_emotion" | "safety_concern" | "looping")[];
+            priority_reasons?: ("high_risk" | "long_wait" | "safety_concern" | "looping")[];
             /**
              * Priority Score
-             * @description Priority score normalized to 0.0-1.0
+             * @description Priority score from 0.0 to 1.0; its weights reach 0.85
              */
             priority_score: number;
             /** Risk Level */
@@ -21320,7 +21296,7 @@ export interface components {
              * Family
              * @enum {string}
              */
-            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
+            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
             /** Instructions */
             instructions: string;
             renderer: components["schemas"]["NameString"];
@@ -21649,22 +21625,20 @@ export interface components {
         };
         /**
          * RegisterSchemaRequest
-         * @description Create Schema payload (intake-ui-mvp-design.md §5.4, §5.9).
+         * @description Create Schema request body.
          *
-         *     ``ingestion_mode`` is inferred from ``file_type`` (csv/xls/xlsx → snapshot;
-         *     else document) — not part of the wire contract. Snapshot datasets require
-         *     ``primary_key`` + ``schema``; document datasets take an optional
-         *     ``document_processing`` config and ignore primary_key/schema. The backend
-         *     applies the other hidden defaults (``on_schema_change=additive``,
-         *     ``schema_version`` auto).
+         *     Callers do not send ``ingestion_mode``. It is inferred from ``file_type``: csv, xls and xlsx make a snapshot
+         *     dataset, and any other type makes a document dataset. Snapshot datasets require ``primary_key`` and
+         *     ``schema``. Document datasets take an optional ``document_processing`` config and ignore ``primary_key``
+         *     and ``schema``. The service applies the other defaults itself: ``on_schema_change`` is ``additive``, and
+         *     ``schema_version`` is assigned automatically.
          */
         RegisterSchemaRequest: {
             /**
              * Accepted File Types
-             * @description Document only — the SET of accepted file types (V265, e.g.
-             *     ``["pdf","docx","md"]``). Empty → single-type (just ``file_type``).
-             *     ``file_type`` is included as the primary. Mixing in a tabular type
-             *     (csv/xls/xlsx) is rejected; snapshot datasets are single-type.
+             * @description Document only: the set of accepted file types, e.g. ``["pdf","docx","md"]``. Empty means single-type
+             *     (just ``file_type``). ``file_type`` is included as the primary. Mixing in a tabular type (csv, xls or xlsx)
+             *     is rejected; snapshot datasets are single-type.
              * @default []
              */
             accepted_file_types?: components["schemas"]["_FileType"][];
@@ -21689,13 +21663,12 @@ export interface components {
         };
         /**
          * RegisterSourceRequest
-         * @description Register a Google Shared Drive intake source (design §3).
+         * @description Register a Google Shared Drive intake source.
          *
-         *     The credential is not part of the wire contract and nothing needs provisioning:
-         *     the source authenticates as the unified platform-infra intake service account,
-         *     impersonated from the pod's workload identity. Grant access Drive-side — share
-         *     the folder with that SA's email, or set ``impersonate_subject`` for the DWD
-         *     model. ``drive_id`` is optional (resolved at sync if omitted).
+         *     The caller supplies no credential, and nothing needs provisioning on the platform side. The source
+         *     authenticates as the platform's shared intake service account. Grant access on the Drive side: share the
+         *     folder with that account's email, or set ``impersonate_subject`` to use domain-wide delegation. ``drive_id``
+         *     is optional and is resolved at sync when omitted.
          */
         RegisterSourceRequest: {
             /** Display Name */
@@ -21711,14 +21684,10 @@ export interface components {
          * RegisteredFunction
          * @description The authored shape of a platform function.
          *
-         *     Identical wire format whether it's authored as a YAML file in the
-         *     repo or POSTed to ``/v1/{ws}/functions/deploy``. The deploy
-         *     pipeline validates this, derives the JSON Schema for the LLM tool
-         *     spec, and INSERTs a row into ``platform.functions`` with the next
-         *     monotonic ``version`` per ``(workspace_id, name)``. For
-         *     ``python`` / ``udtf`` rows, deploy ALSO issues
-         *     ``CREATE OR REPLACE FUNCTION`` against the warehouse to materialize
-         *     the UC UDF.
+         *     The body is the same whether the function is kept as a YAML file in a repository or sent with
+         *     ``PUT /v1/{workspace_id}/functions/{function_name}``, which takes this model as its body. The deploy validates
+         *     it and derives the JSON Schema for the LLM tool spec.
+         *     For python and udtf functions, the deploy also creates the function in Unity Catalog.
          */
         RegisteredFunction: {
             /** Body */
@@ -21771,7 +21740,7 @@ export interface components {
         };
         /**
          * RegisteredFunctionResponse
-         * @description Single row from ``platform.functions``.
+         * @description One registered function, as stored in the workspace.
          */
         RegisteredFunctionResponse: {
             /** Deployed At */
@@ -22373,7 +22342,7 @@ export interface components {
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Source
              * @description What started the run's conversation: ``test`` when a test key or the ``test`` marker did, ``playground``
@@ -22622,6 +22591,13 @@ export interface components {
             rendered_prompt_hash?: components["schemas"]["NameString"] | null;
             /** @description The runtime release of the pod the session ran on. */
             runtime_release_id?: components["schemas"]["NameString"] | null;
+            /**
+             * @description ``sha256:`` over the canonical JSON (keys sorted, no whitespace, non-ASCII escaped) of the whole service
+             *     config the session received: the service, its agent and graph versions and the behaviors its version set
+             *     pins. Any edit to that config moves it, where the fingerprint follows only the versions, the model and the
+             *     pins, so two runs that record the same digest received the same config. Null when the session loaded none.
+             */
+            service_config_digest?: components["schemas"]["NameString"] | null;
             stt_model?: components["schemas"]["NameString"] | null;
             /**
              * @description The speech-to-text vendor the call ran on: the one it opened with, or the one it failed over
@@ -22959,6 +22935,36 @@ export interface components {
              * @constant
              */
             status?: "saved";
+        };
+        /**
+         * SaveProblem
+         * @description One refusal the save would answer with.
+         */
+        SaveProblem: {
+            /**
+             * Code
+             * @description What is refused, as a stable code: the refusal's own `code`, `error` or `error_code` when it carries one, else
+             *     the code of the check that refuses.
+             */
+            code: string;
+            /** @description The `detail` the save would answer with, exactly. */
+            detail: components["schemas"]["JsonValue"];
+            /**
+             * Message
+             * @description What is refused, as the refusal says it.
+             */
+            message: string;
+            /**
+             * Status
+             * @description The HTTP status the save would answer with.
+             */
+            status: number;
+            /**
+             * Where
+             * @description The fields of the service the refusal is about, as dotted paths. Empty when it is about the save as a whole,
+             *     such as who makes it.
+             */
+            where: string[];
         };
         /** Scenario */
         Scenario: {
@@ -23433,6 +23439,42 @@ export interface components {
              */
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
         };
+        /**
+         * ServicePlanResponse
+         * @description What a service save would refuse, change and run. Nothing is written.
+         */
+        ServicePlanResponse: {
+            /**
+             * Changes
+             * @description What the save would change in the stored service, by field. A create's lists every field it would store, and
+             *     a save that changes nothing has none. Null when the request does not apply to the stored config, so there is no
+             *     config to compare (`readiness_unavailable` is `config_unreadable`).
+             */
+            changes: components["schemas"]["FieldChange"][] | null;
+            /**
+             * Families
+             * @description Each version set's family, `release` first. Empty for a text service, and null when it can't be read (see
+             *     `readiness_unavailable`).
+             */
+            families: components["schemas"]["FamilyDelivery"][] | null;
+            /**
+             * Problems
+             * @description Each refusal the save would answer with, in the order it meets them. Empty when every check passes.
+             */
+            problems: components["schemas"]["SaveProblem"][];
+            /**
+             * @description The service's readiness readback (`GET .../readiness`) for the config the save would store. A create's has no
+             *     voice use case bound. Null when it can't be read (see `readiness_unavailable`).
+             */
+            readiness: components["schemas"]["ServiceReadinessResponse"] | null;
+            /**
+             * @description Why `readiness` is null, and `families` too unless it is `channel_manager_unavailable`: the agent is not in the
+             *     workspace, a version set pins an agent or context graph version that doesn't exist or that no check cleared, the request does not apply to
+             *     the stored config, the config the save would store is incompatible with readiness, or channel-manager can't be
+             *     read. Null when it is read.
+             */
+            readiness_unavailable: components["schemas"]["Unavailable"] | null;
+        };
         /** ServiceReadinessResponse */
         ServiceReadinessResponse: {
             /** Families */
@@ -23651,6 +23693,7 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
+            gemini_live?: components["schemas"]["GeminiLiveSessionConfig"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
             grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
             /**
@@ -23672,12 +23715,15 @@ export interface components {
             max_response_words?: number | null;
             /** Min Tts Speed */
             min_tts_speed?: number | null;
+            phonic?: components["schemas"]["PhonicSessionConfig"] | null;
             /** Post Eot Pause Ms */
             post_eot_pause_ms?: number | null;
             /** Progress Interval Ms */
             progress_interval_ms?: number | null;
             /** Progress Vocabulary */
             progress_vocabulary?: string[] | null;
+            /** Readiness Requires */
+            readiness_requires?: ("openai_realtime" | "decisions" | "warehouse")[] | null;
             realtime?: components["schemas"]["RealtimeSessionConfig"] | null;
             /**
              * Realtime Voice
@@ -23686,7 +23732,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -23732,6 +23778,7 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingResponse"] | null;
+            gemini_live?: components["schemas"]["GeminiLiveSessionConfig"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
             grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
             /**
@@ -23753,12 +23800,15 @@ export interface components {
             max_response_words?: number | null;
             /** Min Tts Speed */
             min_tts_speed?: number | null;
+            phonic?: components["schemas"]["PhonicSessionConfig"] | null;
             /** Post Eot Pause Ms */
             post_eot_pause_ms?: number | null;
             /** Progress Interval Ms */
             progress_interval_ms?: number | null;
             /** Progress Vocabulary */
             progress_vocabulary?: string[] | null;
+            /** Readiness Requires */
+            readiness_requires?: ("openai_realtime" | "decisions" | "warehouse")[] | null;
             realtime?: components["schemas"]["RealtimeSessionConfig"] | null;
             /**
              * Realtime Voice
@@ -23767,7 +23817,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -23830,13 +23880,6 @@ export interface components {
              * @default 0
              */
             duration_s?: number;
-            /**
-             * Emotional Summary
-             * @default null
-             */
-            emotional_summary?: {
-                [key: string]: unknown;
-            } | null;
             /**
              * Final State
              * @default
@@ -25984,34 +26027,6 @@ export interface components {
             /** Traceid */
             traceId: string;
         };
-        /** SpeakerAcoustics */
-        SpeakerAcoustics: {
-            /**
-             * Energy Delta
-             * @default null
-             */
-            energy_delta?: number | null;
-            /**
-             * Energy Trend
-             * @default null
-             */
-            energy_trend?: ("rising" | "falling" | "stable") | null;
-            /**
-             * Normalized
-             * @default null
-             */
-            normalized?: boolean | null;
-            /**
-             * Pitch Delta
-             * @default null
-             */
-            pitch_delta?: number | null;
-            /**
-             * Zcr Delta
-             * @default null
-             */
-            zcr_delta?: number | null;
-        };
         /** SpeakerMutedEvent */
         SpeakerMutedEvent: {
             /** Muted */
@@ -26667,7 +26682,7 @@ export interface components {
         };
         /** StartSessionRequest */
         StartSessionRequest: {
-            /** @description World model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString blocks spaces, names, DOBs, and similar regulated content. Resolved against the SDP-projected world.entities_synced table; a freshly-created entity may not be visible yet if the projection is lagging. Provide either entity_id or canonical_id, not both. */
+            /** @description World model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString blocks spaces, names, DOBs, and similar regulated content. Resolved against the SDP-projected entity table; a freshly-created entity may not be visible yet if the projection is lagging. Provide either entity_id or canonical_id, not both. */
             canonical_id?: components["schemas"]["CanonicalIdString"] | null;
             /**
              * Channel Kind
@@ -26855,12 +26870,8 @@ export interface components {
         StepRequest: {
             /** Caller Text */
             caller_text: string;
-            /** Emotion */
-            emotion?: string | null;
             /** Session Id */
             session_id: string;
-            /** Valence */
-            valence?: number | null;
         };
         /**
          * StepSessionRequest
@@ -26869,15 +26880,11 @@ export interface components {
         StepSessionRequest: {
             /** Caller Text */
             caller_text: string;
-            /** Emotion */
-            emotion?: string | null;
             /**
              * Session Id
              * @description Leave unset: the path names the session. A value that differs from the path returns 422.
              */
             session_id?: string | null;
-            /** Valence */
-            valence?: number | null;
         };
         /**
          * StoredParameter
@@ -27420,7 +27427,7 @@ export interface components {
          *
          *     The agent reads the HSM (entity state, relationships,
          *     confidence gaps) and produces this spec. The spec is stored as a
-         *     world.event and rendered by platform-api into a patient-facing page.
+         *     world event and rendered by platform-api into a patient-facing page.
          */
         SurfaceSpec: {
             branding?: components["schemas"]["BrandingConfig"] | null;
@@ -28043,8 +28050,6 @@ export interface components {
             duration_ms?: number | null;
             /** E2E Ttfb Ms */
             e2e_ttfb_ms?: number | null;
-            /** Emotion */
-            emotion?: string | null;
             /** End */
             end: number;
             /** Endpoint Name */
@@ -28118,8 +28123,6 @@ export interface components {
              * @enum {string}
              */
             type: "agent_speech" | "barge_in" | "caller_speech" | "filler" | "filler_hesitation" | "filler_nav" | "greeting" | "interrupted_speech" | "processing_gap" | "silence" | "silence_check" | "state_transition" | "tool_call";
-            /** Valence */
-            valence?: number | null;
         };
         /** TimelineTimebase */
         TimelineTimebase: {
@@ -28314,6 +28317,11 @@ export interface components {
              * @enum {string}
              */
             execution?: "blocking" | "background";
+            /**
+             * Expects Code
+             * @default false
+             */
+            expects_code?: boolean;
             /** Failure Delivery */
             failure_delivery?: ("interrupt" | "queue") | null;
             /** Failure Delivery By Class */
@@ -28631,7 +28639,7 @@ export interface components {
         TraceAnalysisListItem: {
             /**
              * Call Entity Id
-             * @description Associated world.entities_synced call row UUID
+             * @description Associated call entity row UUID
              */
             call_entity_id?: string | null;
             /**
@@ -28711,7 +28719,7 @@ export interface components {
         TraceAnalysisResponse: {
             /**
              * Call Entity Id
-             * @description UUID string of the associated world.entities_synced call row (if resolved)
+             * @description UUID string of the associated call entity row (if resolved)
              */
             call_entity_id?: string | null;
             /**
@@ -29234,20 +29242,12 @@ export interface components {
             audio_window_end_ms?: number | null;
             /** Audio Window Start Ms */
             audio_window_start_ms?: number | null;
-            /** Compound Emotions */
-            compound_emotions?: {
-                [key: string]: unknown;
-            }[] | null;
             /** Decision Bearing */
             decision_bearing?: boolean | null;
             /** @description The dynamic behavior the agent line was rendered with. Null when none was in force. */
             dynamic_behavior?: components["schemas"]["AppliedBehavior"] | null;
             /** @description What the caller turn's dynamic behavior decision did. Null when none ran. */
             dynamic_behavior_decision?: components["schemas"]["BehaviorDecision"] | null;
-            /** Emotion Label */
-            emotion_label?: string | null;
-            /** Emotion Valence */
-            emotion_valence?: number | null;
             /** Empathy Tier */
             empathy_tier?: number | null;
             /** Engine Ms */
@@ -29786,6 +29786,8 @@ export interface components {
             /** Tool Name */
             tool_name: string;
         };
+        /** @enum {string} */
+        Unavailable: "agent_not_in_workspace" | "version_not_found" | "config_unreadable" | "config_incompatible" | "channel_manager_unavailable";
         /** UpdateAgentRequest */
         UpdateAgentRequest: {
             description?: components["schemas"]["DescriptionString"] | null;
@@ -30000,14 +30002,10 @@ export interface components {
          * UpdateSimulationCaseRequest
          * @description Partial update for one durable simulation case.
          *
-         *     Mirrors the nested ``CreateSimulationCaseItem`` shape with every field
-         *     optional so ``model_dump(exclude_unset=True)`` only emits the keys the
-         *     caller actually sent. Reuses the same nested submodels as create so the
-         *     durable fields (``scenario``, ``grounding``, ``evals``, ``metadata``) can
-         *     be PATCHed. ``extra="forbid"`` rejects the retired pre-V192 flat fields
-         *     (scenario_instructions, initial_message, temperament, fixtures,
-         *     constraints, target_spec, assertions, provenance) with 422 instead of
-         *     silently dropping them.
+         *     Every field is optional, and only the fields the caller sends are updated. The nested submodels are the
+         *     same as on create, so the durable fields (``scenario``, ``grounding``, ``evals``, ``metadata``) can be
+         *     updated. The retired flat fields (``scenario_instructions``, ``initial_message``, ``temperament``,
+         *     ``fixtures``, ``constraints``, ``target_spec``, ``assertions``, ``provenance``) are refused with 422.
          */
         UpdateSimulationCaseRequest: {
             /** Description */
@@ -31005,7 +31003,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice") | null;
+            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Similarity Boost
              * @default 0
@@ -31032,8 +31030,6 @@ export interface components {
         };
         /** VoiceContextAppliedEvent */
         VoiceContextAppliedEvent: {
-            /** Emotion Detection Enabled */
-            emotion_detection_enabled: boolean;
             /** Filler Enabled */
             filler_enabled: boolean;
             /** Reasoning */
@@ -31078,10 +31074,6 @@ export interface components {
             } | null;
             /** Conversation Metrics */
             conversation_metrics?: {
-                [key: string]: unknown;
-            } | null;
-            /** Emotional Summary */
-            emotional_summary?: {
                 [key: string]: unknown;
             } | null;
             /** Escalation */
@@ -31247,8 +31239,8 @@ export interface components {
          * @description Voice experience control plane — PM-facing, high-level controls.
          *
          *     Controls the caller experience without exposing engineering internals.
-         *     Emotion detection, filler speech, and buffer tuning are always-on
-         *     internals managed by engineering.
+         *     Filler speech and buffer tuning are always-on internals managed by
+         *     engineering.
          */
         VoiceSettingsRequest: {
             /** Keyterms */
@@ -31571,7 +31563,7 @@ export interface components {
             event_read_model_status?: "ready" | "empty" | "unavailable";
             /**
              * Event Read Model Synced At
-             * @description platform.event_velocity_summary synced_at for this workspace.
+             * @description The time the workspace's event velocity summary was last synced.
              */
             event_read_model_synced_at?: string | null;
             /**
@@ -31929,7 +31921,7 @@ export interface components {
         src__routes__external_write_proposals___SortField: "created_at";
         /**
          * Request
-         * @description Add a new endpoint to a REST integration (V186 flat shape).
+         * @description Add a new endpoint to a REST integration.
          */
         src__routes__integrations__create_endpoint__Request: {
             /**
@@ -32237,7 +32229,7 @@ export interface components {
         };
         /**
          * Request
-         * @description Patch an existing endpoint (V186 flat shape). ``name`` is immutable.
+         * @description Patch an existing endpoint. ``name`` is immutable.
          */
         src__routes__integrations__update_endpoint__Request: {
             /**
@@ -35051,62 +35043,6 @@ export interface operations {
             };
         };
     };
-    "get-emotion-trends": {
-        parameters: {
-            query?: {
-                days?: number;
-                date_from?: string | null;
-                date_to?: string | null;
-                interval?: "1h" | "1d" | "1w";
-                /** @description Only this service's results. A value that isn't a UUID gets a 422. */
-                service_id?: string | null;
-            };
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Rate limit exceeded */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
-                };
-            };
-        };
-    };
     "get-eval-quality-analytics": {
         parameters: {
             query?: {
@@ -36324,7 +36260,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id. A test key's call is also refused when it names an outbound_task_entity_id, because the task's outcome events can't carry the test marker yet */
+            /** @description Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take outbound_task_entity_id, or on a voice runtime that takes none of system_prompt, goal or outbound_task_entity_id. A test key's call is also refused when it names an outbound_task_entity_id, because the task's outcome events can't carry the test marker yet */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -46712,6 +46648,53 @@ export interface operations {
             };
         };
     };
+    "plan-service-create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePlanResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A body the save itself would not parse. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "get-service": {
         parameters: {
             query?: never;
@@ -46818,7 +46801,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid request body, or a transfer destination a voice use case bound to the service will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. */
+            /** @description Invalid request body, or a transfer destination a voice use case bound to the service will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. `destination_not_allowed_by_use_case` also carries a `message` saying to add the numbers to the use case's `allowed_forwarding_numbers` in channel-manager first, with a docs link. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -46885,10 +46868,65 @@ export interface operations {
             };
         };
     };
+    "plan-service-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateServiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePlanResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A body the save itself would not parse. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "preview-service-prompt": {
         parameters: {
             query: {
-                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
+                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
                 version_set?: components["schemas"]["NameString"];
             };
             header?: never;
@@ -51824,7 +51862,7 @@ export interface operations {
                     "application/json": components["schemas"]["TriggerResponse"];
                 };
             };
-            /** @description Validation error */
+            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls, or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -51918,7 +51956,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation error */
+            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls, or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -52607,7 +52645,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unsupported use case channel, or a transfer destination of the service that the voice use case will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. */
+            /** @description Unsupported use case channel, or a transfer destination of the service that the voice use case will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. `destination_not_allowed_by_use_case` also carries a `message` saying to add the numbers to the use case's `allowed_forwarding_numbers` in channel-manager first, with a docs link. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -52700,7 +52738,7 @@ export interface operations {
             header?: never;
             path: {
                 workspace_id: string;
-                family: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice";
+                family: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
             };
             cookie?: never;
         };

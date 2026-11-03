@@ -253,6 +253,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listAutoPaging`
 - `get`
 - `update`
+- `planCreate`
+- `planUpdate`
 - `upsertVersionSet`
 - `setDynamicBehaviorPin`
 - `clearDynamicBehaviorPin`
@@ -383,7 +385,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getCalls`
 - `getAgents`
 - `getCallQuality`
-- `getEmotionTrends`
 - `getLatency`
 - `getToolPerformance`
 - `getDataQuality`

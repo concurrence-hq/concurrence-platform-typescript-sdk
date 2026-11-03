@@ -2681,7 +2681,7 @@
         "type": "object"
       },
       "BatchProcessingManifest": {
-        "description": "Per-file extraction params for a document batch's still-``received`` files —\nconsumed by the batch-extract job, which runs ONCE per batch and extracts\nevery file (instead of one run-now per file, which blows the request/gateway\ntimeout for large batches). Authenticated by the same short-lived\nworkspace-scoped token as the status write-back. ``document_processing`` is\ndataset-wide (the contract); ``file_type`` is per-file (V265 multi-type).\n\nSource provenance mirrors the single-file path (resolve_source_identity, PHI\ngate): source_file_id/source_url (opaque ids) always populate; source_folder_path\n+ filename (operator-named free text) populate ONLY for contains_phi=false\ndatasets; otherwise they stay None, so PHI never leaves the file's record.",
+        "description": "Per-file extraction parameters for a document batch's files that are still ``received``.\n\nThe batch extraction job reads this once per batch and extracts every file. One request per file would\nexceed the request timeout on large batches. The job authenticates with the same short-lived,\nworkspace-scoped token as the status write-back. ``document_processing`` applies to the whole dataset.\n``file_type`` is per file, because a dataset can accept more than one type.\n\n``source_file_id`` is an opaque id, set whenever the file's document has one. ``source_url`` is the Google Drive\nlink for a document that came from a Google Shared Drive, and is null otherwise. ``source_folder_path`` and\n``filename`` are free text that the operator named, so they are set only for datasets marked as containing\nno PHI. Otherwise they are null, so PHI never leaves the file's record.",
         "properties": {
           "document_processing": {
             "additionalProperties": true,
@@ -3279,7 +3279,9 @@
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -3929,16 +3931,6 @@
               }
             ],
             "title": "Direction"
-          },
-          "emotional_summary": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EmotionalSummary"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "error": {
             "anyOf": [
@@ -4636,17 +4628,6 @@
             "title": "Duration Seconds",
             "type": "number"
           },
-          "emotion_summary": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EmotionSummary"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Emotional analysis"
-          },
           "final_state": {
             "anyOf": [
               {
@@ -4818,11 +4799,6 @@
             "minimum": 0,
             "title": "Duration Seconds",
             "type": "number"
-          },
-          "emotion_summary": {
-            "additionalProperties": true,
-            "title": "Emotion Summary",
-            "type": "object"
           },
           "final_state": {
             "default": "",
@@ -6963,33 +6939,6 @@
         "title": "ComplianceDashboardResponse",
         "type": "object"
       },
-      "CompoundEmotionEvent": {
-        "properties": {
-          "compounds": {
-            "items": {
-              "$ref": "#/components/schemas/EmotionScore"
-            },
-            "title": "Compounds",
-            "type": "array"
-          },
-          "turn_index": {
-            "title": "Turn Index",
-            "type": "integer"
-          },
-          "type": {
-            "const": "compound_emotion",
-            "default": "compound_emotion",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "compounds",
-          "turn_index"
-        ],
-        "title": "CompoundEmotionEvent",
-        "type": "object"
-      },
       "ConceptMatch": {
         "properties": {
           "agent_action": {
@@ -7215,7 +7164,7 @@
                 "type": "null"
               }
             ],
-            "description": "Most recent platform.connector_health_summary synced_at value in this response.",
+            "description": "The most recent time the connector health data in this response was synced.",
             "title": "Read Model Synced At"
           },
           "sources": {
@@ -8217,7 +8166,7 @@
                 "type": "null"
               }
             ],
-            "description": "What the conversation executed with, as its first session recorded it: the agent and context graph versions, the version set and config fingerprint, the build, the models and how they sampled, the prompt templates, the voice's language, the program flags and how the region decides. A call that changed its STT or its voice's language mid-call reads as it last stood. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models."
+            "description": "What the conversation executed with, as its first session recorded it: the agent and context graph versions, the version set and config fingerprint, the digest of the whole service config it received, the build, the models and how they sampled, the prompt templates, the voice's language, the program flags and how the region decides. A call that changed its STT or its voice's language mid-call reads as it last stood. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user, since it names the workspace's agent, graph and models."
           },
           "phone_number": {
             "anyOf": [
@@ -8272,7 +8221,9 @@
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -10658,7 +10609,7 @@
                 "type": "null"
               }
             ],
-            "description": "Patient world model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString rejects spaces, names, DOBs, and similar regulated content so PHI cannot leak into audit events or pipeline projections. The raw value is deliberately not recorded in the outbound.initiated event: correlation back to the source system is via the resolved entity_id joined to world.entities_synced.canonical_id. Resolved against the SDP-projected world.entities_synced table; an entity created moments ago may not yet be visible if the projection is lagging. Optional: leave out both patient_canonical_id and patient_entity_id for a call with no patient. Not together with patient_entity_id."
+            "description": "Patient world model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString rejects spaces, names, DOBs, and similar regulated content so PHI cannot leak into audit events or pipeline projections. The raw value is deliberately not recorded in the outbound.initiated event: correlation back to the source system is via the resolved entity_id joined to the entity projection's canonical_id. Resolved against the SDP-projected entity table; an entity created moments ago may not yet be visible if the projection is lagging. Optional: leave out both patient_canonical_id and patient_entity_id for a call with no patient. Not together with patient_entity_id."
           },
           "patient_entity_id": {
             "anyOf": [
@@ -12461,7 +12412,7 @@
         "type": "object"
       },
       "DataCollectionState-Input": {
-        "description": "Structured voice/text data collection with field tracking.\n\nThe engine presents fields conversationally, tracks completion, and\noptionally falls back to a Surface form after N turns. Each collected\nfield produces a world.event with confidence 0.5.",
+        "description": "Structured voice/text data collection with field tracking.\n\nThe engine presents fields conversationally, tracks completion, and\noptionally falls back to a Surface form after N turns. Each collected\nfield produces a world event with confidence 0.5.",
         "properties": {
           "action_guidelines": {
             "default": [],
@@ -12563,7 +12514,7 @@
         "type": "object"
       },
       "DataCollectionState-Output": {
-        "description": "Structured voice/text data collection with field tracking.\n\nThe engine presents fields conversationally, tracks completion, and\noptionally falls back to a Surface form after N turns. Each collected\nfield produces a world.event with confidence 0.5.",
+        "description": "Structured voice/text data collection with field tracking.\n\nThe engine presents fields conversationally, tracks completion, and\noptionally falls back to a Surface form after N turns. Each collected\nfield produces a world event with confidence 0.5.",
         "properties": {
           "action_guidelines": {
             "default": [],
@@ -12782,7 +12733,7 @@
         "type": "object"
       },
       "DataQueryDeclarations": {
-        "description": "What a data query's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses. A reader ignores a key it doesn't\nknow, so a later declaration never breaks an older reader. The data query API refuses one at the\nwrite boundary instead (``DataQueryDeclarationsBody`` in platform-api).",
+        "description": "What a data query's author declares about its calls. Each declaration is optional, and one\nleft out is unknown, never a default the platform guesses. A reader ignores a key it doesn't\nknow, so a later declaration never breaks an older reader.",
         "properties": {
           "reads": {
             "anyOf": [
@@ -13191,11 +13142,11 @@
         "type": "object"
       },
       "DatasetRow": {
-        "description": "A registered schema in the Schemas list (intake-ui-mvp-design.md §5.3).",
+        "description": "A registered schema in the Schemas list.",
         "properties": {
           "accepted_file_types": {
             "default": [],
-            "description": "Document datasets: the full accepted-type set (V265). Empty for snapshot\nor legacy single-type documents (the UI falls back to ``file_type``).",
+            "description": "Document datasets: the full accepted-type set. Empty for snapshot\nor legacy single-type documents (the UI falls back to ``file_type``).",
             "items": {
               "type": "string"
             },
@@ -13911,7 +13862,7 @@
         "type": "object"
       },
       "DocumentProcessingSpec": {
-        "description": "Processing config for a document dataset (``ingestion_mode=document``).\n\nDocuments have no schema/primary-key/CDC; this is what the contract carries\ninstead (docs/plans/intake_file_processing_pipeline.md §5.9). Page-split /\noutput-metadata rules are stored in the same jsonb and may be added later\nwithout a migration.",
+        "description": "Processing config for a document dataset (``ingestion_mode=document``).\n\nDocuments have no schema, primary key or change data capture, so this config is what the contract carries\ninstead.",
         "properties": {
           "extraction_mode": {
             "default": "text_extract",
@@ -14579,335 +14530,6 @@
         "title": "ElevenRealtimeSessionConfig",
         "type": "object"
       },
-      "EmotionEvent": {
-        "properties": {
-          "arousal": {
-            "title": "Arousal",
-            "type": "number"
-          },
-          "barge_in_count": {
-            "default": 0,
-            "title": "Barge In Count",
-            "type": "integer"
-          },
-          "call_duration_s": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Call Duration S"
-          },
-          "coherence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Coherence"
-          },
-          "dominance": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Dominance"
-          },
-          "dominant": {
-            "title": "Dominant",
-            "type": "string"
-          },
-          "emotional_shifts": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Emotional Shifts"
-          },
-          "language_sentiment": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Language Sentiment"
-          },
-          "language_toxicity": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Language Toxicity"
-          },
-          "provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Provider"
-          },
-          "scores": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/EmotionScore"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Scores"
-          },
-          "segment_arousal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Segment Arousal"
-          },
-          "segment_dominant": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Segment Dominant"
-          },
-          "segment_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Segment Valence"
-          },
-          "speaker": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SpeakerAcoustics"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
-          "speaker_similarity": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Speaker Similarity"
-          },
-          "total_segments": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Total Segments"
-          },
-          "trend": {
-            "anyOf": [
-              {
-                "enum": [
-                  "improving",
-                  "stable",
-                  "deteriorating"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Trend"
-          },
-          "turn_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Turn Count"
-          },
-          "type": {
-            "const": "emotion",
-            "default": "emotion",
-            "title": "Type",
-            "type": "string"
-          },
-          "valence": {
-            "title": "Valence",
-            "type": "number"
-          },
-          "verified_speaker_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Verified Speaker Id",
-            "x-phi": true
-          }
-        },
-        "required": [
-          "dominant",
-          "valence",
-          "arousal"
-        ],
-        "title": "EmotionEvent",
-        "type": "object"
-      },
-      "EmotionScore": {
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "score": {
-            "title": "Score",
-            "type": "number"
-          }
-        },
-        "required": [
-          "name",
-          "score"
-        ],
-        "title": "EmotionScore",
-        "type": "object"
-      },
-      "EmotionSummary": {
-        "description": "Aggregated emotional analysis across the call.\n\nFree-form residual on the raw ``emotion_summary`` JSONB:\n``compound_emotions: list[{name, score}]``. Not exposed via this\ntyped shape — readers wanting it consume the JSONB endpoint.",
-        "properties": {
-          "average_arousal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Average emotional arousal 0.0 to 1.0",
-            "title": "Average Arousal"
-          },
-          "average_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Average emotional valence -1.0 to 1.0",
-            "title": "Average Valence"
-          },
-          "barge_in_count": {
-            "default": 0,
-            "description": "Number of caller interruptions (emotion-tagged)",
-            "title": "Barge In Count",
-            "type": "integer"
-          },
-          "dominant_emotion": {
-            "anyOf": [
-              {
-                "maxLength": 256,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Most frequent emotion (e.g. 'neutral', 'happy', 'angry')",
-            "title": "Dominant Emotion"
-          },
-          "peak_negative_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Most negative valence observed",
-            "title": "Peak Negative Valence"
-          }
-        },
-        "title": "EmotionSummary",
-        "type": "object"
-      },
       "EmotionalShift": {
         "description": "A critical emotional state change detected in the caller's voice.",
         "examples": [
@@ -14992,126 +14614,6 @@
           }
         },
         "title": "EmotionalShift",
-        "type": "object"
-      },
-      "EmotionalSummary": {
-        "properties": {
-          "average_arousal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Average Arousal"
-          },
-          "average_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Average Valence"
-          },
-          "barge_in_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Barge In Count"
-          },
-          "compound_emotions": {
-            "anyOf": [
-              {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Compound Emotions"
-          },
-          "dominant_emotion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dominant Emotion"
-          },
-          "emotional_shifts": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotional Shifts"
-          },
-          "final_trend": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Final Trend"
-          },
-          "peak_negative_emotion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Peak Negative Emotion"
-          },
-          "peak_negative_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Peak Negative Valence"
-          },
-          "segment_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Segment Count"
-          }
-        },
-        "title": "EmotionalSummary",
         "type": "object"
       },
       "EmpathyClassifiedEvent": {
@@ -15296,7 +14798,7 @@
         ]
       },
       "EndpointResponse": {
-        "description": "Per-endpoint response (V186 flat shape).",
+        "description": "Per-endpoint response.",
         "properties": {
           "body_format": {
             "default": "json",
@@ -15437,7 +14939,8 @@
           {
             "enum": [
               "none",
-              "varies"
+              "varies",
+              "verification"
             ],
             "type": "string"
           }
@@ -15448,7 +14951,7 @@
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/EndpointWriteKind",
-            "description": "What the write does, ``none`` when the endpoint never writes, or ``varies`` when the\ncompanion skill that calls it says."
+            "description": "What the write does, ``none`` when the endpoint never writes, ``varies`` when the\ncompanion skill that calls it says, or ``verification`` for a step that verifies the caller\nby sending or checking a one-time code, which the voice agent runs without asking the caller\nto agree or read back its destination first."
           },
           "success": {
             "anyOf": [
@@ -15473,7 +14976,7 @@
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/EndpointWriteKind",
-            "description": "What the write does, ``none`` when the endpoint never writes, or ``varies`` when the\ncompanion skill that calls it says."
+            "description": "What the write does, ``none`` when the endpoint never writes, ``varies`` when the\ncompanion skill that calls it says, or ``verification`` for a step that verifies the caller\nby sending or checking a one-time code, which the voice agent runs without asking the caller\nto agree or read back its destination first."
           },
           "success": {
             "anyOf": [
@@ -16587,7 +16090,7 @@
         "type": "object"
       },
       "EntityResolveExternalId": {
-        "description": "Reference to an external-system identifier.\n\n``system`` labels which system minted the value (``epic``, ``charm``,\n``charmhealth``, …). Resolution probes the canonical entity map\n(``world.canonical_entity_map_synced``) with the candidate key forms\n``{system}:{ResourceType}:{value}`` (Patient / Practitioner /\nOrganization / Appointment) plus the bare ``value`` — so ``system``\nconstrains the probe keys, and the request's ``entity_type``\nconstrains the map slice. External aliases that were never minted as\ncanonical keys (the legacy ``external_ids`` JSONB junk-drawer\nentries) are no longer resolvable.",
+        "description": "Reference to an external-system identifier.\n\n``system`` labels which system minted the value (``epic``, ``charm``,\n``charmhealth``, …). Resolution probes the canonical entity map\nwith the candidate key forms\n``{system}:{ResourceType}:{value}`` (Patient / Practitioner /\nOrganization / Appointment) plus the bare ``value`` — so ``system``\nconstrains the probe keys, and the request's ``entity_type``\nconstrains the map slice. External aliases that were never minted as\ncanonical keys (the legacy ``external_ids`` JSONB junk-drawer\nentries) are no longer resolvable.",
         "properties": {
           "system": {
             "$ref": "#/components/schemas/ExternalSystemString",
@@ -19161,7 +18664,7 @@
         "type": "string"
       },
       "ExternalWriteProposal": {
-        "description": "A human-review proposal for an external (EHR) write-back — the Review Queue.\n\nStaged by connector-runner when a `review_required` sink would otherwise\nauto-push (world.external_write_proposals); a reviewer approves/rejects, and the\negress drain delivers approved ones. ``proposed_payload`` is the full FHIR write\nbody and MAY contain PHI — this surface is workspace-scoped (FORCE-RLS) and\npermission-gated (ReviewQueue); never log it. ``connector_type``/``fhir_*``/\n``status``/``idempotency_key`` are opaque strings; the ids are uuid.",
+        "description": "A human-review proposal for an external (EHR) write-back — the Review Queue.\n\nStaged by connector-runner when a `review_required` sink would otherwise\nauto-push (the external write proposals table); a reviewer approves/rejects, and the\negress drain delivers approved ones. ``proposed_payload`` is the full FHIR write\nbody and MAY contain PHI — this surface is workspace-scoped (FORCE-RLS) and\npermission-gated (ReviewQueue); never log it. ``connector_type``/``fhir_*``/\n``status``/``idempotency_key`` are opaque strings; the ids are uuid.",
         "properties": {
           "confidence": {
             "anyOf": [
@@ -19439,7 +18942,9 @@
                   "realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -19455,7 +18960,9 @@
               "gpt_realtime",
               "eleven_realtime",
               "gpt_live",
-              "grok_voice"
+              "grok_voice",
+              "gemini_live",
+              "phonic"
             ],
             "title": "Id",
             "type": "string"
@@ -19521,6 +19028,106 @@
           "options"
         ],
         "title": "Family",
+        "type": "object"
+      },
+      "FamilyDelivery": {
+        "description": "The voice family one version set would run, as readiness reads it, and the family's delivery rules held to\nthe whole config.",
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dynamic_behaviors_configured": {
+            "title": "Dynamic Behaviors Configured",
+            "type": "boolean"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "amigo",
+                  "gpt_realtime",
+                  "eleven_realtime",
+                  "gpt_live",
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "refusals": {
+            "description": "What the config the save would store asks of the family that it can't deliver (warm transfer,\nservice-written lines), whether or not this save moves the version set. Empty when it delivers it all.",
+            "items": {
+              "$ref": "#/components/schemas/FamilyPolicyRefusal"
+            },
+            "title": "Refusals",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "service",
+              "agent",
+              "engine_default",
+              "agent_missing"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "version_set": {
+            "$ref": "#/components/schemas/ReadinessLabel"
+          }
+        },
+        "required": [
+          "version_set",
+          "family",
+          "source",
+          "capabilities",
+          "dynamic_behaviors_configured",
+          "refusals"
+        ],
+        "title": "FamilyDelivery",
+        "type": "object"
+      },
+      "FamilyPolicyRefusal": {
+        "properties": {
+          "code": {
+            "enum": [
+              "family_warm_transfer_unsupported",
+              "family_cannot_speak_service_lines"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "fields"
+        ],
+        "title": "FamilyPolicyRefusal",
         "type": "object"
       },
       "FhirAppointmentListResponse": {
@@ -21316,6 +20923,42 @@
         "title": "FhirWriteRequest",
         "type": "object"
       },
+      "FieldChange": {
+        "description": "A field the save would change.",
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/JsonValue",
+            "description": "What the save would store. Null for a removed field."
+          },
+          "before": {
+            "$ref": "#/components/schemas/JsonValue",
+            "description": "What is stored. Null for an added field."
+          },
+          "change": {
+            "enum": [
+              "added",
+              "removed",
+              "changed"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "path": {
+            "description": "Where the field is: `name`, or a key of the service's config, then each key under it.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Path",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "change"
+        ],
+        "title": "FieldChange",
+        "type": "object"
+      },
       "FieldSaveRequest": {
         "properties": {
           "value": {
@@ -21800,31 +21443,6 @@
             "maxLength": 2000,
             "title": "Caller Text",
             "type": "string"
-          },
-          "emotion": {
-            "anyOf": [
-              {
-                "maxLength": 50,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotion"
-          },
-          "valence": {
-            "anyOf": [
-              {
-                "maximum": 1,
-                "minimum": -1,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valence"
           }
         },
         "required": [
@@ -22595,7 +22213,7 @@
       },
       "FunctionExample": {
         "additionalProperties": false,
-        "description": "One example call, surfaced to the LLM and the DC test panel.\n\nExamples are first-class metadata, not buried in a UC ``COMMENT``\nclause the way Databricks' native authoring requires. The DC\ntool-picker shows them; the LLM tool spec includes them inline.",
+        "description": "One example call. The developer console's tool picker shows it, and the LLM tool spec includes it inline.",
         "properties": {
           "description": {
             "default": "",
@@ -22616,6 +22234,158 @@
           "output"
         ],
         "title": "FunctionExample",
+        "type": "object"
+      },
+      "GeminiLiveCompressionConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "target_tokens": {
+            "default": 80000,
+            "maximum": 127999,
+            "minimum": 1024,
+            "title": "Target Tokens",
+            "type": "integer"
+          },
+          "trigger_tokens": {
+            "default": 100000,
+            "maximum": 128000,
+            "minimum": 5000,
+            "title": "Trigger Tokens",
+            "type": "integer"
+          }
+        },
+        "title": "GeminiLiveCompressionConfig",
+        "type": "object"
+      },
+      "GeminiLiveSessionConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "compression": {
+            "$ref": "#/components/schemas/GeminiLiveCompressionConfig"
+          },
+          "custom_vocabulary": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Custom Vocabulary",
+            "type": "array"
+          },
+          "language_code": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Code"
+          },
+          "model": {
+            "default": "gemini-3.8-live",
+            "enum": [
+              "gemini-3.8-live",
+              "gemini-live-2.5-flash-native-audio"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "transcription_language_codes": {
+            "items": {
+              "maxLength": 35,
+              "minLength": 2,
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Transcription Language Codes",
+            "type": "array"
+          },
+          "vad": {
+            "$ref": "#/components/schemas/GeminiLiveVadConfig"
+          },
+          "voice": {
+            "default": "Kore",
+            "enum": [
+              "Zephyr",
+              "Puck",
+              "Charon",
+              "Kore",
+              "Fenrir",
+              "Leda",
+              "Orus",
+              "Aoede",
+              "Callirrhoe",
+              "Autonoe",
+              "Enceladus",
+              "Iapetus",
+              "Umbriel",
+              "Algieba",
+              "Despina",
+              "Erinome",
+              "Algenib",
+              "Rasalgethi",
+              "Laomedeia",
+              "Achernar",
+              "Alnilam",
+              "Schedar",
+              "Gacrux",
+              "Pulcherrima",
+              "Achird",
+              "Zubenelgenubi",
+              "Vindemiatrix",
+              "Sadachbia",
+              "Sadaltager",
+              "Sulafat"
+            ],
+            "title": "Voice",
+            "type": "string"
+          }
+        },
+        "title": "GeminiLiveSessionConfig",
+        "type": "object"
+      },
+      "GeminiLiveVadConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "end_sensitivity": {
+            "default": "low",
+            "enum": [
+              "high",
+              "low"
+            ],
+            "title": "End Sensitivity",
+            "type": "string"
+          },
+          "prefix_padding_ms": {
+            "default": 20,
+            "maximum": 2000,
+            "minimum": 0,
+            "title": "Prefix Padding Ms",
+            "type": "integer"
+          },
+          "silence_duration_ms": {
+            "default": 500,
+            "maximum": 2000,
+            "minimum": 0,
+            "title": "Silence Duration Ms",
+            "type": "integer"
+          },
+          "start_sensitivity": {
+            "default": "low",
+            "enum": [
+              "high",
+              "low"
+            ],
+            "title": "Start Sensitivity",
+            "type": "string"
+          }
+        },
+        "title": "GeminiLiveVadConfig",
         "type": "object"
       },
       "GetSimulationBenchmarkResultsRequest": {
@@ -23531,7 +23301,7 @@
         "type": "string"
       },
       "IntakeFileRow": {
-        "description": "A file in the Files list (intake-ui-mvp-design.md §5.1).",
+        "description": "A file in the Files list.",
         "properties": {
           "dataset": {
             "description": "Schema slug (UI label \"Schema\").",
@@ -23550,7 +23320,7 @@
                 "type": "null"
               }
             ],
-            "description": "Caller-supplied tags linking the document to a real-world subject (V385) —\ne.g. ``{\"patient_id\": \"…\"}``. Set at upload for the whole document version\nchain. ``{}`` for a document with no tags; null only for snapshot/CSV rows.",
+            "description": "Caller-supplied tags linking the document to a real-world subject, e.g. ``{\"patient_id\": \"…\"}``. Set at upload for the whole document version\nchain. ``{}`` for a document with no tags; null only for snapshot/CSV rows.",
             "title": "Doc Metadata"
           },
           "document_id": {
@@ -23563,7 +23333,7 @@
                 "type": "null"
               }
             ],
-            "description": "The document this version belongs to (§5.9). Null for snapshot/CSV rows;\nset for documents — the console groups versions by it and the version chain.",
+            "description": "The document this version belongs to. Null for snapshot and CSV rows; set for documents. The console\ngroups versions by it to show each document's version history.",
             "title": "Document Id"
           },
           "error_reason": {
@@ -23630,7 +23400,7 @@
                 "type": "null"
               }
             ],
-            "description": "Where the file lived within the mapped Drive folder tree (V279) — the\nrelative path, folder names joined by ``/`` (e.g. ``clinical/notes``); ``''``\nat the mapped root. Lets the console show the original folder structure. Null\nfor manual uploads and snapshot rows.",
+            "description": "Where the file lived within the mapped Drive folder tree, as a relative path with folder names joined by\n``/`` (e.g. ``clinical/notes``), and ``''`` at the mapped root. Lets the console show the original folder\nstructure. Null for manual uploads and snapshot rows.",
             "title": "Source Folder Path"
           },
           "source_type": {
@@ -23642,7 +23412,7 @@
                 "type": "null"
               }
             ],
-            "description": "Origin of the document this version belongs to — ``manual`` for console\nuploads, ``google_shared_drive`` for the Drive connector (V269). Null for\nsnapshot/CSV rows.",
+            "description": "Origin of the document this version belongs to: ``manual`` for console uploads, ``google_shared_drive``\nfor the Drive connector. Null for snapshot and CSV rows.",
             "title": "Source Type"
           },
           "status": {
@@ -24463,7 +24233,7 @@
       },
       "LLMExperienceControls": {
         "additionalProperties": false,
-        "description": "Typed model-tuning controls for a version set's LLM preference.\n\n``params`` remains available as a provider-specific escape hatch. These three\nfields are the ones deployments actually use; the surface was trimmed from\nnineteen in V370 after a production census found the other sixteen had never\nbeen set to a non-null value by anyone. Token budgets are intentionally\nexcluded so version sets do not reintroduce accidental response truncation.",
+        "description": "Typed model-tuning controls for a version set's LLM preference.\n\n``params`` stays available as a provider-specific escape hatch. These three fields are the ones deployments\nuse. Token budgets are left out on purpose, so a version set cannot cut a response short by accident.",
         "properties": {
           "reasoning_effort": {
             "anyOf": [
@@ -24736,6 +24506,26 @@
           "output_check_modes": {
             "$ref": "#/components/schemas/OutputCheckModes"
           },
+          "readiness_requires": {
+            "description": "What the live voice-call readiness check gates this service's phone calls on: the base set every call needs, then the voice config's saved readiness_requires.",
+            "items": {
+              "enum": [
+                "binding",
+                "service_active",
+                "residency",
+                "fleet",
+                "valkey",
+                "lakebase",
+                "platform_api",
+                "openai_realtime",
+                "decisions",
+                "warehouse"
+              ],
+              "type": "string"
+            },
+            "title": "Readiness Requires",
+            "type": "array"
+          },
           "test_callers_registered": {
             "title": "Test Callers Registered",
             "type": "boolean"
@@ -24752,7 +24542,8 @@
           "output_check_modes",
           "test_callers_registered",
           "verification_callers_registered",
-          "human_line_configured"
+          "human_line_configured",
+          "readiness_requires"
         ],
         "title": "Launch",
         "type": "object"
@@ -25391,7 +25182,6 @@
               "call_intelligence",
               "world_events",
               "surface_events",
-              "emotion_events",
               "connector_events",
               "zerobus_events",
               "voice_judge_results",
@@ -25440,7 +25230,7 @@
         "type": "object"
       },
       "MetricDefinition": {
-        "description": "A single metric definition — what to extract and how.\n\nTwo broad modes:\n- Built-in metrics: extraction is handled by hardcoded pipeline logic\n  (extract_path + aggregation). Shipped with every workspace.\n- Custom metrics: extraction uses AI functions or static JSONB paths.\n  Defined per-workspace via settings API.\n\nFrozen: builtins are process-wide singletons exposed via the\n``BUILTIN_METRICS`` list. A mutable list field (e.g.\n``applies_to_product_types``) could otherwise be mutated by one caller\nand leak into every subsequent call in the same process.",
+        "description": "A metric the platform computes for a workspace: what to extract from events, and how to aggregate it.\n\nBuilt-in metrics ship with every workspace. Custom metrics are defined per workspace through the settings\nAPI, and they extract with AI functions or with static paths into the event data.",
         "properties": {
           "active": {
             "default": true,
@@ -25749,7 +25539,6 @@
               "call_intelligence",
               "world_events",
               "surface_events",
-              "emotion_events",
               "connector_events",
               "zerobus_events",
               "voice_judge_results",
@@ -27208,9 +26997,7 @@
             "agent_transcript": "#/components/schemas/AgentTranscriptEvent",
             "agent_transcript_delta": "#/components/schemas/AgentTranscriptDeltaEvent",
             "barge_in": "#/components/schemas/BargeInEvent",
-            "compound_emotion": "#/components/schemas/CompoundEmotionEvent",
             "dynamic_behavior_decided": "#/components/schemas/DynamicBehaviorDecidedEvent",
-            "emotion": "#/components/schemas/EmotionEvent",
             "empathy_classified": "#/components/schemas/EmpathyClassifiedEvent",
             "forward_call_resolved": "#/components/schemas/ForwardCallResolvedEvent",
             "latency": "#/components/schemas/LatencyEvent",
@@ -27247,13 +27034,7 @@
             "$ref": "#/components/schemas/BargeInEvent"
           },
           {
-            "$ref": "#/components/schemas/CompoundEmotionEvent"
-          },
-          {
             "$ref": "#/components/schemas/DynamicBehaviorDecidedEvent"
-          },
-          {
-            "$ref": "#/components/schemas/EmotionEvent"
           },
           {
             "$ref": "#/components/schemas/EmpathyClassifiedEvent"
@@ -30309,6 +30090,261 @@
         "title": "PhoneNumberCallVolume",
         "type": "object"
       },
+      "PhonicPronunciation": {
+        "additionalProperties": false,
+        "properties": {
+          "pronunciation": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Pronunciation",
+            "type": "string"
+          },
+          "word": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Word",
+            "type": "string"
+          }
+        },
+        "required": [
+          "word",
+          "pronunciation"
+        ],
+        "title": "PhonicPronunciation",
+        "type": "object"
+      },
+      "PhonicSessionConfig": {
+        "additionalProperties": false,
+        "description": "Phonic controls for a service.",
+        "properties": {
+          "audio_speed": {
+            "anyOf": [
+              {
+                "maximum": 1.5,
+                "minimum": 0.5,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Speed"
+          },
+          "boosted_keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 50,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recognition hints. Unset, use the service keyterms.",
+            "title": "Boosted Keywords"
+          },
+          "intelligence_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "standard",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intelligence Level"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "const": "phonic-1",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "multilingual_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "auto",
+                  "request",
+                  "initial"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multilingual Mode"
+          },
+          "pronunciation_dictionary": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PhonicPronunciation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pronunciation Dictionary"
+          },
+          "vad": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhonicVadConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sabrina",
+                  "grant",
+                  "sandeep",
+                  "landon",
+                  "shelby",
+                  "mason",
+                  "virginia",
+                  "eleanor",
+                  "gabrielle",
+                  "paula",
+                  "nolan",
+                  "roberto",
+                  "hikari",
+                  "tomoya",
+                  "eloise",
+                  "jerome",
+                  "daniela",
+                  "juliana",
+                  "valeria",
+                  "eduardo",
+                  "henri",
+                  "kourtney",
+                  "kaspar",
+                  "mei",
+                  "stella",
+                  "karoline",
+                  "amelia",
+                  "william",
+                  "joon",
+                  "hana",
+                  "mia",
+                  "derek",
+                  "divya",
+                  "alice",
+                  "karin",
+                  "phillip",
+                  "jackson",
+                  "gina",
+                  "michelle"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice"
+          }
+        },
+        "title": "PhonicSessionConfig",
+        "type": "object"
+      },
+      "PhonicVadConfig": {
+        "additionalProperties": false,
+        "description": "Phonic's server VAD. Unset fields keep Phonic's defaults.",
+        "properties": {
+          "min_silence_duration_ms": {
+            "anyOf": [
+              {
+                "maximum": 1500,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Silence Duration Ms"
+          },
+          "min_speech_duration_ms": {
+            "anyOf": [
+              {
+                "maximum": 1500,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Speech Duration Ms"
+          },
+          "min_words_to_interrupt": {
+            "anyOf": [
+              {
+                "maximum": 10,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Words To Interrupt"
+          },
+          "prebuffer_duration_ms": {
+            "anyOf": [
+              {
+                "maximum": 2000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prebuffer Duration Ms"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "maximum": 0.8,
+                "minimum": 0.2,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "title": "PhonicVadConfig",
+        "type": "object"
+      },
       "PinningService": {
         "properties": {
           "id": {
@@ -30673,32 +30709,10 @@
             "description": "Caller E.164 phone number for console clients",
             "title": "Caller Phone"
           },
-          "current_emotion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Emotion"
-          },
           "current_state": {
             "default": "",
             "title": "Current State",
             "type": "string"
-          },
-          "current_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Valence"
           },
           "data_quality_flags": {
             "default": [],
@@ -30744,7 +30758,6 @@
               "enum": [
                 "high_risk",
                 "long_wait",
-                "negative_emotion",
                 "safety_concern",
                 "looping"
               ],
@@ -30754,7 +30767,7 @@
             "type": "array"
           },
           "priority_score": {
-            "description": "Priority score normalized to 0.0-1.0",
+            "description": "Priority score from 0.0 to 1.0; its weights reach 0.85",
             "maximum": 1,
             "minimum": 0,
             "title": "Priority Score",
@@ -31700,7 +31713,9 @@
               "gpt_realtime",
               "eleven_realtime",
               "gpt_live",
-              "grok_voice"
+              "grok_voice",
+              "gemini_live",
+              "phonic"
             ],
             "title": "Family",
             "type": "string"
@@ -32650,11 +32665,11 @@
         "type": "object"
       },
       "RegisterSchemaRequest": {
-        "description": "Create Schema payload (intake-ui-mvp-design.md §5.4, §5.9).\n\n``ingestion_mode`` is inferred from ``file_type`` (csv/xls/xlsx → snapshot;\nelse document) — not part of the wire contract. Snapshot datasets require\n``primary_key`` + ``schema``; document datasets take an optional\n``document_processing`` config and ignore primary_key/schema. The backend\napplies the other hidden defaults (``on_schema_change=additive``,\n``schema_version`` auto).",
+        "description": "Create Schema request body.\n\nCallers do not send ``ingestion_mode``. It is inferred from ``file_type``: csv, xls and xlsx make a snapshot\ndataset, and any other type makes a document dataset. Snapshot datasets require ``primary_key`` and\n``schema``. Document datasets take an optional ``document_processing`` config and ignore ``primary_key``\nand ``schema``. The service applies the other defaults itself: ``on_schema_change`` is ``additive``, and\n``schema_version`` is assigned automatically.",
         "properties": {
           "accepted_file_types": {
             "default": [],
-            "description": "Document only — the SET of accepted file types (V265, e.g.\n``[\"pdf\",\"docx\",\"md\"]``). Empty → single-type (just ``file_type``).\n``file_type`` is included as the primary. Mixing in a tabular type\n(csv/xls/xlsx) is rejected; snapshot datasets are single-type.",
+            "description": "Document only: the set of accepted file types, e.g. ``[\"pdf\",\"docx\",\"md\"]``. Empty means single-type\n(just ``file_type``). ``file_type`` is included as the primary. Mixing in a tabular type (csv, xls or xlsx)\nis rejected; snapshot datasets are single-type.",
             "items": {
               "$ref": "#/components/schemas/_FileType"
             },
@@ -32719,7 +32734,7 @@
         "type": "object"
       },
       "RegisterSourceRequest": {
-        "description": "Register a Google Shared Drive intake source (design §3).\n\nThe credential is not part of the wire contract and nothing needs provisioning:\nthe source authenticates as the unified platform-infra intake service account,\nimpersonated from the pod's workload identity. Grant access Drive-side — share\nthe folder with that SA's email, or set ``impersonate_subject`` for the DWD\nmodel. ``drive_id`` is optional (resolved at sync if omitted).",
+        "description": "Register a Google Shared Drive intake source.\n\nThe caller supplies no credential, and nothing needs provisioning on the platform side. The source\nauthenticates as the platform's shared intake service account. Grant access on the Drive side: share the\nfolder with that account's email, or set ``impersonate_subject`` to use domain-wide delegation. ``drive_id``\nis optional and is resolved at sync when omitted.",
         "properties": {
           "display_name": {
             "maxLength": 200,
@@ -32770,7 +32785,7 @@
       },
       "RegisteredFunction": {
         "additionalProperties": false,
-        "description": "The authored shape of a platform function.\n\nIdentical wire format whether it's authored as a YAML file in the\nrepo or POSTed to ``/v1/{ws}/functions/deploy``. The deploy\npipeline validates this, derives the JSON Schema for the LLM tool\nspec, and INSERTs a row into ``platform.functions`` with the next\nmonotonic ``version`` per ``(workspace_id, name)``. For\n``python`` / ``udtf`` rows, deploy ALSO issues\n``CREATE OR REPLACE FUNCTION`` against the warehouse to materialize\nthe UC UDF.",
+        "description": "The authored shape of a platform function.\n\nThe body is the same whether the function is kept as a YAML file in a repository or sent with\n``PUT /v1/{workspace_id}/functions/{function_name}``, which takes this model as its body. The deploy validates\nit and derives the JSON Schema for the LLM tool spec.\nFor python and udtf functions, the deploy also creates the function in Unity Catalog.",
         "properties": {
           "body": {
             "maxLength": 8192,
@@ -32890,7 +32905,7 @@
         "type": "object"
       },
       "RegisteredFunctionResponse": {
-        "description": "Single row from ``platform.functions``.",
+        "description": "One registered function, as stored in the workspace.",
         "properties": {
           "deployed_at": {
             "anyOf": [
@@ -34129,7 +34144,9 @@
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -34714,6 +34731,17 @@
               }
             ],
             "description": "The runtime release of the pod the session ran on."
+          },
+          "service_config_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "``sha256:`` over the canonical JSON (keys sorted, no whitespace, non-ASCII escaped) of the whole service\nconfig the session received: the service, its agent and graph versions and the behaviors its version set\npins. Any edit to that config moves it, where the fingerprint follows only the versions, the model and the\npins, so two runs that record the same digest received the same config. Null when the session loaded none."
           },
           "stt_model": {
             "anyOf": [
@@ -35437,6 +35465,47 @@
           }
         },
         "title": "SaveFieldResponse",
+        "type": "object"
+      },
+      "SaveProblem": {
+        "description": "One refusal the save would answer with.",
+        "properties": {
+          "code": {
+            "description": "What is refused, as a stable code: the refusal's own `code`, `error` or `error_code` when it carries one, else\nthe code of the check that refuses.",
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/JsonValue",
+            "description": "The `detail` the save would answer with, exactly."
+          },
+          "message": {
+            "description": "What is refused, as the refusal says it.",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "description": "The HTTP status the save would answer with.",
+            "title": "Status",
+            "type": "integer"
+          },
+          "where": {
+            "description": "The fields of the service the refusal is about, as dotted paths. Empty when it is about the save as a whole,\nsuch as who makes it.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Where",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status",
+          "code",
+          "message",
+          "where",
+          "detail"
+        ],
+        "title": "SaveProblem",
         "type": "object"
       },
       "Scenario": {
@@ -36467,6 +36536,80 @@
         "title": "ServiceOutputChecksRequest",
         "type": "object"
       },
+      "ServicePlanResponse": {
+        "description": "What a service save would refuse, change and run. Nothing is written.",
+        "properties": {
+          "changes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FieldChange"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the save would change in the stored service, by field. A create's lists every field it would store, and\na save that changes nothing has none. Null when the request does not apply to the stored config, so there is no\nconfig to compare (`readiness_unavailable` is `config_unreadable`).",
+            "title": "Changes"
+          },
+          "families": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FamilyDelivery"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Each version set's family, `release` first. Empty for a text service, and null when it can't be read (see\n`readiness_unavailable`).",
+            "title": "Families"
+          },
+          "problems": {
+            "description": "Each refusal the save would answer with, in the order it meets them. Empty when every check passes.",
+            "items": {
+              "$ref": "#/components/schemas/SaveProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "readiness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceReadinessResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The service's readiness readback (`GET .../readiness`) for the config the save would store. A create's has no\nvoice use case bound. Null when it can't be read (see `readiness_unavailable`)."
+          },
+          "readiness_unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Unavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why `readiness` is null, and `families` too unless it is `channel_manager_unavailable`: the agent is not in the\nworkspace, a version set pins an agent or context graph version that doesn't exist or that no check cleared, the request does not apply to\nthe stored config, the config the save would store is incompatible with readiness, or channel-manager can't be\nread. Null when it is read."
+          }
+        },
+        "required": [
+          "problems",
+          "changes",
+          "families",
+          "readiness",
+          "readiness_unavailable"
+        ],
+        "title": "ServicePlanResponse",
+        "type": "object"
+      },
       "ServiceReadinessResponse": {
         "properties": {
           "families": {
@@ -36942,6 +37085,16 @@
               }
             ]
           },
+          "gemini_live": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeminiLiveSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "gpt_live": {
             "anyOf": [
               {
@@ -37032,6 +37185,16 @@
             ],
             "title": "Min Tts Speed"
           },
+          "phonic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhonicSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "post_eot_pause_ms": {
             "anyOf": [
               {
@@ -37067,6 +37230,26 @@
               }
             ],
             "title": "Progress Vocabulary"
+          },
+          "readiness_requires": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "openai_realtime",
+                    "decisions",
+                    "warehouse"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness Requires"
           },
           "realtime": {
             "anyOf": [
@@ -37111,7 +37294,9 @@
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -37284,6 +37469,16 @@
               }
             ]
           },
+          "gemini_live": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeminiLiveSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "gpt_live": {
             "anyOf": [
               {
@@ -37374,6 +37569,16 @@
             ],
             "title": "Min Tts Speed"
           },
+          "phonic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhonicSessionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "post_eot_pause_ms": {
             "anyOf": [
               {
@@ -37409,6 +37614,26 @@
               }
             ],
             "title": "Progress Vocabulary"
+          },
+          "readiness_requires": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "openai_realtime",
+                    "decisions",
+                    "warehouse"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness Requires"
           },
           "realtime": {
             "anyOf": [
@@ -37453,7 +37678,9 @@
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -37622,19 +37849,6 @@
             "default": 0,
             "title": "Duration S",
             "type": "number"
-          },
-          "emotional_summary": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Emotional Summary"
           },
           "final_state": {
             "default": "",
@@ -42286,77 +42500,6 @@
         "title": "Span",
         "type": "object"
       },
-      "SpeakerAcoustics": {
-        "properties": {
-          "energy_delta": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Energy Delta"
-          },
-          "energy_trend": {
-            "anyOf": [
-              {
-                "enum": [
-                  "rising",
-                  "falling",
-                  "stable"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Energy Trend"
-          },
-          "normalized": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Normalized"
-          },
-          "pitch_delta": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Pitch Delta"
-          },
-          "zcr_delta": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Zcr Delta"
-          }
-        },
-        "title": "SpeakerAcoustics",
-        "type": "object"
-      },
       "SpeakerMutedEvent": {
         "properties": {
           "muted": {
@@ -43586,7 +43729,7 @@
                 "type": "null"
               }
             ],
-            "description": "World model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString blocks spaces, names, DOBs, and similar regulated content. Resolved against the SDP-projected world.entities_synced table; a freshly-created entity may not be visible yet if the projection is lagging. Provide either entity_id or canonical_id, not both."
+            "description": "World model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString blocks spaces, names, DOBs, and similar regulated content. Resolved against the SDP-projected entity table; a freshly-created entity may not be visible yet if the projection is lagging. Provide either entity_id or canonical_id, not both."
           },
           "channel_kind": {
             "const": "web",
@@ -43952,35 +44095,10 @@
             "title": "Caller Text",
             "type": "string"
           },
-          "emotion": {
-            "anyOf": [
-              {
-                "maxLength": 50,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotion"
-          },
           "session_id": {
             "maxLength": 64,
             "title": "Session Id",
             "type": "string"
-          },
-          "valence": {
-            "anyOf": [
-              {
-                "maximum": 1,
-                "minimum": -1,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valence"
           }
         },
         "required": [
@@ -43998,18 +44116,6 @@
             "title": "Caller Text",
             "type": "string"
           },
-          "emotion": {
-            "anyOf": [
-              {
-                "maxLength": 50,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotion"
-          },
           "session_id": {
             "anyOf": [
               {
@@ -44022,19 +44128,6 @@
             ],
             "description": "Leave unset: the path names the session. A value that differs from the path returns 422.",
             "title": "Session Id"
-          },
-          "valence": {
-            "anyOf": [
-              {
-                "maximum": 1,
-                "minimum": -1,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valence"
           }
         },
         "required": [
@@ -45305,7 +45398,7 @@
         "type": "object"
       },
       "SurfaceSpec": {
-        "description": "A complete surface specification generated by an agent.\n\nThe agent reads the HSM (entity state, relationships,\nconfidence gaps) and produces this spec. The spec is stored as a\nworld.event and rendered by platform-api into a patient-facing page.",
+        "description": "A complete surface specification generated by an agent.\n\nThe agent reads the HSM (entity state, relationships,\nconfidence gaps) and produces this spec. The spec is stored as a\nworld event and rendered by platform-api into a patient-facing page.",
         "properties": {
           "branding": {
             "anyOf": [
@@ -46673,17 +46766,6 @@
             ],
             "title": "E2E Ttfb Ms"
           },
-          "emotion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotion"
-          },
           "end": {
             "title": "End",
             "type": "number"
@@ -46943,17 +47025,6 @@
             ],
             "title": "Type",
             "type": "string"
-          },
-          "valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valence"
           }
         },
         "required": [
@@ -47404,6 +47475,11 @@
             ],
             "title": "Execution",
             "type": "string"
+          },
+          "expects_code": {
+            "default": false,
+            "title": "Expects Code",
+            "type": "boolean"
           },
           "failure_delivery": {
             "anyOf": [
@@ -47958,7 +48034,7 @@
                 "type": "null"
               }
             ],
-            "description": "Associated world.entities_synced call row UUID",
+            "description": "Associated call entity row UUID",
             "title": "Call Entity Id"
           },
           "call_sid": {
@@ -48098,7 +48174,7 @@
                 "type": "null"
               }
             ],
-            "description": "UUID string of the associated world.entities_synced call row (if resolved)",
+            "description": "UUID string of the associated call entity row (if resolved)",
             "title": "Call Entity Id"
           },
           "call_sid": {
@@ -49238,21 +49314,6 @@
             ],
             "title": "Audio Window Start Ms"
           },
-          "compound_emotions": {
-            "anyOf": [
-              {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Compound Emotions"
-          },
           "decision_bearing": {
             "anyOf": [
               {
@@ -49285,28 +49346,6 @@
               }
             ],
             "description": "What the caller turn's dynamic behavior decision did. Null when none ran."
-          },
-          "emotion_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotion Label"
-          },
-          "emotion_valence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotion Valence"
           },
           "empathy_tier": {
             "anyOf": [
@@ -50598,6 +50637,16 @@
         "title": "TurnToolCallStartedEvent",
         "type": "object"
       },
+      "Unavailable": {
+        "enum": [
+          "agent_not_in_workspace",
+          "version_not_found",
+          "config_unreadable",
+          "config_incompatible",
+          "channel_manager_unavailable"
+        ],
+        "type": "string"
+      },
       "UpdateAgentRequest": {
         "properties": {
           "description": {
@@ -51475,7 +51524,7 @@
       },
       "UpdateSimulationCaseRequest": {
         "additionalProperties": false,
-        "description": "Partial update for one durable simulation case.\n\nMirrors the nested ``CreateSimulationCaseItem`` shape with every field\noptional so ``model_dump(exclude_unset=True)`` only emits the keys the\ncaller actually sent. Reuses the same nested submodels as create so the\ndurable fields (``scenario``, ``grounding``, ``evals``, ``metadata``) can\nbe PATCHed. ``extra=\"forbid\"`` rejects the retired pre-V192 flat fields\n(scenario_instructions, initial_message, temperament, fixtures,\nconstraints, target_spec, assertions, provenance) with 422 instead of\nsilently dropping them.",
+        "description": "Partial update for one durable simulation case.\n\nEvery field is optional, and only the fields the caller sends are updated. The nested submodels are the\nsame as on create, so the durable fields (``scenario``, ``grounding``, ``evals``, ``metadata``) can be\nupdated. The retired flat fields (``scenario_instructions``, ``initial_message``, ``temperament``,\n``fixtures``, ``constraints``, ``target_spec``, ``assertions``, ``provenance``) are refused with 422.",
         "properties": {
           "description": {
             "anyOf": [
@@ -54062,7 +54111,9 @@
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
-                  "grok_voice"
+                  "grok_voice",
+                  "gemini_live",
+                  "phonic"
                 ],
                 "type": "string"
               },
@@ -54127,10 +54178,6 @@
       },
       "VoiceContextAppliedEvent": {
         "properties": {
-          "emotion_detection_enabled": {
-            "title": "Emotion Detection Enabled",
-            "type": "boolean"
-          },
           "filler_enabled": {
             "title": "Filler Enabled",
             "type": "boolean"
@@ -54184,7 +54231,6 @@
         },
         "required": [
           "filler_enabled",
-          "emotion_detection_enabled",
           "reasoning"
         ],
         "title": "VoiceContextAppliedEvent",
@@ -54236,18 +54282,6 @@
               }
             ],
             "title": "Conversation Metrics"
-          },
-          "emotional_summary": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emotional Summary"
           },
           "escalation": {
             "anyOf": [
@@ -54759,7 +54793,7 @@
         "type": "object"
       },
       "VoiceSettingsRequest": {
-        "description": "Voice experience control plane — PM-facing, high-level controls.\n\nControls the caller experience without exposing engineering internals.\nEmotion detection, filler speech, and buffer tuning are always-on\ninternals managed by engineering.",
+        "description": "Voice experience control plane — PM-facing, high-level controls.\n\nControls the caller experience without exposing engineering internals.\nFiller speech and buffer tuning are always-on internals managed by\nengineering.",
         "properties": {
           "keyterms": {
             "anyOf": [
@@ -55843,7 +55877,7 @@
                 "type": "null"
               }
             ],
-            "description": "platform.event_velocity_summary synced_at for this workspace.",
+            "description": "The time the workspace's event velocity summary was last synced.",
             "title": "Event Read Model Synced At"
           },
           "events_24h": {
@@ -56652,7 +56686,7 @@
         "type": "string"
       },
       "src__routes__integrations__create_endpoint__Request": {
-        "description": "Add a new endpoint to a REST integration (V186 flat shape).",
+        "description": "Add a new endpoint to a REST integration.",
         "properties": {
           "body_format": {
             "default": "json",
@@ -57103,7 +57137,7 @@
         "type": "object"
       },
       "src__routes__integrations__update_endpoint__Request": {
-        "description": "Patch an existing endpoint (V186 flat shape). ``name`` is immutable.",
+        "description": "Patch an existing endpoint. ``name`` is immutable.",
         "properties": {
           "body_format": {
             "enum": [
@@ -58849,7 +58883,7 @@
     },
     "/s/{token}/availability": {
       "get": {
-        "description": "Return available appointment slots for the surface's workspace.\n\nQueries FHIR Slot resources from world.entities_synced that are free\nand within the requested date range. Token-authenticated, no Bearer auth.",
+        "description": "Return available appointment slots for the surface's workspace.\n\nQueries FHIR Slot resources from the entity projection that are free\nand within the requested date range. Token-authenticated, no Bearer auth.",
         "operationId": "get-surface-availability",
         "parameters": [
           {
@@ -61852,145 +61886,6 @@
         ]
       }
     },
-    "/v1/{workspace_id}/analytics/emotion-trends": {
-      "get": {
-        "description": "Emotion distribution and valence/arousal trends.",
-        "operationId": "get-emotion-trends",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workspace_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Workspace Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "days",
-            "required": false,
-            "schema": {
-              "default": 30,
-              "maximum": 90,
-              "minimum": 1,
-              "title": "Days",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "date_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Date From"
-            }
-          },
-          {
-            "in": "query",
-            "name": "date_to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Date To"
-            }
-          },
-          {
-            "in": "query",
-            "name": "interval",
-            "required": false,
-            "schema": {
-              "default": "1d",
-              "enum": [
-                "1h",
-                "1d",
-                "1w"
-              ],
-              "title": "Interval",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Only this service's results. A value that isn't a UUID gets a 422.",
-            "in": "query",
-            "name": "service_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Only this service's results. A value that isn't a UUID gets a 422.",
-              "title": "Service Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get-Emotion-Trends",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "429": {
-            "description": "Rate limit exceeded"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
-                }
-              }
-            },
-            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
-          }
-        },
-        "summary": "Emotion Trends",
-        "tags": [
-          "Analytics"
-        ]
-      }
-    },
     "/v1/{workspace_id}/analytics/eval-quality": {
       "get": {
         "description": "Production-eval pass rates and scores: overall, per eval key and over time. Channel-agnostic: voice, text, SMS and email conversations all count. A verdict counts by `computed_at`, the UTC time its check last ran, not the time of the conversation; evaluating a conversation again replaces its verdict and moves it to the new time. The window is the last `days` days up to now, or the UTC days from `date_from` through `date_to` when both are sent. `service_id` and `eval_key` narrow every number to one service and one eval. `trend` has a point for each `interval` that holds verdicts and none for one that holds none. A point with `judged` 0 had verdicts but no pass or fail outcome (an error, a skip or a check still pending), and its `pass_rate` is null; a `pass_rate` of 0.0 means every judged verdict failed.",
@@ -64509,7 +64404,7 @@
     },
     "/v1/{workspace_id}/calls/outbound": {
       "post": {
-        "description": "Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. A patient is optional: give patient_entity_id or patient_canonical_id, not both, to tie the call to a patient, or neither for a call with no patient, such as a call to a payer line. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id, so place the call without them. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.",
+        "description": "Initiate an outbound voice call from a workspace phone number, chosen for the given use_case_id. A patient is optional: give patient_entity_id or patient_canonical_id, not both, to tie the call to a patient, or neither for a call with no patient, such as a call to a payer line. Send an idempotency_key so a retry doesn't place a second call. After a 502, 503 or 504, retry with the same key and the same request: while the first attempt is still being placed the retry gets 409, once that call is placed it gets the call's response, and if the attempt placed nothing it places the call. A 503 may carry Retry-After: wait that long first. A 422 is final: the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take outbound_task_entity_id, or on a voice runtime that takes none of system_prompt, goal or outbound_task_entity_id, so place the call without the fields the 422 names. A 500 reporting refused platform credentials requires a configuration fix before retrying. Other 500 errors may be transient; the call may still be placed, so reuse the same idempotency_key if retrying.",
         "operationId": "create-outbound-call",
         "parameters": [
           {
@@ -64561,7 +64456,7 @@
                 }
               }
             },
-            "description": "Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take system_prompt, goal or outbound_task_entity_id. A test key's call is also refused when it names an outbound_task_entity_id, because the task's outcome events can't carry the test marker yet"
+            "description": "Final: the request is invalid, the call was refused (for example an invalid number), or the use case's service runs on gpt_realtime, which doesn't take outbound_task_entity_id, or on a voice runtime that takes none of system_prompt, goal or outbound_task_entity_id. A test key's call is also refused when it names an outbound_task_entity_id, because the task's outcome events can't carry the test marker yet"
           },
           "424": {
             "description": "The call was placed, but not as the call asked for: a test key's call was taken by a voice agent that does not apply the test marker, so it runs as a production call. Do not retry. The call is placed; the error names its call_sid"
@@ -72622,7 +72517,7 @@
         ]
       },
       "put": {
-        "description": "Validate + upsert a platform function row.\n\nAtomic: validation + (python/udtf only) UC UDF materialization +\nupsert into ``platform.functions`` happen as one logical operation.\nRepeat deploys against the same ``(workspace, name)`` replace the\nrow in place and clear stale ``last_test_*`` telemetry.\n\nThe function name comes from the URL path; the request body's\n``name`` field must match or a 400 is raised. The URL is the\nauthoritative source.\n\nPermissions: admin, owner.",
+        "description": "Validate and save a platform function.\n\nValidation runs first. For ``python`` and ``udtf`` functions, the Unity Catalog function is then created or\nreplaced, and the save follows. If the save fails after that, the Unity Catalog function already has the new\nbody, and the saved function is not updated. On a first deploy there is no saved function to keep, so the\nUnity Catalog function is left without one. A repeat deploy of the same name in the same workspace\nreplaces the saved function and clears the results of its earlier test runs.\n\nThe function name comes from the URL path; the request body's ``name`` field must match or a 400 is\nraised. The URL is the authoritative source.\n\nPermissions: admin, owner.",
         "operationId": "deploy-function",
         "parameters": [
           {
@@ -72746,7 +72641,7 @@
     },
     "/v1/{workspace_id}/functions/{function_name}/test": {
       "post": {
-        "description": "Test invoke — same as invoke + persists last_test_* on the row.\n\nReturns 200 with ``status=\"fail\"`` + populated ``error`` on\nexecution failure (instead of a 5xx) so the DC has a single\nhappy-path rendering.\n\nPermissions: admin, owner.",
+        "description": "Test invoke: runs the function as invoke does, and stores the result on the function as its last test run.\n\nReturns 200 with ``status=\"fail\"`` and a populated ``error`` when the run fails or is refused: the arguments do\nnot match the function's parameters, the stored body is refused, or the workspace's data residency refuses the\nfunction. Other client errors keep their status, for example 404 when the function does not exist.\n\nPermissions: admin, owner.",
         "operationId": "test-function",
         "parameters": [
           {
@@ -76490,7 +76385,7 @@
     },
     "/v1/{workspace_id}/metrics": {
       "get": {
-        "description": "List metric values. By default, the newest period of each metric series.\n\nA categorical or boolean series folds its newest period into one row:\n``distribution`` counts each value and ``value`` is the most frequent.\nPages cover the first 10,000 values; narrow the filters or dates to read past them.\n\nPermissions: authenticated (any role).",
+        "description": "List metric values. By default, the newest period of each metric series.\n\nA categorical or boolean series folds its newest period into one row:\n``distribution`` counts each value and ``value`` is the most frequent.\nOnly defined metrics are listed (builtins and saved definitions), the keys the get and trend routes accept.\nPages cover the first 10,000 values; narrow the filters or dates to read past them.\n\nPermissions: authenticated (any role).",
         "operationId": "list-metrics",
         "parameters": [
           {
@@ -78099,7 +77994,7 @@
     },
     "/v1/{workspace_id}/operators/queue": {
       "get": {
-        "description": "Active calls ranked by operator priority: risk, wait time, emotion, loops, and safety concerns.",
+        "description": "Active calls ranked by operator priority: risk, wait time, loops, and safety concerns.",
         "operationId": "get-operator-queue",
         "parameters": [
           {
@@ -82242,6 +82137,59 @@
         ]
       }
     },
+    "/v1/{workspace_id}/services/plan": {
+      "post": {
+        "description": "Plan `POST /v1/{workspace_id}/services` with the body it takes, under its permission (`Service.create`) and scope. A permission the create would need for a field it sets (`Service.update`, `platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.",
+        "operationId": "plan-service-create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateServiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or invalid API key."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          },
+          "422": {
+            "description": "A body the save itself would not parse."
+          }
+        },
+        "summary": "Plan a service create",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
     "/v1/{workspace_id}/services/{service_id}": {
       "delete": {
         "description": "Delete a service. Requires `Service.delete` permission.",
@@ -82359,7 +82307,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. A save that adds a number a live call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to` or an approved destination) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's list in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
@@ -82417,13 +82365,79 @@
             "description": "Name already taken, or a pinned dynamic behavior set is archived."
           },
           "422": {
-            "description": "Invalid request body, or a transfer destination a voice use case bound to the service will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels."
+            "description": "Invalid request body, or a transfer destination a voice use case bound to the service will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. `destination_not_allowed_by_use_case` also carries a `message` saying to add the numbers to the use case's `allowed_forwarding_numbers` in channel-manager first, with a docs link."
           },
           "503": {
             "description": "channel-manager could not be read to check the service's transfer destinations."
           }
         },
         "summary": "Update a service",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/services/{service_id}/plan": {
+      "post": {
+        "description": "Plan `PUT /v1/{workspace_id}/services/{service_id}` with the body it takes, under its permission (`Service.update`) and scope. A permission the update would need for a field it sets (`platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.",
+        "operationId": "plan-service-update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateServiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or invalid API key."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          },
+          "404": {
+            "description": "Service not found."
+          },
+          "422": {
+            "description": "A body the save itself would not parse."
+          }
+        },
+        "summary": "Plan a service update",
         "tags": [
           "Services"
         ]
@@ -82464,7 +82478,9 @@
                 "gpt_realtime",
                 "eleven_realtime",
                 "gpt_live",
-                "grok_voice"
+                "grok_voice",
+                "gemini_live",
+                "phonic"
               ],
               "title": "Family",
               "type": "string"
@@ -83943,7 +83959,7 @@
         ]
       },
       "put": {
-        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID — determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also adapts tone dynamically\n  based on real-time caller emotion analysis; this setting provides\n  the baseline when no strong emotional signal is detected.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n- **text_model**: The model that writes the agent's replies on voice\n  calls (default: the platform's). An id the platform doesn't serve in\n  this region is refused with a 422.\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
+        "description": "Update the voice experience settings for a workspace.\n\nOnly provided fields are updated; omitted fields retain their current\nvalues. Set a field to ``null`` to reset it to default.\n\n**Voice Identity & Style**\n- **voice_id**: Voice identity UUID — determines the agent's voice persona\n- **tone**: Emotional baseline (``calm``, ``sympathetic``,\n  ``enthusiastic``, ``content``, ``curious``, ``cheerful``,\n  ``serious``, ``friendly``). The system also picks a tone for each\n  reply from the conversation; this setting is the baseline when a\n  reply has none.\n- **speed**: Speech rate multiplier (0.5-2.0)\n- **volume**: Volume multiplier (0.0-1.0)\n- **language**: The language calls are spoken in (default ``en``), or\n  ``multilingual`` to follow the language the caller speaks\n- **text_model**: The model that writes the agent's replies on voice\n  calls (default: the platform's). An id the platform doesn't serve in\n  this region is refused with a 422.\n\n**Speech Recognition Boost**\n- **keyterms**: Exact words the speech recognition engine should\n  prioritize. Use for specific names, drug names, and org jargon.\n  Example: ``[\"Dr. Ramirez\", \"metformin\", \"HIPAA\"]``\n\n**Post-Call Intelligence**\n- **post_call_analysis_enabled**: Run automated quality scoring after\n  each call ends (default ``true``)\n\n#### Permissions\n* Requires admin or owner role.",
         "operationId": "update-voice-settings",
         "parameters": [
           {
@@ -88485,7 +88501,7 @@
         ]
       },
       "post": {
-        "description": "Create a new data collection surface.\n\nStores the surface spec as a world.event with domain=\"surface\".\nThe entity_id is stored inside event data (not on the event row)\nto avoid entity state recomputation.\n\nReturns a signed patient-facing token and URL if SURFACE_TOKEN_SECRET is configured.\n\nPermissions: member, admin, owner (surfaces:write)",
+        "description": "Create a new data collection surface.\n\nStores the surface spec as a world event with domain=\"surface\".\nThe entity_id is stored inside event data (not on the event row)\nto avoid entity state recomputation.\n\nReturns a signed patient-facing token and URL if SURFACE_TOKEN_SECRET is configured.\n\nPermissions: member, admin, owner (surfaces:write)",
         "operationId": "create-surface",
         "parameters": [
           {
@@ -89644,7 +89660,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "Validation error"
+            "description": "Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls, or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did."
           },
           "429": {
             "description": "Rate limited"
@@ -89810,7 +89826,7 @@
             "description": "Trigger not found"
           },
           "422": {
-            "description": "Validation error"
+            "description": "Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls, or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did."
           },
           "429": {
             "description": "Rate limited"
@@ -90748,7 +90764,7 @@
             "description": "Service already has a different use case bound for this channel, or the use case is bound in another workspace."
           },
           "422": {
-            "description": "Unsupported use case channel, or a transfer destination of the service that the voice use case will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels."
+            "description": "Unsupported use case channel, or a transfer destination of the service that the voice use case will not dial (`destination_not_allowed_by_use_case`) or that is one of its own numbers (`destination_is_own_number`), with the `use_case_id`, its `channel` and the destinations' `destinations` labels. `destination_not_allowed_by_use_case` also carries a `message` saying to add the numbers to the use case's `allowed_forwarding_numbers` in channel-manager first, with a docs link."
           },
           "503": {
             "description": "channel-manager could not be read for the use case."
@@ -90762,7 +90778,7 @@
     },
     "/v1/{workspace_id}/voice-families": {
       "get": {
-        "description": "Discover every family, including unavailable ones. Any workspace role.\n\nTo switch families, set session_provider and clear every other family's config_key\nand legacy_keys. Options describe runnable settings; legacy stored values may\nremain readable outside discovery. GPT-Realtime supports one ActionState or 2-12 linked\nActionStates; Eleven Realtime supports one ActionState.",
+        "description": "Discover every family, including unavailable ones. Any workspace role.\n\nTo switch families, set session_provider and clear every other family's config_key\nand legacy_keys. Options describe runnable settings; legacy stored values may\nremain readable outside discovery. GPT-Realtime supports one ActionState or 2-12 linked\nActionStates; Eleven Realtime supports one ActionState. Phonic is for synthetic test calls only\nuntil Phonic's BAA is signed.",
         "operationId": "list-voice-families",
         "parameters": [
           {
@@ -90819,7 +90835,9 @@
                 "gpt_realtime",
                 "eleven_realtime",
                 "gpt_live",
-                "grok_voice"
+                "grok_voice",
+                "gemini_live",
+                "phonic"
               ],
               "title": "Family",
               "type": "string"
@@ -91773,7 +91791,7 @@
     },
     "/v1/{workspace_id}/world/entities/resolve": {
       "post": {
-        "description": "Polymorphic identifier → ranked entity candidates. Accepts any subset of {phone, email, canonical_id, external_id, entity_id} plus a required ``entity_type``. Served from the SDP serving surfaces: entity rows from ``world.entities_synced``; canonical_id and external_id resolve through ``world.canonical_entity_map_synced`` point reads. Returns matches ranked by confidence + number of identifiers matched. Summary narrowing: ``external_ids`` is always ``{}``, ``tags`` is always ``[]``, and ``canonical_id`` is the canonical-map value or the entity's MRN.",
+        "description": "Polymorphic identifier → ranked entity candidates. Accepts any subset of {phone, email, canonical_id, external_id, entity_id} plus a required ``entity_type``. Served from the SDP serving surfaces: entity rows from the entity projection; canonical_id and external_id resolve through the canonical entity map by point reads. Returns matches ranked by confidence + number of identifiers matched. Summary narrowing: ``external_ids`` is always ``{}``, ``tags`` is always ``[]``, and ``canonical_id`` is the canonical-map value or the entity's MRN.",
         "operationId": "resolve-entity",
         "parameters": [
           {
@@ -91896,7 +91914,7 @@
     },
     "/v1/{workspace_id}/world/entities/{entity_id}/enrichment": {
       "get": {
-        "description": "Current winners per (entity, key) from world.enrichment_synced (Synced-Table-populated view of SDP's enrichment_current_v3). Each row carries value, value_type, confidence, source, effective_at.",
+        "description": "Current winners per (entity, key) from the enrichment projection. Each row carries value, value_type, confidence, source, effective_at.",
         "operationId": "list-entity-enrichment",
         "parameters": [
           {

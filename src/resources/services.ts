@@ -15,6 +15,7 @@ export type ListVoiceJudgeResultsParams = NonNullable<
 /** One dynamic behavior pin on a version set: a library set at an exact version. */
 export type DynamicBehaviorPin = components['schemas']['VersionSetBehaviorPin']
 export type VoiceJudgeResult = components['schemas']['VoiceJudgeResultRow']
+export type ServicePlan = components['schemas']['ServicePlanResponse']
 export type VoiceJudgeResultListResponse = components['schemas']['VoiceJudgeRecentResponse']
 
 /** Set ids are UUIDs: the API returns them in lower case, and a caller may pass any case. */
@@ -70,6 +71,33 @@ export class ServicesResource extends WorkspaceScopedResource {
   async update(serviceId: ServiceId | string, body: components['schemas']['UpdateServiceRequest']) {
     return extractData(
       await this.client.PUT('/v1/{workspace_id}/services/{service_id}', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+        body,
+      }),
+    )
+  }
+
+  /**
+   * Plan `create` with the body it takes. Writes nothing: `problems` lists each refusal the
+   * save would answer with, `changes` the field diff, `families` each version set's voice
+   * family and `readiness` the readback of what the save would store.
+   */
+  async planCreate(body: components['schemas']['CreateServiceRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/services/plan', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Plan `update` with the body it takes. Writes nothing; see `planCreate`. */
+  async planUpdate(
+    serviceId: ServiceId | string,
+    body: components['schemas']['UpdateServiceRequest'],
+  ) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/services/{service_id}/plan', {
         params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
         body,
       }),

@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Maintenance
+
+- sync API types from platform (2518565b)
+
+### Features
+
+- `services.planCreate` and `services.planUpdate` plan a service save without writing it
+- `VOICE_SESSION_PROVIDERS` lists `gemini_live` and `phonic`
+
+### Breaking Changes
+
+- removed `analytics.getEmotionTrends` (the `/analytics/emotion-trends` route is gone from the spec)
+- removed emotion and valence fields from the generated types (`emotion` and `valence` on simulation step requests, `emotional_summary` on call detail responses, and the related emotion schemas)
+
 ## [0.135.0] - 2026-11-02
 
 ### Maintenance
