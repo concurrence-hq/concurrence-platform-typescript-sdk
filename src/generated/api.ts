@@ -5181,7 +5181,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id` or to set `output_checks.phi_unverified` to `cut`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut` or to declare `declared_languages`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -12486,6 +12486,12 @@ export interface components {
             context_graph_id: string;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
+             * Declared Languages
+             * @description The languages this service serves, as ISO 639-1 codes: a non-empty list of distinct supported
+             *     languages. Omit or null for none declared, which keeps today's behavior.
+             */
+            declared_languages?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko")[] | null;
+            /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
              * @default false
@@ -12516,10 +12522,6 @@ export interface components {
              */
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             name: components["schemas"]["NameString"];
-            /**
-             * @description Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs
-             *     `Service.update`.
-             */
             output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
@@ -15417,7 +15419,7 @@ export interface components {
             eval_key_groups?: components["schemas"]["EvalKeyQuality"][] | null;
             /**
              * Groups
-             * @description With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=service_id.
+             * @description With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id, then a last group with a null service_id for the verdicts saved without a service (workspace-wide checks). The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=service_id.
              */
             groups?: components["schemas"]["ServiceEvalQuality"][] | null;
             /** @description Workspace-wide aggregate for the period */
@@ -18464,7 +18466,7 @@ export interface components {
          * MediaAttachedEvent
          * @description A media WebSocket actually reached the call's GameServer — the audio-path signal.
          *
-         *     Fires once per leg (caller / agent). Its ABSENCE for a leg is the no-audio failure
+         *     Fires once per leg (caller / agent / callee). Its ABSENCE for a leg is the no-audio failure
          *     mode (media never landed on the pod). The per-call cold-start / time-to-first-speech
          *     metric is deliberately NOT carried here yet: TTFS is measured against the first
          *     synthesized-audio frame, a signal not available at attach time, so it is wired in a
@@ -18476,7 +18478,7 @@ export interface components {
              * Leg
              * @enum {string}
              */
-            leg: "caller" | "agent" | "operator";
+            leg: "caller" | "agent" | "operator" | "callee";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -20202,7 +20204,7 @@ export interface components {
              * Participant Role
              * @enum {string}
              */
-            participant_role: "caller" | "agent" | "operator";
+            participant_role: "caller" | "agent" | "operator" | "callee";
             /**
              * Phone Number
              * @default null
@@ -20234,7 +20236,7 @@ export interface components {
              * Participant Role
              * @enum {string}
              */
-            participant_role: "caller" | "agent" | "operator";
+            participant_role: "caller" | "agent" | "operator" | "callee";
             /**
              * Phone Number
              * @default null
@@ -23162,6 +23164,8 @@ export interface components {
             /** Created At */
             created_at?: string | null;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
+            /** Declared Languages */
+            declared_languages?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko")[] | null;
             /**
              * Demo Mode
              * @default false
@@ -23334,10 +23338,9 @@ export interface components {
             by_eval_key: components["schemas"]["EvalQualitySummary"][];
             /**
              * Service Id
-             * Format: uuid
-             * @description The service the verdicts are attributed to
+             * @description The service the verdicts are attributed to. Null groups the verdicts saved with no service
              */
-            service_id: string;
+            service_id: string | null;
             /** @description The service's aggregate for the period */
             summary: components["schemas"]["EvalQualitySummary"];
             /**
@@ -23538,6 +23541,11 @@ export interface components {
              */
             created_at: string;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
+            /**
+             * Declared Languages
+             * @description The languages this service serves, as ISO 639-1 codes. None: none declared.
+             */
+            declared_languages?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko")[] | null;
             /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
@@ -29955,6 +29963,11 @@ export interface components {
             /** @description Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null restores the signed default. */
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
+             * Declared Languages
+             * @description Replace the languages this service serves. Omit to keep them; null clears them.
+             */
+            declared_languages?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko")[] | null;
+            /**
              * Demo Mode
              * @description Internal. Only a platform admin can set this.
              */
@@ -29974,11 +29987,7 @@ export interface components {
              */
             medical_emergency_ending?: ("stay_on_line" | "end_after_script") | null;
             name?: components["schemas"]["NameString"] | null;
-            /**
-             * Output Checks
-             * @description Which reply checks run. The block replaces what is stored, and `null` or `{}` is the default block, where
-             *     `phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the update.
-             */
+            /** Output Checks */
             output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
@@ -35057,7 +35066,7 @@ export interface operations {
                 service_id?: string | null;
                 /** @description Only this production eval's verdicts: the `eval_key` of its definition. */
                 eval_key?: string | null;
-                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged. */
+                /** @description service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id; verdicts saved with no service are the last group, with a null `service_id`. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged. */
                 group_by?: ("service_id" | "eval_key") | null;
             };
             header?: never;
@@ -36681,6 +36690,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
             };
         };
     };

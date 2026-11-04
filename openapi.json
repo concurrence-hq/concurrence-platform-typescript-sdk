@@ -10952,6 +10952,34 @@
               }
             ]
           },
+          "declared_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "en",
+                    "es",
+                    "ar",
+                    "fr",
+                    "de",
+                    "pt",
+                    "zh",
+                    "ja",
+                    "ko"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The languages this service serves, as ISO 639-1 codes: a non-empty list of distinct supported\nlanguages. Omit or null for none declared, which keeps today's behavior.",
+            "title": "Declared Languages"
+          },
           "demo_mode": {
             "default": false,
             "description": "Internal. Only a platform admin can set this.",
@@ -11007,8 +11035,7 @@
               {
                 "type": "null"
               }
-            ],
-            "description": "Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs\n`Service.update`."
+            ]
           },
           "platform_caller_verification": {
             "default": true,
@@ -17331,7 +17358,7 @@
                 "type": "null"
               }
             ],
-            "description": "With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id. Verdicts saved without a service (workspace-wide checks) are in the summary but in no group. The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=service_id.",
+            "description": "With group_by=service_id, one entry per service with verdicts in the window, ordered by service_id, then a last group with a null service_id for the verdicts saved without a service (workspace-wide checks). The groups' trends hold at most 22,000 points in all; a grouped answer that would hold more is a 422. Null without group_by=service_id.",
             "title": "Groups"
           },
           "summary": {
@@ -24914,13 +24941,14 @@
         "type": "object"
       },
       "MediaAttachedEvent": {
-        "description": "A media WebSocket actually reached the call's GameServer — the audio-path signal.\n\nFires once per leg (caller / agent). Its ABSENCE for a leg is the no-audio failure\nmode (media never landed on the pod). The per-call cold-start / time-to-first-speech\nmetric is deliberately NOT carried here yet: TTFS is measured against the first\nsynthesized-audio frame, a signal not available at attach time, so it is wired in a\nfocused follow-up (Front 3) rather than shipped as a permanently-null field that would\nlock a misleading shape into the SDK contract.",
+        "description": "A media WebSocket actually reached the call's GameServer — the audio-path signal.\n\nFires once per leg (caller / agent / callee). Its ABSENCE for a leg is the no-audio failure\nmode (media never landed on the pod). The per-call cold-start / time-to-first-speech\nmetric is deliberately NOT carried here yet: TTFS is measured against the first\nsynthesized-audio frame, a signal not available at attach time, so it is wired in a\nfocused follow-up (Front 3) rather than shipped as a permanently-null field that would\nlock a misleading shape into the SDK contract.",
         "properties": {
           "leg": {
             "enum": [
               "caller",
               "agent",
-              "operator"
+              "operator",
+              "callee"
             ],
             "title": "Leg",
             "type": "string"
@@ -28792,7 +28820,8 @@
             "enum": [
               "caller",
               "agent",
-              "operator"
+              "operator",
+              "callee"
             ],
             "title": "Participant Role",
             "type": "string"
@@ -28865,7 +28894,8 @@
             "enum": [
               "caller",
               "agent",
-              "operator"
+              "operator",
+              "callee"
             ],
             "title": "Participant Role",
             "type": "string"
@@ -35961,6 +35991,33 @@
               }
             ]
           },
+          "declared_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "en",
+                    "es",
+                    "ar",
+                    "fr",
+                    "de",
+                    "pt",
+                    "zh",
+                    "ja",
+                    "ko"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Languages"
+          },
           "demo_mode": {
             "default": false,
             "title": "Demo Mode",
@@ -36270,10 +36327,17 @@
             "type": "array"
           },
           "service_id": {
-            "description": "The service the verdicts are attributed to",
-            "format": "uuid",
-            "title": "Service Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The service the verdicts are attributed to. Null groups the verdicts saved with no service",
+            "title": "Service Id"
           },
           "summary": {
             "$ref": "#/components/schemas/EvalQualitySummary",
@@ -36742,6 +36806,34 @@
                 "type": "null"
               }
             ]
+          },
+          "declared_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "en",
+                    "es",
+                    "ar",
+                    "fr",
+                    "de",
+                    "pt",
+                    "zh",
+                    "ja",
+                    "ko"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The languages this service serves, as ISO 639-1 codes. None: none declared.",
+            "title": "Declared Languages"
           },
           "demo_mode": {
             "default": false,
@@ -51351,6 +51443,34 @@
             ],
             "description": "Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null restores the signed default."
           },
+          "declared_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "en",
+                    "es",
+                    "ar",
+                    "fr",
+                    "de",
+                    "pt",
+                    "zh",
+                    "ja",
+                    "ko"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replace the languages this service serves. Omit to keep them; null clears them.",
+            "title": "Declared Languages"
+          },
           "demo_mode": {
             "anyOf": [
               {
@@ -51451,7 +51571,6 @@
                 "type": "null"
               }
             ],
-            "description": "Which reply checks run. The block replaces what is stored, and `null` or `{}` is the default block, where\n`phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the update.",
             "title": "Output Checks"
           },
           "platform_caller_verification": {
@@ -62008,7 +62127,7 @@
             }
           },
           {
-            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged.",
+            "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id; verdicts saved with no service are the last group, with a null `service_id`. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged.",
             "in": "query",
             "name": "group_by",
             "required": false,
@@ -62025,7 +62144,7 @@
                   "type": "null"
                 }
               ],
-              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged.",
+              "description": "service_id adds `groups`, one entry per service, each holding that service's `summary`, `by_eval_key` and `trend`, the same numbers the route returns for that service_id; verdicts saved with no service are the last group, with a null `service_id`. eval_key adds `eval_key_groups`, one entry per eval key, each holding that eval key's `summary` and `trend`, the same numbers the route returns for that eval_key. The rest of the response is unchanged.",
               "title": "Group By"
             }
           }
@@ -65112,6 +65231,16 @@
           },
           "429": {
             "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Get Command Center",
@@ -82080,7 +82209,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id` or to set `output_checks.phi_unverified` to `cut`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut` or to declare `declared_languages`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {

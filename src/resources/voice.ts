@@ -1,4 +1,5 @@
-import type { components } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
+import { WorkspaceScopedResource, extractData } from './base.js'
 
 /** Provider constants derived from OpenAPI voice control-plane enums. */
 
@@ -80,3 +81,38 @@ export const VOICE_LANGUAGES = voiceLanguages satisfies ExhaustiveProviderList<
   VoiceLanguage,
   typeof voiceLanguages
 >
+
+export type VoiceFamily = operations['list-family-voices']['parameters']['path']['family']
+export type VoiceFamilyListResponse = components['schemas']['VoiceFamilyListResponse']
+export type VoiceListResponse = components['schemas']['VoiceListResponse']
+export type ListFamilyVoicesParams = NonNullable<
+  operations['list-family-voices']['parameters']['query']
+>
+
+/**
+ * Voice families: each family's models, voices and options, read from the platform instead of
+ * baked into the client.
+ */
+export class VoiceFamiliesResource extends WorkspaceScopedResource {
+  /** List the voice families and what each offers this workspace. */
+  async list() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/voice-families', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /**
+   * Page the voices of one family, even when this workspace cannot use the family. Reuse the
+   * returned `next_cursor` with the same filters. Static voices carry no language metadata, so a
+   * nonempty `language` filter matches none of them.
+   */
+  async listVoices(family: VoiceFamily, params?: ListFamilyVoicesParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/voice-families/{family}/voices', {
+        params: { path: { workspace_id: this.workspaceId, family }, query: params },
+      }),
+    )
+  }
+}

@@ -73,6 +73,7 @@ import { ExternalIntegrationsResource } from './resources/external-integrations.
 import { AnalyticsResource } from './resources/analytics.js'
 import { SimulationsResource } from './resources/simulations.js'
 import { MetricsResource } from './resources/metrics.js'
+import { VoiceFamiliesResource } from './resources/voice.js'
 import { ProductionEvalsResource } from './resources/production-evals.js'
 import { SettingsResource } from './resources/settings.js'
 import { RecordingsResource } from './resources/recordings.js'
@@ -254,6 +255,8 @@ export class AmigoClient {
   readonly analytics!: AnalyticsResource
   readonly simulations!: SimulationsResource
   readonly metrics!: MetricsResource
+  /** Voice families: each family's models and paged voices */
+  readonly voiceFamilies!: VoiceFamiliesResource
   /** Production evals: eval definitions run against live calls, and each call's verdicts */
   readonly productionEvals!: ProductionEvalsResource
   readonly settings!: SettingsResource
@@ -540,6 +543,7 @@ export class AmigoClient {
     mutable.analytics = new AnalyticsResource(client, workspaceId)
     mutable.simulations = new SimulationsResource(client, workspaceId)
     mutable.metrics = new MetricsResource(client, workspaceId)
+    mutable.voiceFamilies = new VoiceFamiliesResource(client, workspaceId)
     mutable.productionEvals = new ProductionEvalsResource(client, workspaceId)
     mutable.settings = new SettingsResource(client, workspaceId)
     mutable.recordings = new RecordingsResource(client, workspaceId)
@@ -858,14 +862,19 @@ export {
   TTS_PROVIDERS,
   VOICE_LANGUAGES,
   VOICE_SESSION_PROVIDERS,
+  VoiceFamiliesResource,
 } from './resources/voice.js'
 export type {
   AgentVoiceConfig,
+  ListFamilyVoicesParams,
   ServiceVoiceConfigInput,
   ServiceVoiceConfigOutput,
   SttProvider,
   TtsProvider,
+  VoiceFamily,
+  VoiceFamilyListResponse,
   VoiceLanguage,
+  VoiceListResponse,
   VoiceSessionProvider,
   VoiceSettingsRequest,
   VoiceSettingsResponse,
