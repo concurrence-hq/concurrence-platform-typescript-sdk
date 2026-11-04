@@ -53,4 +53,14 @@ export class SessionsResource extends WorkspaceScopedResource {
       }),
     )
   }
+
+  /** Start a web text session with a world model entity. Materializes the conversation and returns conversation_id for subsequent turns via POST /v1/{ws}/conversations/{id}/turns. */
+  async start(body: components['schemas']['StartSessionRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/sessions/start', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
 }

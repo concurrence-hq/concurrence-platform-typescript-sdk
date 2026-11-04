@@ -1,6 +1,6 @@
 import { ConfigurationError } from '../core/errors.js'
 import { type PlatformFetch } from '../core/openapi-client.js'
-import type { components } from '../generated/api.js'
+import type { components, paths } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export type ChannelKind = components['schemas']['ChannelKind']
@@ -376,6 +376,53 @@ export class ConversationsResource extends WorkspaceScopedResource {
       ...params,
     })
     return url.toString()
+  }
+
+  /** Lets the external user who owns a conversation approve or reject a write that the agent paused for their confirmation. Only the conversation's own external user may call this; it requires the `conversations:approve_own` scope. */
+  async decideApproval(
+    conversationId: string,
+    body: components['schemas']['ConversationApprovalRequest'],
+  ): Promise<void> {
+    await this.client.POST('/v1/{workspace_id}/conversations/{conversation_id}/approval', {
+      params: { path: { workspace_id: this.workspaceId, conversation_id: conversationId } },
+      body,
+    })
+  }
+
+  /** Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order. */
+  async listTurns(
+    conversationId: string,
+    params?: paths['/v1/{workspace_id}/conversations/{conversation_id}/turns']['get']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/conversations/{conversation_id}/turns', {
+        params: {
+          path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+          query: params,
+        },
+      }),
+    )
+  }
+
+  /** Acknowledge a rendered background turn delivery */
+  async acknowledgeTurnDelivery(
+    conversationId: string,
+    deliveryId: string,
+    body: components['schemas']['TurnDeliveryAckRequest'],
+  ): Promise<void> {
+    await this.client.POST(
+      '/v1/{workspace_id}/conversations/{conversation_id}/turns/{delivery_id}/ack',
+      {
+        params: {
+          path: {
+            workspace_id: this.workspaceId,
+            conversation_id: conversationId,
+            delivery_id: deliveryId,
+          },
+        },
+        body,
+      },
+    )
   }
 }
 

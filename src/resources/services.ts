@@ -1,8 +1,8 @@
-import type { components, operations } from '../generated/api.js'
+import type { components, operations, paths } from '../generated/api.js'
 import type { ServiceId } from '../core/branded-types.js'
 import { ConfigurationError } from '../core/errors.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
-import type { ListParams } from '../core/utils.js'
+import type { ListParams, WithResponseMetadata } from '../core/utils.js'
 
 export interface ListServicesParams extends ListParams {
   search?: string
@@ -219,6 +219,54 @@ export class ServicesResource extends WorkspaceScopedResource {
           path: { workspace_id: this.workspaceId, service_id: serviceId },
           query: params,
         },
+      }),
+    )
+  }
+
+  /** Return configuration-only instructions for explicit call context. */
+  async previewPrompt(
+    serviceId: string,
+    body: components['schemas']['PromptPreviewContext-Input'],
+    params: paths['/v1/{workspace_id}/services/{service_id}/prompt-preview']['post']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/services/{service_id}/prompt-preview', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId }, query: params },
+        body,
+      }),
+    )
+  }
+
+  /** Read current configuration and uncached dial eligibility using service read permission. */
+  async getReadiness(serviceId: string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/services/{service_id}/readiness', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+      }),
+    )
+  }
+
+  /**
+   * Run one voice-note turn against the service's agent. `audio` is the caller's recording and
+   * `phoneNumber` is E.164. Resolves to the agent's spoken reply as audio, or `undefined` when
+   * the service has no reply to send. Pass `accept: 'audio/wav'` for PCM16 WAV instead of OGG Opus.
+   */
+  async sendVoiceTurn(
+    serviceId: ServiceId | string,
+    params: { audio: Blob; phoneNumber: string; accept?: string },
+  ): Promise<WithResponseMetadata<Blob>> {
+    const form = new FormData()
+    form.append('audio', params.audio)
+    form.append('phone_number', params.phoneNumber)
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/services/{service_id}/voice-turn', {
+        params: {
+          path: { workspace_id: this.workspaceId, service_id: serviceId },
+          header: { accept: params.accept },
+        },
+        // The generated multipart body types `audio` as a string; the form carries the bytes.
+        body: form as unknown as components['schemas']['Body_voice-turn'],
+        parseAs: 'blob',
       }),
     )
   }

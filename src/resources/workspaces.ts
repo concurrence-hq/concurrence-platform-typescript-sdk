@@ -100,4 +100,23 @@ export class WorkspacesResource extends WorkspaceScopedResource {
         }),
       ),
   }
+
+  /** Get the credential IDs configured as test principals for this workspace's text channel. */
+  async getTestCredentialIds() {
+    return extractData(
+      await this.client.GET('/v1/workspaces/{workspace_id}/test-credential-ids', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Set credential IDs to be treated as test principals. Text turns from these credentials are tagged source='test' and excluded from billing, scores, analytics, outbound EHR sync, and entity views. */
+  async updateTestCredentialIds(body: components['schemas']['TestCredentialIdsRequest']) {
+    return extractData(
+      await this.client.PUT('/v1/workspaces/{workspace_id}/test-credential-ids', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
 }
