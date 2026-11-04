@@ -13,10 +13,11 @@
  * limit, 4100 token expired), and inconsistent reconnect backoff.
  *
  * The implementation composes {@link createReconnectingWebSocket} with a
- * lightweight ``ObserverSSEEvent`` parser. Frames that don't deserialize or
- * lack a recognized ``type`` discriminator are dropped — the stream remains
- * forward-compatible with new event types added on the server before the SDK
- * spec snapshot picks them up.
+ * lightweight frame parser. Frames that don't deserialize to an object with a
+ * string ``type`` are dropped. Other frames pass through unchanged, including
+ * event types added on the server before the SDK spec snapshot picks them up.
+ * Consumers must validate events outside the generated ``ObserverSSEEvent``
+ * union before interpreting their payloads.
  *
  * @see ConversationsResource.subscribeTextStream for the analogous text-stream
  *   helper.
@@ -36,8 +37,9 @@ import type { components } from '../generated/api.js'
 import { WorkspaceScopedResource } from './base.js'
 
 /**
- * Discriminated union of every observer stream event variant. Members carry
- * their own ``type`` literal — narrow with ``switch (event.type)``.
+ * Discriminated union of observer events in the generated spec snapshot.
+ * Members carry their own ``type`` literal — narrow with ``switch (event.type)``.
+ * The runtime stream can also deliver event types absent from this snapshot.
  */
 export type ObserverSSEEvent = components['schemas']['ObserverSSEEvent']
 
@@ -81,7 +83,7 @@ export interface ObserverSubscribeOptions {
   /** Cancellation signal — aborting closes the connection. */
   signal?: AbortSignal
 
-  /** Fired once per typed event delivered by the server. */
+  /** Fired for each object frame with a string type, including unknown event types. */
   onEvent: (event: ObserverSSEEvent) => void
 
   /** Fired on each lifecycle transition. */
@@ -322,14 +324,13 @@ function deriveFromBase(baseUrl: string, workspaceId: string, callSid: string): 
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a raw WebSocket frame into a typed {@link ObserverSSEEvent}.
+ * Parse a raw WebSocket frame for the {@link ObserverSSEEvent} callback.
  *
  * Drift-tolerant: returns ``null`` on JSON decode errors, non-object
- * payloads, missing ``type`` discriminator, or unknown discriminator
- * values. The static type of ``ObserverSSEEvent`` is the contract — the
- * server may add new event types ahead of an SDK release and the consumer's
- * exhaustive ``switch`` will simply not match them, leaving the unknown
- * frame on the floor.
+ * payloads, or a missing/non-string ``type`` discriminator. Unknown event types
+ * and their payloads pass through unchanged. This parser does not validate the
+ * generated union or event-specific fields; consumers interpreting events beyond
+ * the spec snapshot must validate those payloads at their own boundary.
  */
 function parseObserverFrame(data: unknown): ObserverSSEEvent | null {
   let text: string
