@@ -360,7 +360,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `switchChannel`
 - `createTurn`
 - `pollTurn`
-- `acknowledgeTurnDelivery`
 - `createTurnStream`
 - `streamTurn`
 - `sessionConnectUrl`

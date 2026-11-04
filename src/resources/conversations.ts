@@ -224,35 +224,6 @@ export class ConversationsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Acknowledge a background turn delivery after rendering or durably storing it.
-   *
-   * `pollTurn` returns `delivery` with a `delivery_id`, `receipt` and `request_id`
-   * when it claims a background answer; pass them back here. Pass
-   * `source: 'playground'` from the developer console Playground, as on its turns.
-   */
-  async acknowledgeTurnDelivery(
-    conversationId: string,
-    deliveryId: string,
-    request: TurnDeliveryAckRequest,
-  ): Promise<void> {
-    extractData(
-      await this.client.POST(
-        '/v1/{workspace_id}/conversations/{conversation_id}/turns/{delivery_id}/ack',
-        {
-          params: {
-            path: {
-              workspace_id: this.workspaceId,
-              conversation_id: conversationId,
-              delivery_id: deliveryId,
-            },
-          },
-          body: request,
-        },
-      ),
-    )
-  }
-
-  /**
    * Send a message and receive the agent's response as an SSE byte stream.
    *
    * Targets the explicit always-SSE endpoint
