@@ -1,6 +1,6 @@
 import { ConfigurationError } from '../core/errors.js'
 import { type PlatformFetch } from '../core/openapi-client.js'
-import type { components } from '../generated/api.js'
+import type { components, paths } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export type ChannelKind = components['schemas']['ChannelKind']
@@ -32,44 +32,6 @@ export type TurnStateTransitionEvent = components['schemas']['TurnStateTransitio
 export type TurnStateEvent = components['schemas']['TurnStateEvent']
 export type TurnDoneEvent = components['schemas']['TurnDoneEvent']
 export type TurnErrorEvent = components['schemas']['TurnErrorEvent']
-
-/**
- * Hand-authored because the text-stream WebSocket endpoint is intentionally
- * outside the generated OpenAPI REST snapshot.
- * TODO: replace with generated types when `/agent/text-stream` is added to
- * openapi.json.
- *
- * @beta The text-stream WebSocket contract may evolve independently of the REST API.
- */
-export interface TextStreamUrlParams {
-  serviceId: string
-  conversationId?: string
-  entityId?: string
-  /**
-   * Enable `tool_call_started` and `tool_call_completed` frames on the
-   * text-stream WebSocket so the client can render tool invocations in
-   * real time.
-   */
-  toolEvents?: boolean
-  /**
-   * Bearer token query-param fallback for clients whose API key cannot be sent
-   * as a WebSocket subprotocol token. Prefer textStreamAuthProtocols() when
-   * the token is subprotocol-safe so secrets do not appear in URLs. The SDK
-   * intentionally accepts only the server-supported text-stream token alphabet
-   * (letters, digits, `.`, `_`, `+`, `=`, `/`, `:`, `-`) even though
-   * URLSearchParams can percent-encode additional characters.
-   */
-  token?: string
-  /**
-   * Full text-stream URL override for preview/custom ingress.
-   * Defaults to `${baseUrl origin}/agent/text-stream` with
-   * `http` mapped to `ws` and `https` mapped to `wss`.
-   */
-  textStreamUrl?: string
-}
-
-/** @beta The text-stream WebSocket contract may evolve independently of the REST API. */
-export type TextStreamAuthProtocols = readonly ['auth', string]
 
 /**
  * Hand-authored because the workspace-scoped session-connect WebSocket is
@@ -104,10 +66,9 @@ export interface SessionConnectUrlParams {
 }
 
 const MAX_AUTH_TOKEN_CHARS = 4096
-const TEXT_STREAM_AUTH_TOKEN_RE = /^[-A-Za-z0-9._+=/:]+$/
 const WEB_SOCKET_PROTOCOL_TOKEN_RE = /^[!#$%&'*+\-.^_`|~A-Za-z0-9]+$/
 
-/** Access text conversation APIs and text-stream URL helpers. */
+/** Access text conversation APIs and session-connect URL helpers. */
 export class ConversationsResource extends WorkspaceScopedResource {
   private readonly agentBaseUrl: string | undefined
 
@@ -341,16 +302,6 @@ export class ConversationsResource extends WorkspaceScopedResource {
     }
   }
 
-  /** Build the real-time text WebSocket URL for browser or custom clients. */
-  textStreamUrl(params: TextStreamUrlParams): string {
-    const url = buildTextStreamUrl({
-      baseUrl: this.agentBaseUrl ?? this.platformBaseUrl,
-      workspaceId: this.workspaceId,
-      ...params,
-    })
-    return url.toString()
-  }
-
   /**
    * Build the URL for the workspace-scoped session-connect WebSocket
    * (``WS /v1/{workspace_id}/sessions/connect``).
@@ -377,133 +328,85 @@ export class ConversationsResource extends WorkspaceScopedResource {
     })
     return url.toString()
   }
-}
 
-/**
- * Build browser WebSocket subprotocols for text-stream authentication.
- *
- * @remarks The returned tuple contains the raw API key. Do not log, persist,
- * serialize, or otherwise expose this value.
- *
- * @security The second subprotocol entry is the bearer secret.
- */
-export function textStreamAuthProtocols(apiKey: string): TextStreamAuthProtocols {
-  const token = validateTextStreamAuthToken(apiKey, 'apiKey')
-  if (!WEB_SOCKET_PROTOCOL_TOKEN_RE.test(token)) {
-    const invalidChars = describeInvalidSubprotocolChars(token)
-    throw new ConfigurationError(
-      `apiKey contains characters browsers reject in WebSocket subprotocols (${invalidChars}); use the token option on client.conversations.textStreamUrl() instead for keys containing these characters, only in trusted contexts where URLs are not logged in browser history, server access logs, HTTP proxy logs, or referrer headers`,
+  /** Lets the external user who owns a conversation approve or reject a write that the agent paused for their confirmation. Only the conversation's own external user may call this; it requires the `conversations:approve_own` scope. */
+  async decideApproval(
+    conversationId: string,
+    body: components['schemas']['ConversationApprovalRequest'],
+  ): Promise<void> {
+    await this.client.POST('/v1/{workspace_id}/conversations/{conversation_id}/approval', {
+      params: { path: { workspace_id: this.workspaceId, conversation_id: conversationId } },
+      body,
+    })
+  }
+
+  /** Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order. */
+  async listTurns(
+    conversationId: string,
+    params?: paths['/v1/{workspace_id}/conversations/{conversation_id}/turns']['get']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/conversations/{conversation_id}/turns', {
+        params: {
+          path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+          query: params,
+        },
+      }),
     )
   }
-  return ['auth', token] as const
+
+  /** Acknowledge a rendered background turn delivery */
+  async acknowledgeTurnDelivery(
+    conversationId: string,
+    deliveryId: string,
+    body: components['schemas']['TurnDeliveryAckRequest'],
+  ): Promise<void> {
+    await this.client.POST(
+      '/v1/{workspace_id}/conversations/{conversation_id}/turns/{delivery_id}/ack',
+      {
+        params: {
+          path: {
+            workspace_id: this.workspaceId,
+            conversation_id: conversationId,
+            delivery_id: deliveryId,
+          },
+        },
+        body,
+      },
+    )
+  }
 }
 
 /**
  * Build browser WebSocket subprotocols for the workspace-scoped session-connect
  * endpoint (``WS /v1/{workspace_id}/sessions/connect``).
  *
- * The wire format is identical to {@link textStreamAuthProtocols} — both
- * endpoints expect ``Sec-WebSocket-Protocol: auth, <token>`` — but the
- * session-connect endpoint has no query-param token fallback, so the API key
- * MUST round-trip through this subprotocol pair. Keys containing characters
- * browsers reject in subprotocols (e.g. ``:``, ``/``, ``=``) cannot be used
- * with the session-connect endpoint and must instead use the legacy
- * ``textStreamUrl`` path.
+ * The endpoint expects ``Sec-WebSocket-Protocol: auth, <token>`` and has no
+ * query-param token fallback, so the API key MUST round-trip through this
+ * subprotocol pair. Keys containing characters browsers reject in subprotocols
+ * (e.g. ``:``, ``/``, ``=``) cannot be used with the session-connect endpoint.
  *
  * @remarks The returned tuple contains the raw API key. Do not log, persist,
  * serialize, or otherwise expose this value.
  *
  * @security The second subprotocol entry is the bearer secret.
  */
-export function sessionConnectAuthProtocols(apiKey: string): TextStreamAuthProtocols {
-  return textStreamAuthProtocols(apiKey)
-}
-
-function buildTextStreamUrl({
-  baseUrl,
-  workspaceId,
-  serviceId,
-  conversationId,
-  entityId,
-  toolEvents,
-  token,
-  textStreamUrl: textStreamUrlOverride,
-}: TextStreamUrlParams & { baseUrl: string; workspaceId: string }): URL {
-  const url = textStreamUrlOverride
-    ? parseTextStreamUrlOverride(textStreamUrlOverride)
-    : deriveTextStreamUrl(baseUrl)
-  url.searchParams.set('workspace_id', workspaceId)
-  url.searchParams.set('service_id', serviceId)
-  if (conversationId) url.searchParams.set('conversation_id', conversationId)
-  if (entityId) url.searchParams.set('entity_id', entityId)
-  if (toolEvents) url.searchParams.set('tool_events', 'true')
-  if (token !== undefined)
-    url.searchParams.set('token', validateTextStreamAuthToken(token, 'token'))
-  return url
-}
-
-function validateTextStreamAuthToken(token: string, label: string): string {
-  if (!token.trim()) {
-    throw new ConfigurationError(`${label} is required for text-stream authentication`)
+export function sessionConnectAuthProtocols(apiKey: string): readonly ['auth', string] {
+  if (!apiKey.trim()) {
+    throw new ConfigurationError('apiKey is required for session-connect authentication')
   }
-  if (token.length > MAX_AUTH_TOKEN_CHARS || !TEXT_STREAM_AUTH_TOKEN_RE.test(token)) {
+  if (apiKey.length > MAX_AUTH_TOKEN_CHARS) {
     throw new ConfigurationError(
-      `${label} contains characters rejected by text-stream authentication`,
+      `apiKey exceeds the ${MAX_AUTH_TOKEN_CHARS}-character WebSocket subprotocol limit`,
     )
   }
-  return token
-}
-
-function parseTextStreamUrlOverride(textStreamUrl: string): URL {
-  try {
-    const url = new URL(textStreamUrl)
-    if (url.protocol !== 'ws:' && url.protocol !== 'wss:') {
-      throw new ConfigurationError('textStreamUrl overrides must use ws: or wss: URLs')
-    }
-    // Fragment rejection is defensive; WHATWG URL parsing normalizes most
-    // WebSocket fragments away, but callers should never rely on fragments here.
-    if (url.search || url.hash) {
-      throw new ConfigurationError(
-        'textStreamUrl overrides must not include query parameters or fragments; pass SDK-managed fields through textStreamUrl() options',
-      )
-    }
-    return url
-  } catch (cause) {
-    if (cause instanceof ConfigurationError) throw cause
+  if (!WEB_SOCKET_PROTOCOL_TOKEN_RE.test(apiKey)) {
+    const invalidChars = describeInvalidSubprotocolChars(apiKey)
     throw new ConfigurationError(
-      `textStreamUrl must be an absolute URL for text-stream overrides: ${String(cause)}`,
+      `apiKey contains characters browsers reject in WebSocket subprotocols (${invalidChars})`,
     )
   }
-}
-
-function deriveTextStreamUrl(baseUrl: string): URL {
-  if (!/^[a-z][a-z\d+.-]*:\/\//i.test(baseUrl)) {
-    throw new ConfigurationError(
-      'textStreamUrl cannot be derived from a relative baseUrl; pass agentBaseUrl or textStreamUrl explicitly',
-    )
-  }
-
-  const url = new URL(baseUrl)
-  if (url.protocol === 'ws:' || url.protocol === 'wss:') {
-    // Already a WebSocket URL (e.g. from agentBaseUrl) — use directly
-  } else if (url.protocol === 'http:' || url.protocol === 'https:') {
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  } else {
-    throw new ConfigurationError(
-      'textStreamUrl can only be derived from an http, https, ws, or wss baseUrl; pass textStreamUrl explicitly',
-    )
-  }
-  if (url.pathname !== '/' && url.pathname !== '') {
-    throw new ConfigurationError(
-      'textStreamUrl can only be derived from an origin-only baseUrl; pass agentBaseUrl as an origin or textStreamUrl explicitly when using path-prefixed gateways',
-    )
-  }
-  // Text streaming is served by agent-engine ingress, regardless of any REST
-  // API path segments on the configured base URL.
-  url.pathname = '/agent/text-stream'
-  url.search = ''
-  url.hash = ''
-  return url
+  return ['auth', apiKey] as const
 }
 
 function buildSessionConnectUrl({

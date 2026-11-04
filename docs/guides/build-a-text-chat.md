@@ -1,30 +1,19 @@
 # Build a Text Chat Integration
 
-This guide walks through building a real-time text chat frontend that connects to an Amigo agent via WebSocket. By the end, you will be able to stream agent responses, display tool call activity, and resume frozen conversations.
+This guide walks through building a real-time text chat frontend that talks to an Amigo agent. By the end, you will be able to stream agent responses token by token, display tool call activity, and continue a conversation across turns.
 
 ## Concepts
 
-**Conversations** are persistent, multi-turn text sessions with an agent. They support two transports:
+**Conversations** are persistent, multi-turn text sessions with an agent. Each user message is a **turn**, and a turn can be answered two ways:
 
-- **REST** (`POST /v1/{workspace_id}/conversations/{id}/turns`) — synchronous request-response. Good for server-to-server integrations.
-- **WebSocket** (`/agent/text-stream`) — real-time bidirectional. Good for chat UIs. This is what this guide covers.
+- **Synchronous** (`POST /v1/{workspace_id}/conversations/{id}/turns`) returns the whole response as JSON. Good for server-to-server integrations.
+- **Streaming** (`POST /v1/{workspace_id}/conversations/{id}/turns/stream`) returns server-sent events as the agent works. Good for chat UIs. This is what this guide covers; the SDK exposes it as `conversations.streamTurn()`.
 
-Both transports share the same conversation state. You can start over REST and resume over WebSocket, or vice versa.
+Both share the same conversation state, so you can mix them.
 
-**Tool calls** happen when the agent needs to fetch data or perform actions (search appointments, check insurance, look up medications). When `tool_events=true`, the WebSocket surfaces these as `tool_call_started` and `tool_call_completed` frames so your UI can show what the agent is doing.
-
-### Conversation lifecycle
-
-```
-[New] --> Active --> Frozen --> Active --> ... --> Closed
-                 (turn done)        (next turn)
-```
-
-After every turn, the conversation freezes. The next message thaws it. This is invisible — just keep sending messages.
+**Tool calls** happen when the agent needs to fetch data or perform actions (search appointments, check insurance, look up medications). With `includeToolCalls: true` the stream surfaces them as `tool_call_started` and `tool_call_completed` events so your UI can show what the agent is doing.
 
 ## Step 1: Create a conversation
-
-Use the SDK to create a conversation. This gives you a `conversation_id` for the WebSocket connection.
 
 ```typescript
 import { AmigoClient } from '@amigo-ai/platform-sdk'
@@ -42,144 +31,61 @@ const conversation = await client.conversations.create({
 console.log(conversation.id) // UUID — save this
 ```
 
-## Step 2: Connect via WebSocket
-
-The SDK provides `textStreamUrl()` and `textStreamAuthProtocols()` helpers.
-
-### Browser
+## Step 2: Stream a turn
 
 ```typescript
-import { AmigoClient, textStreamAuthProtocols } from '@amigo-ai/platform-sdk'
-
-const client = new AmigoClient({
-  apiKey: API_KEY,
-  workspaceId: WORKSPACE_ID,
-})
-
-const url = client.conversations.textStreamUrl({
-  serviceId: SERVICE_ID,
-  conversationId: conversation.id, // optional — omit for new conversation
-  entityId: ENTITY_ID, // optional — patient context
-})
-
-// Authenticate via subprotocol (keeps token out of URL)
-const protocols = textStreamAuthProtocols(API_KEY)
-const ws = new WebSocket(url, protocols)
-```
-
-### Node.js
-
-```typescript
-import WebSocket from 'ws'
-
-const url = client.conversations.textStreamUrl({
-  serviceId: SERVICE_ID,
-  toolEvents: true,
-  token: API_KEY, // query param fallback for Node.js
-})
-
-const ws = new WebSocket(url)
-```
-
-### Query parameters
-
-| Parameter         | Required | Description                                          |
-| ----------------- | -------- | ---------------------------------------------------- |
-| `workspace_id`    | Yes      | Workspace ID                                         |
-| `service_id`      | Yes      | Which agent to talk to                               |
-| `token`           | Yes\*    | API key or JWT (\*or use subprotocol auth)           |
-| `conversation_id` | No       | Resume a frozen conversation                         |
-| `entity_id`       | No       | Patient entity ID for world model context            |
-| `tool_events`     | No       | `true` to receive tool call frames (default `false`) |
-
-## Step 3: Handle streaming events
-
-### Wire protocol
-
-**Client sends:**
-
-| Frame                                | Description         |
-| ------------------------------------ | ------------------- |
-| `{"type": "message", "text": "..."}` | Send a user message |
-| `{"type": "stop"}`                   | End the session     |
-
-**Server sends:**
-
-| Frame                                                                                                       | When                                               |
-| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `{"type": "session_started", "session_id": "...", "conversation_id": "..."}`                                | First frame after connection                       |
-| `{"type": "typing"}`                                                                                        | Agent is thinking                                  |
-| `{"type": "tool_call_started", "tool_name": "...", "call_id": "...", "input": {...}}`                       | Agent started a tool (requires `tool_events=true`) |
-| `{"type": "tool_call_completed", "tool_name": "...", "call_id": "...", "result": "...", "succeeded": true}` | Tool finished (requires `tool_events=true`)        |
-| `{"type": "message", "text": "..."}`                                                                        | Agent's response                                   |
-| `{"type": "error", "message": "..."}`                                                                       | Error (connection stays open)                      |
-| `{"type": "session_ended", "reason": "..."}`                                                                | Session ended, socket closing                      |
-
-### Event sequence for a turn with tool calls
-
-```
-Client: {"type": "message", "text": "What appointments are available?"}
-Server: {"type": "typing"}
-Server: {"type": "tool_call_started", "tool_name": "search_appointments", "call_id": "c1", "input": {"date": "2026-04-29"}}
-Server: {"type": "tool_call_completed", "tool_name": "search_appointments", "call_id": "c1", "result": "[{\"time\": \"2pm\", ...}]", "succeeded": true}
-Server: {"type": "message", "text": "I found 3 available appointments for tomorrow..."}
-```
-
-### Message handler
-
-```typescript
-ws.onmessage = (event) => {
-  const frame = JSON.parse(event.data)
-
-  switch (frame.type) {
-    case 'session_started':
-      // Save conversation_id for reconnection
-      localStorage.setItem('conversationId', frame.conversation_id)
+for await (const event of client.conversations.streamTurn(
+  conversation.id,
+  { message: 'What appointments are available?' },
+  { includeToolCalls: true },
+)) {
+  switch (event.event) {
+    case 'token':
+      appendToAgentBubble(event.text)
       break
-
-    case 'typing':
-      showTypingIndicator()
-      break
-
     case 'tool_call_started':
-      // Show tool activity: "Searching appointments..."
-      showToolCard(frame.call_id, frame.tool_name, frame.input)
+      showToolCard(event.call_id, event.tool_name, event.input)
       break
-
     case 'tool_call_completed':
-      // Update tool card with result or error
-      updateToolCard(frame.call_id, frame.result, frame.succeeded)
+      updateToolCard(event.call_id, event.result, event.succeeded)
       break
-
-    case 'message':
-      hideTypingIndicator()
-      appendMessage('agent', frame.text)
-      break
-
     case 'error':
-      showError(frame.message)
+      showError(event.message)
       break
-
-    case 'session_ended':
-      disableInput()
-      showStatus(`Session ended: ${frame.reason}`)
+    case 'done':
+      enableInput()
       break
   }
 }
 ```
 
-## Step 4: Display tool calls
+Pass `signal` in the options to cancel an in-flight turn. For browsers, keep the API key on your server and call `streamTurn` from there, or use a short-lived token.
+
+### Events
+
+| `event`               | Fields                                        | When                                      |
+| --------------------- | --------------------------------------------- | ----------------------------------------- |
+| `token`               | `text`                                        | A chunk of the agent's reply              |
+| `tool_call_started`   | `call_id`, `tool_name`, `input`               | Agent started a tool (`includeToolCalls`) |
+| `tool_call_completed` | `call_id`, `tool_name`, `result`, `succeeded` | Tool finished (`includeToolCalls`)        |
+| `message`             | `role`, `text`                                | A complete message                        |
+| `error`               | `message`, `code`, `retryable`                | The turn failed                           |
+| `done`                | `conversation_id`, `status`, `turn_count`     | The turn is finished                      |
+
+The stream also carries `thinking`, `artifact`, `state_transition` and `state` events; see `TurnStreamEvent`.
+
+## Step 3: Display tool calls
 
 When a tool call starts, create a card showing the tool name and input. When it completes, update the card with the result.
 
 ```typescript
-function showToolCard(callId: string, toolName: string, input: Record<string, unknown>) {
+function showToolCard(callId: string, toolName: string, input: string) {
   const card = document.createElement('div')
   card.id = `tool-${callId}`
   card.className = 'tool-card loading'
   card.innerHTML = `
     <span class="tool-name">${toolName}</span>
-    <span class="tool-input">${JSON.stringify(input)}</span>
+    <span class="tool-input">${input}</span>
     <span class="tool-status">Running...</span>
   `
   chatLog.appendChild(card)
@@ -195,25 +101,23 @@ function updateToolCard(callId: string, result: string, succeeded: boolean) {
 }
 ```
 
-## Step 5: Resume a frozen conversation
+## Step 4: Continue a conversation
 
-When the WebSocket disconnects, the conversation freezes. To resume, reconnect with the same `conversation_id`:
+A conversation keeps its state between turns. To continue later, call `streamTurn` again with the same conversation id:
 
 ```typescript
-const url = client.conversations.textStreamUrl({
-  serviceId: SERVICE_ID,
-  conversationId: localStorage.getItem('conversationId')!,
-})
-const ws = new WebSocket(url, textStreamAuthProtocols(API_KEY))
-// No greeting — agent waits for your message
+const conversationId = localStorage.getItem('conversationId')!
+for await (const event of client.conversations.streamTurn(conversationId, { message: 'Thanks' })) {
+  // ...
+}
 ```
 
-## Step 6: REST turns (alternative)
+## Step 5: Synchronous turns (alternative)
 
-For server-to-server integrations, use `POST /turns` instead of WebSocket. Tool calls are returned in the response when `include_tool_calls=true`:
+For server-to-server integrations, use `createTurn` instead of streaming. Tool calls are returned in the response when `include_tool_calls=true`:
 
 ```typescript
-const response = await client.conversations.createTurn(conversationId, {
+const response = await client.conversations.createTurn(conversation.id, {
   message: 'What appointments are available?',
 })
 
@@ -230,7 +134,7 @@ curl -X POST "https://platform.api-us.concurrence.com/v1/$WS/conversations/$CONV
 
 ## Complete reference implementation
 
-Copy this HTML file, fill in your credentials, and open it in a browser. It demonstrates the complete WebSocket text chat flow with tool call display.
+Copy this HTML file, fill in your credentials, and open it in a browser. It creates a conversation and streams each turn from `/turns/stream`, with tool call display.
 
 ```html
 <!DOCTYPE html>
@@ -402,15 +306,15 @@ Copy this HTML file, fill in your credentials, and open it in a browser. It demo
   </head>
   <body>
     <div class="config">
-      <label>API URL <input id="apiUrl" value="wss://agent-engine.api-us.concurrence.com" /></label>
+      <label>API URL <input id="apiUrl" value="https://platform.api-us.concurrence.com" /></label>
       <label>Token <input id="token" type="password" /></label>
       <label>Workspace <input id="workspace" /></label>
       <label>Service <input id="service" /></label>
-      <label>Conversation ID <input id="convId" placeholder="(optional — resume)" /></label>
+      <label>Conversation ID <input id="convId" placeholder="(optional — continue)" /></label>
       <label>Entity ID <input id="entityId" placeholder="(optional)" /></label>
-      <button class="connect" onclick="connect()">Connect</button>
-      <button class="disconnect" onclick="disconnect()">Disconnect</button>
-      <span id="status" class="status disconnected">Disconnected</span>
+      <button class="connect" onclick="start()">Start</button>
+      <button class="disconnect" onclick="stop()">End</button>
+      <span id="status" class="status disconnected">Idle</span>
     </div>
     <div class="chat" id="chat"></div>
     <div class="input-bar">
@@ -423,95 +327,135 @@ Copy this HTML file, fill in your credentials, and open it in a browser. It demo
       <button id="sendBtn" onclick="send()" disabled>Send</button>
     </div>
     <script>
-      let ws = null
       let conversationId = null
+      let apiBase = null
+      let workspace = null
+      let token = null
+      let abortController = null
 
-      function connect() {
-        const base = document.getElementById('apiUrl').value
-        const token = document.getElementById('token').value
-        const workspace = document.getElementById('workspace').value
+      function headers() {
+        return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+      }
+
+      async function start() {
+        apiBase = document.getElementById('apiUrl').value
+        token = document.getElementById('token').value
+        workspace = document.getElementById('workspace').value
         const service = document.getElementById('service').value
-        const convId = document.getElementById('convId').value
+        conversationId = document.getElementById('convId').value
         const entityId = document.getElementById('entityId').value
         if (!token || !workspace || !service)
           return alert('Token, workspace, and service are required')
 
-        const url = new URL(base.replace(/^http/, 'ws') + '/agent/text-stream')
-        url.searchParams.set('token', token)
-        url.searchParams.set('workspace_id', workspace)
-        url.searchParams.set('service_id', service)
-        url.searchParams.set('tool_events', 'true')
-        if (convId) url.searchParams.set('conversation_id', convId)
-        if (entityId) url.searchParams.set('entity_id', entityId)
-
-        ws = new WebSocket(url.toString())
-        setStatus('connecting')
-
-        ws.onopen = () => setStatus('connected')
-        ws.onclose = (e) => {
-          setStatus('disconnected')
-          addSystem(`Disconnected (${e.code}: ${e.reason || 'clean'})`)
-          document.getElementById('msgInput').disabled = true
-          document.getElementById('sendBtn').disabled = true
+        if (!conversationId) {
+          const body = { service_id: service }
+          if (entityId) body.entity_id = entityId
+          const res = await fetch(`${apiBase}/v1/${workspace}/conversations`, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(body),
+          })
+          if (!res.ok) return addSystem('Create failed: ' + res.status)
+          conversationId = (await res.json()).id
+          document.getElementById('convId').value = conversationId
         }
-        ws.onerror = () => addSystem('WebSocket error')
-        ws.onmessage = (e) => {
-          const f = JSON.parse(e.data)
-          switch (f.type) {
-            case 'session_started':
-              conversationId = f.conversation_id
-              document.getElementById('convId').value = conversationId
-              addSystem(`Session ${f.session_id} | Conversation ${f.conversation_id}`)
-              document.getElementById('msgInput').disabled = false
-              document.getElementById('sendBtn').disabled = false
-              document.getElementById('msgInput').focus()
-              break
-            case 'typing':
-              showTyping()
-              break
-            case 'tool_call_started':
-              hideTyping()
-              addToolStart(f.call_id, f.tool_name, f.input)
-              break
-            case 'tool_call_completed':
-              updateTool(f.call_id, f.result, f.succeeded)
-              break
-            case 'message':
-              hideTyping()
-              addAgent(f.text)
-              break
-            case 'error':
-              addSystem('Error: ' + f.message)
-              break
-            case 'session_ended':
-              addSystem('Session ended: ' + f.reason)
-              document.getElementById('msgInput').disabled = true
-              document.getElementById('sendBtn').disabled = true
-              break
-          }
-        }
+        setStatus('ready')
+        addSystem('Conversation ' + conversationId)
+        document.getElementById('msgInput').disabled = false
+        document.getElementById('sendBtn').disabled = false
+        document.getElementById('msgInput').focus()
       }
 
-      function disconnect() {
-        if (ws) {
-          ws.send(JSON.stringify({ type: 'stop' }))
-          ws.close()
+      async function stop() {
+        if (abortController) abortController.abort()
+        if (conversationId) {
+          await fetch(`${apiBase}/v1/${workspace}/conversations/${conversationId}`, {
+            method: 'DELETE',
+            headers: headers(),
+          })
         }
+        setStatus('idle')
+        addSystem('Conversation ended')
+        document.getElementById('msgInput').disabled = true
+        document.getElementById('sendBtn').disabled = true
       }
 
-      function send() {
+      async function send() {
         const input = document.getElementById('msgInput')
         const text = input.value.trim()
-        if (!text || !ws || ws.readyState !== 1) return
-        ws.send(JSON.stringify({ type: 'message', text }))
+        if (!text || !conversationId) return
         addUser(text)
         input.value = ''
+        showTyping()
+
+        abortController = new AbortController()
+        const res = await fetch(
+          `${apiBase}/v1/${workspace}/conversations/${conversationId}/turns/stream?include_tool_calls=true`,
+          {
+            method: 'POST',
+            headers: { ...headers(), Accept: 'text/event-stream' },
+            body: JSON.stringify({ message: text }),
+            signal: abortController.signal,
+          },
+        )
+        if (!res.ok) {
+          hideTyping()
+          return addSystem('Turn failed: ' + res.status)
+        }
+
+        // Server-sent events: frames are separated by a blank line, with
+        // `event:` and `data:` lines. A browser EventSource cannot POST, so
+        // read the response body directly.
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+        let buffer = ''
+        let agentEl = null
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buffer += value
+          let sep
+          while ((sep = buffer.indexOf('\n\n')) !== -1) {
+            const frame = buffer.slice(0, sep)
+            buffer = buffer.slice(sep + 2)
+            let name = ''
+            let data = ''
+            for (const line of frame.split('\n')) {
+              if (line.startsWith('event:')) name = line.slice(6).trim()
+              else if (line.startsWith('data:')) data += line.slice(5).trim()
+            }
+            if (!name || !data) continue
+            const f = JSON.parse(data)
+            switch (name) {
+              case 'token':
+                hideTyping()
+                if (!agentEl) agentEl = addAgent('')
+                agentEl.textContent += f.text
+                scrollBottom()
+                break
+              case 'tool_call_started':
+                hideTyping()
+                addToolStart(f.call_id, f.tool_name, f.input)
+                break
+              case 'tool_call_completed':
+                updateTool(f.call_id, f.result, f.succeeded)
+                break
+              case 'error':
+                hideTyping()
+                addSystem('Error: ' + f.message)
+                break
+              case 'done':
+                hideTyping()
+                agentEl = null
+                break
+            }
+          }
+        }
       }
 
       function setStatus(s) {
         const el = document.getElementById('status')
         el.textContent = s.charAt(0).toUpperCase() + s.slice(1)
-        el.className = 'status ' + (s === 'connected' ? 'connected' : 'disconnected')
+        el.className = 'status ' + (s === 'ready' ? 'connected' : 'disconnected')
       }
 
       function addUser(text) {
@@ -528,6 +472,7 @@ Copy this HTML file, fill in your credentials, and open it in a browser. It demo
         d.textContent = text
         document.getElementById('chat').appendChild(d)
         scrollBottom()
+        return d
       }
 
       function addSystem(text) {
@@ -589,29 +534,4 @@ Copy this HTML file, fill in your credentials, and open it in a browser. It demo
 
 ## Error handling
 
-| Close code | Meaning                     | Action                                                  |
-| ---------- | --------------------------- | ------------------------------------------------------- |
-| `1000`     | Normal close                | Session ended cleanly                                   |
-| `4001`     | Missing params or bad token | Check credentials                                       |
-| `4003`     | Token workspace mismatch    | Token doesn't match workspace_id                        |
-| `4200`     | Engine init failed          | Retry once, then investigate                            |
-| `4400`     | Invalid conversation_id     | Must be a valid UUID                                    |
-| `4404`     | Conversation not found      | Wrong ID or different workspace                         |
-| `4409`     | Conversation already active | Another client owns it — wait or use a new conversation |
-
-## Reconnection
-
-```typescript
-ws.onclose = (event) => {
-  if (event.code === 1000) return // clean close, don't reconnect
-
-  setTimeout(() => {
-    connect({
-      conversationId: localStorage.getItem('conversationId'),
-      // ... other params
-    })
-  }, 3000)
-}
-```
-
-The `retry: 3000` SSE directive equivalent for WebSocket — reconnect after 3 seconds. The conversation is frozen, not lost.
+A failed turn emits an `error` event with `message`, `code` and `retryable`. If the request itself is rejected, `streamTurn` throws before yielding. A `retryable` error can be retried by sending the turn again; the conversation is not lost.

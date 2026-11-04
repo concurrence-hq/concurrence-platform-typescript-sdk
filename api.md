@@ -52,8 +52,8 @@ Notes:
 - Request option types: `AmigoRequestOptions`, `ScopedRequestOptions`
 - Webhooks: `verifyWebhookSignature`, `parseWebhookEvent`, `WebhookVerificationError`
 - Pagination and response helpers: `paginate`, `buildLastResponse`, `extractRequestId`
-- Conversation helpers: `sessionConnectAuthProtocols`, `textStreamAuthProtocols`
-- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TextStreamAuthProtocols` (WebSocket constructor subprotocol tuple), `TextStreamUrlParams`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Conversation helpers: `sessionConnectAuthProtocols`
+- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
 - Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_LANGUAGES`, `VOICE_SESSION_PROVIDERS`, `VoiceFamiliesResource`
 - Voice provider types: `AgentVoiceConfig`, `ListFamilyVoicesParams`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceFamily`, `VoiceFamilyListResponse`, `VoiceLanguage`, `VoiceListResponse`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
 - Response and hook types: `PaginatedList`, `ListParams`, `LastResponseInfo`, `ResponseMetadata`, `WithResponseMetadata`, `AmigoResponse`, `RetryOptions`, `RateLimitInfo`, `ClientHooks`, `RequestHookContext`, `ResponseHookContext`, `ErrorHookContext`
@@ -77,6 +77,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `provision`
 - `testCallerNumbers.get`
 - `testCallerNumbers.update`
+- `getTestCredentialIds`
+- `updateTestCredentialIds`
 
 ### `me`
 
@@ -90,6 +92,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listAutoPaging`
 - `revoke`
 - `rotate`
+- `getPermissionCatalog`
 
 ### `tokens`
 
@@ -260,6 +263,9 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `clearDynamicBehaviorPin`
 - `delete`
 - `listVoiceJudgeResults`
+- `previewPrompt`
+- `getReadiness`
+- `sendVoiceTurn`
 
 ### `stagingClones`
 
@@ -322,6 +328,15 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getEnrichmentHistory`
 - `getStats`
 - `getSourceBreakdown`
+- `getDashboard`
+- `listEnrichmentKeys`
+- `createEnrichmentKey`
+- `updateEnrichmentKey`
+- `deleteEnrichmentKey`
+- `resolveEntity`
+- `putEntityEnrichment`
+- `listEventTypes`
+- `importMigrationConversations`
 
 ### `calls`
 
@@ -347,8 +362,10 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `pollTurn`
 - `createTurnStream`
 - `streamTurn`
-- `textStreamUrl`
 - `sessionConnectUrl`
+- `decideApproval`
+- `listTurns`
+- `acknowledgeTurnDelivery`
 
 ### `integrations`
 
@@ -365,6 +382,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `updateEndpoint`
 - `deleteEndpoint`
 - `testEndpoint`
+- `approveWrite`
+- `rejectWrite`
 
 ### `externalIntegrations`
 
@@ -481,6 +500,13 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `retention.update`
 - `metrics.get`
 - `metrics.update`
+- `dataResidency.get`
+- `dataResidency.update`
+- `http.get`
+- `http.update`
+- `formTemplates.list`
+- `formTemplates.update`
+- `formTemplates.resolve`
 
 ### `recordings`
 
@@ -607,6 +633,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `materializations.list`
 - `materializations.listAutoPaging`
 - `materialize`
+- `getBatchProcessingManifest`
+- `writeBackFileStatus`
 
 ### `dataQuery`
 
@@ -663,6 +691,123 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listActive`
 - `getFleetStatus`
 - `inject`
+- `start`
+
+### `billing`
+
+- `getCost`
+- `getUsage`
+- `getUsageCostExcluded`
+- `getUsageCostModels`
+- `getUsageCostOverview`
+
+### `externalAuthClaimMappings`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `resolvePreview`
+- `get`
+- `supersede`
+
+### `externalIdentityBindings`
+
+- `list`
+- `listAutoPaging`
+- `upsert`
+- `get`
+- `delete`
+
+### `externalRoleAssignments`
+
+- `list`
+- `listAutoPaging`
+- `upsert`
+- `get`
+- `delete`
+
+### `externalRoles`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `delete`
+
+### `roleGrants`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `supersede`
+
+### `reviewQueue`
+
+- `list`
+- `listAutoPaging`
+- `approve`
+- `reject`
+
+### `m42`
+
+- `listRankedAnomalies`
+- `getCatalog`
+- `listClusterForecast`
+- `listClusterSummary`
+- `listForecastFan`
+- `listForecastFanDraws`
+- `listModelRegistry`
+- `getNotesRollup`
+- `listPatientTopology`
+- `listPatientLabs`
+- `getPatientNote`
+- `listStratifiedFits`
+
+### `memoryDimensions`
+
+- `create`
+
+### `metering`
+
+- `emit`
+
+### `metricStore`
+
+- `setup`
+- `refresh`
+- `getRun`
+
+### `models`
+
+- `list`
+
+### `schedulingRuleSets`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `update`
+- `delete`
+
+### `workspaceTables`
+
+- `list`
+- `create`
+- `get`
+- `update`
+- `delete`
+
+### `traces`
+
+- `export`
+
+### `useCases`
+
+- `getServiceBinding`
+- `bindService`
+- `unbindService`
 
 ### `workspaceDataQueries`
 

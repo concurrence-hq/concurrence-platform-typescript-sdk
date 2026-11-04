@@ -97,6 +97,22 @@ import { PipelineResource } from './resources/pipeline.js'
 import { ToolsResource } from './resources/tools.js'
 import { SurfacesResource } from './resources/surfaces.js'
 import { SessionsResource } from './resources/sessions.js'
+import { BillingResource } from './resources/billing.js'
+import { ExternalAuthClaimMappingsResource } from './resources/external-auth-claim-mappings.js'
+import { ExternalIdentityBindingsResource } from './resources/external-identity-bindings.js'
+import { ExternalRoleAssignmentsResource } from './resources/external-role-assignments.js'
+import { ExternalRolesResource } from './resources/external-roles.js'
+import { RoleGrantsResource } from './resources/role-grants.js'
+import { ReviewQueueResource } from './resources/review-queue.js'
+import { M42Resource } from './resources/m42.js'
+import { MemoryDimensionsResource } from './resources/memory-dimensions.js'
+import { MeteringResource } from './resources/metering.js'
+import { MetricStoreResource } from './resources/metric-store.js'
+import { ModelsResource } from './resources/models.js'
+import { SchedulingRuleSetsResource } from './resources/scheduling-rule-sets.js'
+import { WorkspaceTablesResource } from './resources/workspace-tables.js'
+import { TracesResource } from './resources/traces.js'
+import { UseCasesResource } from './resources/use-cases.js'
 import { WorkspaceDataQueriesResource } from './resources/workspace-data-queries.js'
 import { resolveScopedPlatformClient, scopePlatformClient } from './resources/base.js'
 import type { components, paths } from './generated/api.js'
@@ -202,7 +218,7 @@ export interface AmigoClientConfig {
    *
    * Required when `baseUrl` points to a BFF proxy or a different host
    * than the agent engine — WebSockets cannot traverse HTTP proxies.
-   * Used by `conversations.textStreamUrl()` to build the `ws://` URL.
+   * Used by `conversations.sessionConnectUrl()` and `observers.subscribe()` to build the `ws://` URL.
    *
    * Accepts `http://` or `https://` (auto-mapped to `ws://` / `wss://`)
    * or direct `ws://` / `wss://` URLs.
@@ -301,6 +317,22 @@ export class AmigoClient {
   readonly surfaces!: SurfacesResource
   /** Live agent sessions — list active calls + inject mid-call directives */
   readonly sessions!: SessionsResource
+  readonly billing!: BillingResource
+  readonly externalAuthClaimMappings!: ExternalAuthClaimMappingsResource
+  readonly externalIdentityBindings!: ExternalIdentityBindingsResource
+  readonly externalRoleAssignments!: ExternalRoleAssignmentsResource
+  readonly externalRoles!: ExternalRolesResource
+  readonly roleGrants!: RoleGrantsResource
+  readonly reviewQueue!: ReviewQueueResource
+  readonly m42!: M42Resource
+  readonly memoryDimensions!: MemoryDimensionsResource
+  readonly metering!: MeteringResource
+  readonly metricStore!: MetricStoreResource
+  readonly models!: ModelsResource
+  readonly schedulingRuleSets!: SchedulingRuleSetsResource
+  readonly workspaceTables!: WorkspaceTablesResource
+  readonly traces!: TracesResource
+  readonly useCases!: UseCasesResource
   /** Workspace data queries — Lakebase-backed query tool registry */
   readonly workspaceDataQueries!: WorkspaceDataQueriesResource
   /** Dynamic behaviors library: sets and their versions; pin them with `services.setDynamicBehaviorPin` */
@@ -567,6 +599,22 @@ export class AmigoClient {
     mutable.tools = new ToolsResource(client, workspaceId)
     mutable.surfaces = new SurfacesResource(client, workspaceId)
     mutable.sessions = new SessionsResource(client, workspaceId)
+    mutable.billing = new BillingResource(client, workspaceId)
+    mutable.externalAuthClaimMappings = new ExternalAuthClaimMappingsResource(client, workspaceId)
+    mutable.externalIdentityBindings = new ExternalIdentityBindingsResource(client, workspaceId)
+    mutable.externalRoleAssignments = new ExternalRoleAssignmentsResource(client, workspaceId)
+    mutable.externalRoles = new ExternalRolesResource(client, workspaceId)
+    mutable.roleGrants = new RoleGrantsResource(client, workspaceId)
+    mutable.reviewQueue = new ReviewQueueResource(client, workspaceId)
+    mutable.m42 = new M42Resource(client, workspaceId)
+    mutable.memoryDimensions = new MemoryDimensionsResource(client, workspaceId)
+    mutable.metering = new MeteringResource(client, workspaceId)
+    mutable.metricStore = new MetricStoreResource(client, workspaceId)
+    mutable.models = new ModelsResource(client, workspaceId)
+    mutable.schedulingRuleSets = new SchedulingRuleSetsResource(client, workspaceId)
+    mutable.workspaceTables = new WorkspaceTablesResource(client, workspaceId)
+    mutable.traces = new TracesResource(client, workspaceId)
+    mutable.useCases = new UseCasesResource(client, workspaceId)
     mutable.workspaceDataQueries = new WorkspaceDataQueriesResource(client, workspaceId)
     mutable.dynamicBehaviorSets = new DynamicBehaviorSetsResource(client, workspaceId)
   }
@@ -970,7 +1018,7 @@ export type {
 } from './resources/events.js'
 export { WorkspaceEventStreamError, isWorkspaceEventStreamError } from './resources/events.js'
 
-export { sessionConnectAuthProtocols, textStreamAuthProtocols } from './resources/conversations.js'
+export { sessionConnectAuthProtocols } from './resources/conversations.js'
 export type {
   ChannelKind,
   ConversationDetail,
@@ -981,8 +1029,6 @@ export type {
   CreateConversationRequest,
   SessionConnectUrlParams,
   SwitchChannelRequest,
-  TextStreamAuthProtocols,
-  TextStreamUrlParams,
   TurnArtifactEvent,
   TurnDoneEvent,
   TurnErrorEvent,

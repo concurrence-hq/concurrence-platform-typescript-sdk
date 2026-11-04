@@ -271,4 +271,23 @@ export class IntakeResource extends WorkspaceScopedResource {
       }),
     )
   }
+
+  /** The per-file params the batch-extract job needs to process every still- ``received`` file in one run. Same workspace-scoped auth as the write-back (the job holds the batch's agent-session token). Documents only — snapshot/CSV batches process in version order via the chained per-file path, not here. */
+  async getBatchProcessingManifest(batchId: string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/intake/batches/{batch_id}/processing-manifest', {
+        params: { path: { workspace_id: this.workspaceId, batch_id: batchId } },
+      }),
+    )
+  }
+
+  /** Advance a file's status from the async CDC/extraction job (P4). */
+  async writeBackFileStatus(fileId: string, body: components['schemas']['StatusWriteBackRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/intake/files/{file_id}/status', {
+        params: { path: { workspace_id: this.workspaceId, file_id: fileId } },
+        body,
+      }),
+    )
+  }
 }

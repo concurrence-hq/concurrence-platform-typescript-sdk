@@ -58,4 +58,13 @@ export class ApiKeysResource extends WorkspaceScopedResource {
       }),
     )
   }
+
+  /** Return the authoritative role→permission model: each role's default permission set (what an API key of that role may carry) plus the full permission universe. Clients use this to build the create-key form instead of hard-coding the matrix. Requires `ApiKey.view` permission. */
+  async getPermissionCatalog() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/api-keys/permission-catalog', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
 }

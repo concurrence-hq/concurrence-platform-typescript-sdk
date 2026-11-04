@@ -63,7 +63,7 @@
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'examples/**/*.ts' 'scripts/**/*.{js,mjs}' --fix",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "test": "vitest run --project unit",
+    "test": "vitest run --project unit --project gc",
     "test:dist": "vitest run --project dist",
     "test:tarball": "node scripts/test-tarball.mjs",
     "test:integration": "vitest run --project integration",
