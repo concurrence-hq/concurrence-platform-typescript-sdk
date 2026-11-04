@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.137.0] - 2026-11-04
+
+### Features
+
+- add typed wrappers for every public API route (#521)
+
+### Security
+
+- clear critical and high Dependabot alerts (#518)
+
+### Bug Fixes
+
+- remove dead textStreamUrl and point observers.subscribe at /agent/observe (ALL-1300) (#524)
+- follow the caller's abort signal so aborts survive GC on Node 24 (ALL-2100) (#523)
+- page operators.list and getEscalations by continuation_token (ALL-2084) (#522)
+
+### Maintenance
+
+- sync API types from platform (b32fb594) (#525)
+- sync API types from platform (7f73981c) (#517)
+
 ## [0.136.0] - 2026-11-03
 
 ### Improvements
