@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import * as indexExports from '../../src/index.js'
 import {
   AmigoClient,
   BadRequestError,
@@ -728,6 +729,16 @@ describe('ConversationsResource', () => {
     await expect(
       client.conversations.createTurn(conversationId, { message: '' }),
     ).rejects.toBeInstanceOf(BadRequestError)
+  })
+
+  it('does not expose the removed text-stream helpers', () => {
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      baseUrl: 'https://api.example.com',
+    })
+    expect('textStreamUrl' in client.conversations).toBe(false)
+    expect('textStreamAuthProtocols' in indexExports).toBe(false)
   })
 
   it('builds a text-stream URL from the client baseUrl', () => {
