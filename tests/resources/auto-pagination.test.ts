@@ -15,15 +15,15 @@ const continuationPaths = new Set([
   `${BASE}/context-graphs/cg-001/versions`,
   `${BASE}/data-sources`,
   `${BASE}/integrations`,
+  `${BASE}/operators`,
   `${BASE}/operators/audit-log`,
+  `${BASE}/operators/escalations`,
   `${BASE}/production-eval-definitions`,
   `${BASE}/services`,
   `${BASE}/triggers`,
   `${BASE}/triggers/trigger-001/runs`,
   '/v1/workspaces',
 ])
-
-const offsetItemPaths = new Set([`${BASE}/operators`, `${BASE}/operators/escalations`])
 
 const offsetEventPaths = new Set([
   `${BASE}/audit`,
@@ -44,15 +44,6 @@ function mockFetch(): typeof globalThis.fetch {
         items: [{ token: token ?? 'first', path: pathname }],
         has_more: token !== '1',
         continuation_token: token === '1' ? null : 1,
-      })
-    }
-
-    if (offsetItemPaths.has(pathname)) {
-      const offset = url.searchParams.get('offset')
-      return Response.json({
-        items: [{ offset: offset ?? 'first', path: pathname }],
-        has_more: offset !== '1',
-        next_offset: offset === '1' ? null : 1,
       })
     }
 
@@ -110,6 +101,8 @@ describe('resource auto-pagination helpers', () => {
       countItems(client.dataSources.listAutoPaging({ limit: 1 })),
       countItems(client.integrations.listAutoPaging({ limit: 1 })),
       countItems(client.operators.getAuditLogAutoPaging({ limit: 1 })),
+      countItems(client.operators.listAutoPaging({ limit: 1 })),
+      countItems(client.operators.getEscalationsAutoPaging({ limit: 1 })),
       countItems(client.productionEvals.listDefinitionsAutoPaging({ limit: 1 })),
       countItems(client.services.listAutoPaging({ limit: 1 })),
       countItems(client.skills.listAutoPaging({ limit: 1 })),
@@ -126,8 +119,6 @@ describe('resource auto-pagination helpers', () => {
       countItems(client.audit.listAutoPaging({ limit: 1 })),
       countItems(client.audit.getPhiAccessAutoPaging({ limit: 1 })),
       countItems(client.audit.getEntityAccessLogAutoPaging('entity-001', { limit: 1 })),
-      countItems(client.operators.listAutoPaging({ limit: 1 })),
-      countItems(client.operators.getEscalationsAutoPaging({ limit: 1 })),
       countItems(client.world.listEntitiesAutoPaging({ limit: 1 })),
       countItems(client.world.getTimelineAutoPaging('entity-001', { limit: 1 })),
     ])
