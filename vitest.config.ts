@@ -20,7 +20,21 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['tests/**/*.{test,spec}.{js,ts}', 'src/**/*.{test,spec}.{js,ts}'],
-          exclude: ['node_modules', 'dist', 'tests/integration/**', 'tests/dist/**'],
+          exclude: [
+            'node_modules',
+            'dist',
+            'tests/integration/**',
+            'tests/dist/**',
+            'tests/gc/**',
+          ],
+        },
+      },
+      {
+        test: {
+          name: 'gc',
+          include: ['tests/gc/**/*.{test,spec}.{js,ts}'],
+          pool: 'forks',
+          execArgv: ['--expose-gc'],
         },
       },
       {
