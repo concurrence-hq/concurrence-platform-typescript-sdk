@@ -750,6 +750,7 @@ export type { AmigoRequestOptions, ScopedRequestOptions } from './core/request-o
 export type { RetryOptions } from './core/retry.js'
 
 export { parseRateLimitHeaders } from './core/rate-limit.js'
+export { createIdempotencyKey } from './core/idempotency.js'
 export type { RateLimitInfo } from './core/rate-limit.js'
 
 export {
