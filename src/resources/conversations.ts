@@ -19,6 +19,7 @@ export type TurnRequest = components['schemas']['TurnRequest']
  * session or test credential started, gets 403.
  */
 export type ConversationSource = NonNullable<TurnRequest['source']>
+export type TurnDeliveryAckRequest = components['schemas']['TurnDeliveryAckRequest']
 export type TurnResponse = components['schemas']['TurnResponse']
 export type TurnConversationSnapshot = components['schemas']['TurnConversationSnapshot']
 export type TurnStreamEvent = components['schemas']['TurnStreamEvent']
@@ -155,6 +156,9 @@ export class ConversationsResource extends WorkspaceScopedResource {
    * this opt-in the `tool_calls` array on the `TurnResponse` will be empty
    * even when the agent invoked tools during the turn.
    *
+   * Pass `options.idempotencyKey` (see `createIdempotencyKey`) to replay the same send or poll
+   * after an ambiguous failure.
+   *
    * Pass `options.poll: true` for a no-message drain-and-report poll (see
    * {@link pollTurn} for the ergonomic wrapper): the agent surfaces any
    * background tool results that completed since the last turn. A poll must
@@ -164,7 +168,7 @@ export class ConversationsResource extends WorkspaceScopedResource {
   async createTurn(
     conversationId: string,
     request: TurnRequest,
-    options?: { includeToolCalls?: boolean; poll?: boolean },
+    options?: { includeToolCalls?: boolean; poll?: boolean; idempotencyKey?: string },
   ): Promise<TurnResponse> {
     if (options?.poll && request.message) {
       // The server rejects poll + message with 422; fail fast with a clear
@@ -181,7 +185,12 @@ export class ConversationsResource extends WorkspaceScopedResource {
           ...(Object.keys(query).length > 0 && { query }),
         },
         body: request,
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...(options?.idempotencyKey !== undefined && {
+            'Idempotency-Key': options.idempotencyKey,
+          }),
+        },
       }),
     ) as TurnResponse
   }
@@ -205,7 +214,7 @@ export class ConversationsResource extends WorkspaceScopedResource {
    */
   async pollTurn(
     conversationId: string,
-    options?: { includeToolCalls?: boolean; source?: ConversationSource },
+    options?: { includeToolCalls?: boolean; source?: ConversationSource; idempotencyKey?: string },
   ): Promise<TurnResponse> {
     const { source, ...turnOptions } = options ?? {}
     return this.createTurn(conversationId, source === undefined ? {} : { source }, {
@@ -239,7 +248,7 @@ export class ConversationsResource extends WorkspaceScopedResource {
   async createTurnStream(
     conversationId: string,
     request: TurnRequest,
-    options?: { signal?: AbortSignal; includeToolCalls?: boolean },
+    options?: { signal?: AbortSignal; includeToolCalls?: boolean; idempotencyKey?: string },
   ): Promise<ReadableStream<Uint8Array>> {
     const result = await this.client.POST(
       '/v1/{workspace_id}/conversations/{conversation_id}/turns/stream',
@@ -251,6 +260,9 @@ export class ConversationsResource extends WorkspaceScopedResource {
           }),
         },
         body: request,
+        ...(options?.idempotencyKey !== undefined && {
+          headers: { 'Idempotency-Key': options.idempotencyKey },
+        }),
         parseAs: 'stream',
         signal: options?.signal,
       },
@@ -293,7 +305,7 @@ export class ConversationsResource extends WorkspaceScopedResource {
   async *streamTurn(
     conversationId: string,
     request: TurnRequest,
-    options?: { signal?: AbortSignal; includeToolCalls?: boolean },
+    options?: { signal?: AbortSignal; includeToolCalls?: boolean; idempotencyKey?: string },
   ): AsyncGenerator<TurnStreamEvent> {
     const byteStream = await this.createTurnStream(conversationId, request, options)
     for await (const frame of parseSSEFrames(byteStream)) {
