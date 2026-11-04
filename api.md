@@ -772,12 +772,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 - `emit`
 
-### `metricStore`
-
-- `setup`
-- `refresh`
-- `getRun`
-
 ### `models`
 
 - `list`

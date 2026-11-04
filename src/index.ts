@@ -107,7 +107,6 @@ import { ReviewQueueResource } from './resources/review-queue.js'
 import { M42Resource } from './resources/m42.js'
 import { MemoryDimensionsResource } from './resources/memory-dimensions.js'
 import { MeteringResource } from './resources/metering.js'
-import { MetricStoreResource } from './resources/metric-store.js'
 import { ModelsResource } from './resources/models.js'
 import { SchedulingRuleSetsResource } from './resources/scheduling-rule-sets.js'
 import { WorkspaceTablesResource } from './resources/workspace-tables.js'
@@ -327,7 +326,6 @@ export class AmigoClient {
   readonly m42!: M42Resource
   readonly memoryDimensions!: MemoryDimensionsResource
   readonly metering!: MeteringResource
-  readonly metricStore!: MetricStoreResource
   readonly models!: ModelsResource
   readonly schedulingRuleSets!: SchedulingRuleSetsResource
   readonly workspaceTables!: WorkspaceTablesResource
@@ -609,7 +607,6 @@ export class AmigoClient {
     mutable.m42 = new M42Resource(client, workspaceId)
     mutable.memoryDimensions = new MemoryDimensionsResource(client, workspaceId)
     mutable.metering = new MeteringResource(client, workspaceId)
-    mutable.metricStore = new MetricStoreResource(client, workspaceId)
     mutable.models = new ModelsResource(client, workspaceId)
     mutable.schedulingRuleSets = new SchedulingRuleSetsResource(client, workspaceId)
     mutable.workspaceTables = new WorkspaceTablesResource(client, workspaceId)
