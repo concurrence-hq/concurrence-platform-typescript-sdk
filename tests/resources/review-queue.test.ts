@@ -7,7 +7,7 @@ describe('ReviewQueueResource', () => {
     await client.reviewQueue.list({ limit: 5 } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-write-proposals`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-write-proposals`)
     expect(requests[0]?.search).toContain('limit=5')
   })
 
@@ -34,7 +34,7 @@ describe('ReviewQueueResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/external-write-proposals/proposal_id-1/approve`,
+      `/v1/${WORKSPACE}/external-write-proposals/proposal_id-1/approve`,
     )
   })
 
@@ -44,7 +44,7 @@ describe('ReviewQueueResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/external-write-proposals/proposal_id-1/reject`,
+      `/v1/${WORKSPACE}/external-write-proposals/proposal_id-1/reject`,
     )
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('IntegrationsResource', () => {
   it('approveWrite calls POST /integrations/approvals/{conversation_id}/approve', async () => {
@@ -8,7 +8,7 @@ describe('IntegrationsResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/integrations/approvals/conversation_id-1/approve`,
+      `/v1/${WORKSPACE}/integrations/approvals/conversation_id-1/approve`,
     )
   })
 
@@ -18,7 +18,7 @@ describe('IntegrationsResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/integrations/approvals/conversation_id-1/reject`,
+      `/v1/${WORKSPACE}/integrations/approvals/conversation_id-1/reject`,
     )
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })

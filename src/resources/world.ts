@@ -1,4 +1,4 @@
-import type { operations } from '../generated/api.js'
+import type { components, operations, paths } from '../generated/api.js'
 import type { EntityId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
@@ -280,6 +280,100 @@ export class WorldResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/world/source-breakdown', {
         params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Composite world health dashboard — entity counts by type, event velocity (24h/7d), average confidence, and source breakdown. All computation server-side. */
+  async getDashboard() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/dashboard', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Optionally filter by entity_type. */
+  async listEnrichmentKeys(
+    params?: paths['/v1/{workspace_id}/world/enrichment-keys']['get']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/enrichment-keys', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  /** Registers a new (entity_type, key) in this workspace's enrichment key registry. Future writes against this key will pass validation. value_type governs what values are accepted; enum types require allowed_values. Tag a person key with 'memory_extract' (description required) to make it a workspace-custom memory dimension the conversation extractor infers from transcripts. */
+  async createEnrichmentKey(body: components['schemas']['EnrichmentKeyCreateBody']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/enrichment-keys', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Update allowed_values, source_hint, description, min_confidence, is_pii, or tags. key and value_type are immutable. */
+  async updateEnrichmentKey(keyId: string, body: components['schemas']['EnrichmentKeyPatchBody']) {
+    return extractData(
+      await this.client.PATCH('/v1/{workspace_id}/world/enrichment-keys/{key_id}', {
+        params: { path: { workspace_id: this.workspaceId, key_id: keyId } },
+        body,
+      }),
+    )
+  }
+
+  /** Existing entity.enriched events are not deleted (append-only); only future writes against this key will be rejected. */
+  async deleteEnrichmentKey(keyId: string): Promise<void> {
+    await this.client.DELETE('/v1/{workspace_id}/world/enrichment-keys/{key_id}', {
+      params: { path: { workspace_id: this.workspaceId, key_id: keyId } },
+    })
+  }
+
+  /** Polymorphic identifier → ranked entity candidates. Accepts any subset of {phone, email, canonical_id, external_id, entity_id} plus a required ``entity_type``. Served from the SDP serving surfaces: entity rows from the entity projection; canonical_id and external_id resolve through the canonical entity map by point reads. Returns matches ranked by confidence + number of identifiers matched. Summary narrowing: ``external_ids`` is always ``{}``, ``tags`` is always ``[]``, and ``canonical_id`` is the canonical-map value or the entity's MRN. */
+  async resolveEntity(body: components['schemas']['EntityResolveRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/entities/resolve', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Write an enrichment value on an entity. Pass `idempotencyKey` to make a retry safe. */
+  async putEntityEnrichment(
+    entityId: EntityId | string,
+    key: string,
+    body: components['schemas']['EnrichmentWriteBody'],
+    idempotencyKey?: string,
+  ) {
+    return extractData(
+      await this.client.PUT('/v1/{workspace_id}/world/entities/{entity_id}/enrichment/{key}', {
+        params: {
+          path: { workspace_id: this.workspaceId, entity_id: entityId, key },
+          header: { 'Idempotency-Key': idempotencyKey },
+        },
+        body,
+      }),
+    )
+  }
+
+  /** Returns distinct event types in the workspace with counts, domains, and source breakdown. Enables the World Explorer to show what kinds of events flow through the world model. */
+  async listEventTypes() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/event-types', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Writes one terminal conversation record per v1 conversation (real dates, provider='v1-migration'), giving the returning-user greeting and the real conversation list. Admin-only, idempotent + correctable per (workspace, v1 conversation id), memory-safe (no world events emitted → the memory extractor never re-derives from these). Transcript content (turns) is a separate follow-up. Batch size <= 500. */
+  async importMigrationConversations(body: components['schemas']['MigrationConversationsBody']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/migration/conversations', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
       }),
     )
   }

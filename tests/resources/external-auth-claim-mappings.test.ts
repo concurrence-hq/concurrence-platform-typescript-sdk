@@ -7,7 +7,7 @@ describe('ExternalAuthClaimMappingsResource', () => {
     await client.externalAuthClaimMappings.list({ limit: 5 } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-auth-claim-mappings`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-auth-claim-mappings`)
     expect(requests[0]?.search).toContain('limit=5')
   })
 
@@ -33,7 +33,7 @@ describe('ExternalAuthClaimMappingsResource', () => {
     await client.externalAuthClaimMappings.create({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-auth-claim-mappings`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-auth-claim-mappings`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -43,7 +43,7 @@ describe('ExternalAuthClaimMappingsResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/external-auth-claim-mappings/resolve-preview`,
+      `/v1/${WORKSPACE}/external-auth-claim-mappings/resolve-preview`,
     )
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
@@ -53,7 +53,7 @@ describe('ExternalAuthClaimMappingsResource', () => {
     await client.externalAuthClaimMappings.get('mapping_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-auth-claim-mappings/mapping_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-auth-claim-mappings/mapping_id-1`)
   })
 
   it('supersede calls POST /external-auth-claim-mappings/{mapping_id}/supersede', async () => {
@@ -62,7 +62,7 @@ describe('ExternalAuthClaimMappingsResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/external-auth-claim-mappings/mapping_id-1/supersede`,
+      `/v1/${WORKSPACE}/external-auth-claim-mappings/mapping_id-1/supersede`,
     )
   })
 })

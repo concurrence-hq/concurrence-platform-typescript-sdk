@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('IntakeResource', () => {
   it('getBatchProcessingManifest calls GET /intake/batches/{batch_id}/processing-manifest', async () => {
@@ -8,7 +8,7 @@ describe('IntakeResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/intake/batches/batch_id-1/processing-manifest`,
+      `/v1/${WORKSPACE}/intake/batches/batch_id-1/processing-manifest`,
     )
   })
 
@@ -17,7 +17,7 @@ describe('IntakeResource', () => {
     await client.intake.writeBackFileStatus('file_id-1', { probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/intake/files/file_id-1/status`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/intake/files/file_id-1/status`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 })

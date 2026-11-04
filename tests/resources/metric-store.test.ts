@@ -20,9 +20,9 @@ describe('MetricStoreResource', () => {
 
   it('getRun calls GET /v1/metric-store/runs/{run_id}', async () => {
     const { client, requests } = recordRoutes(200)
-    await client.metricStore.getRun('run_id-1')
+    await client.metricStore.getRun(7)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/metric-store/runs/run_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/metric-store/runs/7`)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('SettingsResource', () => {
   it('dataResidency.get calls GET /settings/data-residency', async () => {
@@ -7,7 +7,7 @@ describe('SettingsResource', () => {
     await client.settings.dataResidency.get()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/settings/data-residency`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/settings/data-residency`)
   })
 
   it('dataResidency.update calls PUT /settings/data-residency', async () => {
@@ -15,7 +15,7 @@ describe('SettingsResource', () => {
     await client.settings.dataResidency.update({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('PUT')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/settings/data-residency`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/settings/data-residency`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -24,7 +24,7 @@ describe('SettingsResource', () => {
     await client.settings.http.get()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/settings/http`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/settings/http`)
   })
 
   it('http.update calls PUT /settings/http', async () => {
@@ -32,7 +32,7 @@ describe('SettingsResource', () => {
     await client.settings.http.update({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('PUT')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/settings/http`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/settings/http`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -41,7 +41,7 @@ describe('SettingsResource', () => {
     await client.settings.formTemplates.list()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/settings/form-templates`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/settings/form-templates`)
   })
 
   it('formTemplates.update calls PUT /settings/form-templates', async () => {
@@ -49,7 +49,7 @@ describe('SettingsResource', () => {
     await client.settings.formTemplates.update({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('PUT')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/settings/form-templates`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/settings/form-templates`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -59,7 +59,7 @@ describe('SettingsResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/settings/form-templates/template_id-1/resolve`,
+      `/v1/${WORKSPACE}/settings/form-templates/template_id-1/resolve`,
     )
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })

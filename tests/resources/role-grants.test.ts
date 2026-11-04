@@ -7,7 +7,7 @@ describe('RoleGrantsResource', () => {
     await client.roleGrants.list({ limit: 5 } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/role-grants`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/role-grants`)
     expect(requests[0]?.search).toContain('limit=5')
   })
 
@@ -33,7 +33,7 @@ describe('RoleGrantsResource', () => {
     await client.roleGrants.create({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/role-grants`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/role-grants`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -42,7 +42,7 @@ describe('RoleGrantsResource', () => {
     await client.roleGrants.get('grant_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/role-grants/grant_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/role-grants/grant_id-1`)
   })
 
   it('supersede calls DELETE /role-grants/{grant_id}', async () => {
@@ -50,6 +50,6 @@ describe('RoleGrantsResource', () => {
     await client.roleGrants.supersede('grant_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('DELETE')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/role-grants/grant_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/role-grants/grant_id-1`)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('ApiKeysResource', () => {
   it('getPermissionCatalog calls GET /api-keys/permission-catalog', async () => {
@@ -7,6 +7,6 @@ describe('ApiKeysResource', () => {
     await client.apiKeys.getPermissionCatalog()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/api-keys/permission-catalog`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/api-keys/permission-catalog`)
   })
 })

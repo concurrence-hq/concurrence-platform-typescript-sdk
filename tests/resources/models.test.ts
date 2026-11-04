@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('ModelsResource', () => {
   it('list calls GET /models', async () => {
@@ -7,6 +7,6 @@ describe('ModelsResource', () => {
     await client.models.list()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/models`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/models`)
   })
 })

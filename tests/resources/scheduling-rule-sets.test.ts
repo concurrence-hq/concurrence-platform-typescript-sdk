@@ -7,7 +7,7 @@ describe('SchedulingRuleSetsResource', () => {
     await client.schedulingRuleSets.list({ limit: 5 } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/scheduling-rule-sets`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/scheduling-rule-sets`)
     expect(requests[0]?.search).toContain('limit=5')
   })
 
@@ -33,7 +33,7 @@ describe('SchedulingRuleSetsResource', () => {
     await client.schedulingRuleSets.create({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/scheduling-rule-sets`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/scheduling-rule-sets`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -42,7 +42,7 @@ describe('SchedulingRuleSetsResource', () => {
     await client.schedulingRuleSets.get('rule_set_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/scheduling-rule-sets/rule_set_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/scheduling-rule-sets/rule_set_id-1`)
   })
 
   it('update calls PATCH /scheduling-rule-sets/{rule_set_id}', async () => {
@@ -50,7 +50,7 @@ describe('SchedulingRuleSetsResource', () => {
     await client.schedulingRuleSets.update('rule_set_id-1', { probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('PATCH')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/scheduling-rule-sets/rule_set_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/scheduling-rule-sets/rule_set_id-1`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -59,6 +59,6 @@ describe('SchedulingRuleSetsResource', () => {
     await client.schedulingRuleSets.delete('rule_set_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('DELETE')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/scheduling-rule-sets/rule_set_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/scheduling-rule-sets/rule_set_id-1`)
   })
 })

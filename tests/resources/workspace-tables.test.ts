@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('WorkspaceTablesResource', () => {
   it('list calls GET /tables', async () => {
@@ -7,7 +7,7 @@ describe('WorkspaceTablesResource', () => {
     await client.workspaceTables.list()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/tables`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/tables`)
   })
 
   it('create calls POST /tables', async () => {
@@ -15,7 +15,7 @@ describe('WorkspaceTablesResource', () => {
     await client.workspaceTables.create({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/tables`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/tables`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -24,7 +24,7 @@ describe('WorkspaceTablesResource', () => {
     await client.workspaceTables.get('table_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/tables/table_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/tables/table_id-1`)
   })
 
   it('update calls PATCH /tables/{table_id}', async () => {
@@ -32,7 +32,7 @@ describe('WorkspaceTablesResource', () => {
     await client.workspaceTables.update('table_id-1', { probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('PATCH')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/tables/table_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/tables/table_id-1`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -41,6 +41,6 @@ describe('WorkspaceTablesResource', () => {
     await client.workspaceTables.delete('table_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('DELETE')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/tables/table_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/tables/table_id-1`)
   })
 })

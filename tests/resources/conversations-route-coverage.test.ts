@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordRoutes } from '../helpers/record-routes.js'
+import { recordRoutes, WORKSPACE } from '../helpers/record-routes.js'
 
 describe('ConversationsResource', () => {
   it('decideApproval calls POST /conversations/{conversation_id}/approval', async () => {
@@ -7,7 +7,7 @@ describe('ConversationsResource', () => {
     await client.conversations.decideApproval('conversation_id-1', { probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/conversations/conversation_id-1/approval`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/conversations/conversation_id-1/approval`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -16,7 +16,7 @@ describe('ConversationsResource', () => {
     await client.conversations.listTurns('conversation_id-1', { limit: 5 } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/conversations/conversation_id-1/turns`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/conversations/conversation_id-1/turns`)
     expect(requests[0]?.search).toContain('limit=5')
   })
 
@@ -28,7 +28,7 @@ describe('ConversationsResource', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.pathname).toBe(
-      `/v1/$WORKSPACE-1/conversations/conversation_id-1/turns/delivery_id-1/ack`,
+      `/v1/${WORKSPACE}/conversations/conversation_id-1/turns/delivery_id-1/ack`,
     )
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })

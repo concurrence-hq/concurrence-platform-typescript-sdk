@@ -7,7 +7,7 @@ describe('ExternalRoleAssignmentsResource', () => {
     await client.externalRoleAssignments.list({ limit: 5 } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-role-assignments`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-role-assignments`)
     expect(requests[0]?.search).toContain('limit=5')
   })
 
@@ -33,7 +33,7 @@ describe('ExternalRoleAssignmentsResource', () => {
     await client.externalRoleAssignments.upsert({ probe: 'body' } as never)
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('PUT')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-role-assignments`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-role-assignments`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
 
@@ -42,7 +42,7 @@ describe('ExternalRoleAssignmentsResource', () => {
     await client.externalRoleAssignments.get('assignment_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-role-assignments/assignment_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-role-assignments/assignment_id-1`)
   })
 
   it('delete calls DELETE /external-role-assignments/{assignment_id}', async () => {
@@ -50,6 +50,6 @@ describe('ExternalRoleAssignmentsResource', () => {
     await client.externalRoleAssignments.delete('assignment_id-1')
     expect(requests).toHaveLength(1)
     expect(requests[0]?.method).toBe('DELETE')
-    expect(requests[0]?.pathname).toBe(`/v1/$WORKSPACE-1/external-role-assignments/assignment_id-1`)
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/external-role-assignments/assignment_id-1`)
   })
 })
