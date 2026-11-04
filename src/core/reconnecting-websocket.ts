@@ -1,6 +1,6 @@
 /**
  * Reconnecting WebSocket primitive shared by the SDK's WS-based realtime
- * helpers (text-stream, session-connect, observer).
+ * helpers (session-connect, observer).
  *
  * The platform exposes three workspace-scoped WebSocket surfaces with similar
  * lifecycle requirements:

@@ -816,29 +816,17 @@ await client.conversations.switchChannel(conversation.id, {
 await client.conversations.close(conversation.id)
 ```
 
-For real-time browser clients, build the text-stream URL and use WebSocket
-subprotocol auth so the token is not placed in the URL:
+For real-time text, stream a turn over server-sent events. Each event carries
+the `event` discriminator (`token`, `tool_call_started`, `tool_call_completed`,
+`message`, `done`, `error`, ...):
 
 ```typescript
-import { textStreamAuthProtocols } from '@amigo-ai/platform-sdk'
-
-const apiKey = process.env.AMIGO_API_KEY!
-const url = client.conversations.textStreamUrl({ serviceId: 'service-id' })
-const socket = new WebSocket(url, textStreamAuthProtocols(apiKey))
-
-socket.addEventListener('open', () => {
-  socket.send(JSON.stringify({ type: 'message', text: 'Hello' }))
-})
-```
-
-If a browser rejects your API key as a WebSocket subprotocol value, use the
-query-token fallback only in trusted contexts. URL tokens can appear in browser
-history, server access logs, HTTP proxy logs, and referrer headers:
-
-```typescript
-// WARNING: query tokens can be captured by URL logs and browser history.
-const url = client.conversations.textStreamUrl({ serviceId: 'service-id', token: apiKey })
-const socket = new WebSocket(url)
+for await (const event of client.conversations.streamTurn(conversation.id, {
+  message: 'Hello',
+})) {
+  if (event.event === 'token') process.stdout.write(event.text)
+  else if (event.event === 'done') break
+}
 ```
 
 ### Real-time event streams
