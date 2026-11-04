@@ -218,7 +218,7 @@ export interface AmigoClientConfig {
    *
    * Required when `baseUrl` points to a BFF proxy or a different host
    * than the agent engine — WebSockets cannot traverse HTTP proxies.
-   * Used by `conversations.textStreamUrl()` to build the `ws://` URL.
+   * Used by `conversations.sessionConnectUrl()` and `observers.subscribe()` to build the `ws://` URL.
    *
    * Accepts `http://` or `https://` (auto-mapped to `ws://` / `wss://`)
    * or direct `ws://` / `wss://` URLs.
@@ -1018,7 +1018,7 @@ export type {
 } from './resources/events.js'
 export { WorkspaceEventStreamError, isWorkspaceEventStreamError } from './resources/events.js'
 
-export { sessionConnectAuthProtocols, textStreamAuthProtocols } from './resources/conversations.js'
+export { sessionConnectAuthProtocols } from './resources/conversations.js'
 export type {
   ChannelKind,
   ConversationDetail,
@@ -1029,8 +1029,6 @@ export type {
   CreateConversationRequest,
   SessionConnectUrlParams,
   SwitchChannelRequest,
-  TextStreamAuthProtocols,
-  TextStreamUrlParams,
   TurnArtifactEvent,
   TurnDoneEvent,
   TurnErrorEvent,

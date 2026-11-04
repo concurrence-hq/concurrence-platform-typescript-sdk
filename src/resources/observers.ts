@@ -17,9 +17,6 @@
  * lack a recognized ``type`` discriminator are dropped — the stream remains
  * forward-compatible with new event types added on the server before the SDK
  * spec snapshot picks them up.
- *
- * @see ConversationsResource.subscribeTextStream for the analogous text-stream
- *   helper.
  */
 
 import { ConfigurationError } from '../core/errors.js'
@@ -71,7 +68,7 @@ export interface ObserverSubscribeOptions {
 
   /**
    * Full observer URL override. Defaults to
-   * ``${agentBaseUrl}/v1/{workspace_id}/observers/{call_sid}/ws`` with
+   * ``${agentBaseUrl}/agent/observe/{call_sid}`` with
    * ``http`` mapped to ``ws`` and ``https`` mapped to ``wss``. The override
    * must be an absolute ws/wss URL with no query string or fragment — SDK-
    * managed query params are appended by the helper.
@@ -127,10 +124,7 @@ export interface ObserverSubscribeOptions {
 /**
  * Build browser WebSocket subprotocols for the observer stream.
  *
- * Identical wire format to the text-stream subprotocol pair —
- * ``Sec-WebSocket-Protocol: auth, <token>`` — but exposed as its own
- * function so consumers do not have to reason about cross-resource sharing
- * and so the SDK can evolve the auth scheme independently per stream.
+ * Wire format is ``Sec-WebSocket-Protocol: auth, <token>``.
  *
  * @security The returned tuple contains the raw bearer token. Do not log,
  *   persist, serialize, or otherwise expose this value.
@@ -200,7 +194,6 @@ export class ObserversResource extends WorkspaceScopedResource {
   subscribe(options: ObserverSubscribeOptions): ReconnectingWebSocketHandle {
     const url = buildObserverUrl({
       baseUrl: this.agentBaseUrl ?? this.platformBaseUrl,
-      workspaceId: this.workspaceId,
       callSid: options.callSid,
       observerUrl: options.observerUrl,
     })
@@ -239,7 +232,6 @@ export class ObserversResource extends WorkspaceScopedResource {
 
 interface BuildObserverUrlArgs {
   baseUrl: string
-  workspaceId: string
   callSid: string
   observerUrl?: string | undefined
 }
@@ -247,9 +239,6 @@ interface BuildObserverUrlArgs {
 const CALL_SID_RE = /^CA[a-zA-Z0-9]{32}$/
 
 function buildObserverUrl(args: BuildObserverUrlArgs): string {
-  if (!args.workspaceId) {
-    throw new ConfigurationError('workspaceId is required to build the observer URL')
-  }
   if (!args.callSid) {
     throw new ConfigurationError('callSid is required to subscribe to the observer stream')
   }
@@ -259,7 +248,7 @@ function buildObserverUrl(args: BuildObserverUrlArgs): string {
     // SID grammar check; the override owns the URL shape.
     return parseOverride(args.observerUrl).toString()
   }
-  // Default path — derive ``/v1/{ws}/observers/{callSid}/ws`` and validate
+  // Default path — derive ``/agent/observe/{callSid}`` and validate
   // the CA SID grammar so a typo fails at the function boundary instead of
   // mid-reconnect-loop with an opaque 4001.
   if (!CALL_SID_RE.test(args.callSid)) {
@@ -267,7 +256,7 @@ function buildObserverUrl(args: BuildObserverUrlArgs): string {
       `callSid does not match Twilio CA SID format (CA + 32 hex chars): ${args.callSid}`,
     )
   }
-  return deriveFromBase(args.baseUrl, args.workspaceId, args.callSid).toString()
+  return deriveFromBase(args.baseUrl, args.callSid).toString()
 }
 
 function parseOverride(observerUrl: string): URL {
@@ -288,7 +277,7 @@ function parseOverride(observerUrl: string): URL {
   return url
 }
 
-function deriveFromBase(baseUrl: string, workspaceId: string, callSid: string): URL {
+function deriveFromBase(baseUrl: string, callSid: string): URL {
   let parsed: URL
   try {
     parsed = new URL(baseUrl)
@@ -311,9 +300,7 @@ function deriveFromBase(baseUrl: string, workspaceId: string, callSid: string): 
       'observerUrl can only be derived from an origin-only baseUrl; pass observerUrl explicitly when using path-prefixed gateways',
     )
   }
-  const out = new URL(
-    `${scheme}//${parsed.host}/v1/${encodeURIComponent(workspaceId)}/observers/${encodeURIComponent(callSid)}/ws`,
-  )
+  const out = new URL(`${scheme}//${parsed.host}/agent/observe/${encodeURIComponent(callSid)}`)
   return out
 }
 
