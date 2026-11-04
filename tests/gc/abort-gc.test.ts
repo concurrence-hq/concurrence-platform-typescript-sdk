@@ -37,7 +37,10 @@ describe.each([
     })
     const controller = new AbortController()
 
-    const pending = client.GET('/v1/audit-log/me' as never, { signal: controller.signal })
+    const pending = client.GET('/v1/audit-log/me', {
+      signal: controller.signal,
+      params: { query: {} },
+    })
     void pending.catch(() => undefined)
     await vi.waitFor(() => expect(started).toBe(true))
 

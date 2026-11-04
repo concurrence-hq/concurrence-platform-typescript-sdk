@@ -20,13 +20,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['tests/**/*.{test,spec}.{js,ts}', 'src/**/*.{test,spec}.{js,ts}'],
-          exclude: [
-            'node_modules',
-            'dist',
-            'tests/integration/**',
-            'tests/dist/**',
-            'tests/gc/**',
-          ],
+          exclude: ['node_modules', 'dist', 'tests/integration/**', 'tests/dist/**', 'tests/gc/**'],
         },
       },
       {
