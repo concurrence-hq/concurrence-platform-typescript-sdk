@@ -277,19 +277,13 @@ function prepareRequestForAttempt(
   readonly timedOut: boolean
   cleanup: () => void
 } {
-  const attemptRequest = request.clone()
-  const timeout = createTimeoutSignal(attemptRequest.signal, timeoutMs)
-
-  if (!timeout.signal) {
-    return {
-      request: attemptRequest,
-      timedOut: false,
-      cleanup: timeout.cleanup,
-    }
-  }
+  // Follow the caller's own signal: a clone follows its parent through a weak
+  // reference, so a signal derived from the clone can drop the caller's abort
+  // after a garbage collection.
+  const timeout = createTimeoutSignal(request.signal, timeoutMs)
 
   return {
-    request: new Request(attemptRequest, { signal: timeout.signal }),
+    request: new Request(request.clone(), { signal: timeout.signal }),
     get timedOut() {
       return timeout.didTimeout
     },
