@@ -486,7 +486,7 @@ export interface paths {
         get: operations["get-test-caller-numbers"];
         /**
          * Update test caller numbers
-         * @description Set phone numbers to be treated as test callers. Calls from these numbers are tagged source='test' and excluded from billing, scores, analytics, outbound EHR sync, and entity views.
+         * @description Set phone numbers to be treated as test callers. Calls from these numbers are tagged source='test' and excluded from billing, scores, analytics, outbound EHR sync, and entity views. They are also the only numbers a test credential or the Playground may text, by an outbound start or a channel switch.
          */
         put: operations["update-test-caller-numbers"];
         post?: never;
@@ -1769,7 +1769,7 @@ export interface paths {
         };
         /**
          * List conversation turns (voice or text)
-         * @description Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order.
+         * @description Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``) or by ``timestamp``. The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. A ``timestamp`` sort puts messages with no timestamp last in either direction. ``role``, ``turn_id``, ``from_turn_index``/``to_turn_index`` and ``since``/``until`` narrow the list before it is ordered and paged, so repeat the same filters with each ``continuation_token``. Filters combine as AND; each of ``role`` and ``turn_id`` is an OR across its values. Up to 500 turns per page. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order.
          */
         get: operations["list_conversation_turns_v1__workspace_id__conversations__conversation_id__turns_get"];
         put?: never;
@@ -4737,7 +4737,7 @@ export interface paths {
         };
         /**
          * List a production eval's verdicts
-         * @description List the verdicts one production eval recorded, a page at a time: one row per conversation it graded, so the conversations behind its pass rate can be opened. The scope is that of `GET /v1/{workspace_id}/analytics/eval-quality`: `eval_key` names the eval, `service_id` narrows it to one service, and `days` is the same rolling window, or the UTC days from `date_from` through `date_to` when both are sent, so the rows are the verdicts that pass rate counts, placed by when they were computed. `status` keeps the verdicts with any of the statuses given. Without `sort_by`, failed verdicts come first and each group is newest first; `sort_by` orders by `computed_at` or `score` instead. A page is one read. `rationale`, `justification` and `value` can quote the conversation. Requires `Service.view` permission.
+         * @description List the verdicts one production eval recorded, a page at a time: one row per conversation it graded, so the conversations behind its pass rate can be opened. The scope is that of `GET /v1/{workspace_id}/analytics/eval-quality`: `eval_key` names the eval, `service_id` narrows it to one service, and `days` is the same rolling window, or the UTC days from `date_from` through `date_to` when both are sent, so the rows are the verdicts that pass rate counts, placed by when they were computed. `status` keeps the verdicts with any of the statuses given, `passed` the ones that passed or failed, and `min_score` and `max_score` the ones scored within a range. A Playground or test conversation's verdicts are in neither the list nor that pass rate. Without `sort_by`, failed verdicts come first and each group is newest first; `sort_by` orders by `computed_at` or `score` instead. A page is one read. `rationale`, `justification` and `value` can quote the conversation. Requires `Service.view` permission.
          */
         get: operations["list-production-eval-results"];
         put?: never;
@@ -5181,7 +5181,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut` or to declare `declared_languages`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut`, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -5293,12 +5293,13 @@ export interface paths {
          * Read service launch readiness
          * @description Read current configuration and uncached dial eligibility using service read permission.
          *
-         *     Labels have all digits redacted. No phone numbers, identifiers, authored speech or model versions are returned.
+         *     Labels have all digits redacted. No phone numbers, identifiers or authored speech are returned. The one model version is the effective realtime model of a gpt_realtime release.
          *     A listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call
          *     policy still decide which line is selected. This read does not place a call or verify human pickup. An unbound
          *     service has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.
          *     Family capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's
-         *     amigo default. A missing agent version remains unavailable.
+         *     amigo default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback
+         *     forwarding number; this is informational and the number is not returned.
          */
         get: operations["get-service-readiness"];
         put?: never;
@@ -9416,6 +9417,11 @@ export interface components {
             /** Family */
             family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
+             * Ignored Voice Config Fields
+             * @description Top-level voice_config fields the service sets to a non-default value that this family's runtime does not read. Advisory: the config is valid and saves.
+             */
+            ignored_voice_config_fields: string[];
+            /**
              * Source
              * @enum {string}
              */
@@ -11242,6 +11248,23 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** @enum {string} */
+        ConversationAuditCheck: "obvious_errors" | "missed_escalation" | "wrong_information" | "missed_safety_event";
+        /** ConversationAuditSettings */
+        ConversationAuditSettings: {
+            /** Checks */
+            checks?: components["schemas"]["ConversationAuditCheck"][];
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled?: boolean;
+            /**
+             * Threshold
+             * @default 80
+             */
+            threshold?: number;
+        };
         /**
          * ConversationCompletion
          * @description How the session that ended a text conversation finished.
@@ -12107,7 +12130,7 @@ export interface components {
             service_id: string;
             /**
              * Source
-             * @description Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``, and every turn on it runs as a test turn, as for a conversation started with a test key. It stays out of analytics, production evaluations and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.
+             * @description Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``. Every turn on a ``playground`` or ``test`` conversation runs as a test turn, as for a conversation started with a test key, whatever its ``entity_id``. It stays out of analytics, production evaluations, EHR sync and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.
              */
             source?: ("playground" | "test") | null;
             /**
@@ -12484,6 +12507,8 @@ export interface components {
              * Format: uuid
              */
             context_graph_id: string;
+            /** @description The post-call transcript quality audit. Left out, it is off. See `ConversationAuditSettings`. */
+            conversation_audit?: components["schemas"]["ConversationAuditSettings"] | null;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Declared Languages
@@ -14203,6 +14228,26 @@ export interface components {
             resource_key: string;
             resource_type: components["schemas"]["_ResourceType"];
         };
+        /** EffectiveVoice */
+        EffectiveVoice: {
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "gpt-realtime-2.1" | "gpt-realtime-2.1-mini";
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort: "minimal" | "low" | "medium" | "high" | "xhigh";
+            /**
+             * Session Provider
+             * @constant
+             */
+            session_provider: "gpt_realtime";
+            /** Voice */
+            voice: string;
+        };
         /** EgressIpsResponse */
         EgressIpsResponse: {
             /** Egress Ips */
@@ -15231,6 +15276,14 @@ export interface components {
             /** Last Updated */
             last_updated: string | null;
         };
+        /**
+         * ErrorResponse
+         * @description The body of an ``HTTPException``: ``{"detail": "<message>"}``.
+         */
+        ErrorResponse: {
+            /** Detail */
+            detail: string;
+        };
         /** EscalationDailyStats */
         EscalationDailyStats: {
             /** Avg Handle Time Seconds */
@@ -16091,6 +16144,11 @@ export interface components {
             /** Config Key */
             config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
+             * Honored Voice Config Fields
+             * @description The top-level voice_config fields this family's runtime reads. Saving any other field is accepted, and the runtime ignores it.
+             */
+            honored_voice_config_fields: string[];
+            /**
              * Id
              * @enum {string}
              */
@@ -16118,6 +16176,11 @@ export interface components {
             dynamic_behaviors_configured: boolean;
             /** Family */
             family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            /**
+             * Ignored Voice Config Fields
+             * @description Top-level voice_config fields the service sets to a non-default value that this family's runtime does not read. Advisory: the config is valid and saves.
+             */
+            ignored_voice_config_fields: string[];
             /**
              * Refusals
              * @description What the config the save would store asks of the family that it can't deliver (warm transfer,
@@ -17189,6 +17252,12 @@ export interface components {
             forward_to: string;
             /** Forwarded At */
             forwarded_at?: string | null;
+            /**
+             * Reason
+             * @description The key of the service's ``transfer_reasons`` the agent named for this transfer, None for a service that lists
+             *     none or a transfer the agent didn't make.
+             */
+            reason?: string | null;
             /** Warm Transfer */
             warm_transfer: boolean;
         };
@@ -18279,6 +18348,8 @@ export interface components {
         Launch: {
             /** Demo Mode */
             demo_mode: boolean;
+            /** @description What a gpt_realtime release version set opens its session with once each null model, voice and reasoning_effort resolves to the runtime's default. Null for any other family. */
+            effective_voice: components["schemas"]["EffectiveVoice"] | null;
             /**
              * Human Line Configured
              * @description A fallback_to or static forward_to is configured for the safe exit; pickup is not verified.
@@ -20885,10 +20956,20 @@ export interface components {
         Policies: {
             /** Authored Corrections */
             authored_corrections: boolean;
+            /**
+             * Default Destination Configured
+             * @description A dynamic service names the line a transfer dials when the agent names none.
+             */
+            default_destination_configured: boolean;
             /** Forward Call Configured */
             forward_call_configured: boolean;
             /** Hours Configured */
             hours_configured: boolean;
+            /**
+             * Transfer Reasons
+             * @description The keys of the reasons every forward_call names and the call records, empty when none.
+             */
+            transfer_reasons: components["schemas"]["ReadinessLabel"][];
             /** Verification Callers Configured */
             verification_callers_configured: boolean;
             /** Warm Transfer */
@@ -23364,13 +23445,16 @@ export interface components {
          *     its caller is one of ``verification_callers``.
          *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
          *     hours dials ``after_hours_destination`` whichever approved line was asked for.
+         *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the
+         *     ``transfer_reasons`` each of its transfers names and the call records.
          */
-        ServiceForwardingConfig: {
+        "ServiceForwardingConfig-Input": {
             after_hours_destination?: components["schemas"]["DialE164"] | null;
             /** Approved Destinations */
             approved_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
+            default_destination?: components["schemas"]["DialE164"] | null;
             fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours?: components["schemas"]["StaffedHours"] | null;
@@ -23378,6 +23462,52 @@ export interface components {
             test_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
+            /** Transfer Reasons */
+            transfer_reasons?: components["schemas"]["TransferReason"][];
+            /** Verification Callers */
+            verification_callers?: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            /**
+             * Warm Transfer
+             * @default false
+             */
+            warm_transfer?: boolean;
+        };
+        /**
+         * ServiceForwardingConfig
+         * @description Per-service call-forwarding destination + transfer mechanism.
+         *
+         *     This block gates the ``forward_call`` tool: None means the agent cannot
+         *     transfer at all. When present, ``forward_to`` picks the destination mode,
+         *     and the tool schema follows it — a static service gets an argument-less
+         *     tool, a dynamic one gets a required ``phone_number`` that must be one of
+         *     ``approved_destinations`` (none approved means no tool). Nothing cascades:
+         *     a service is one mode or the other. ``fallback_to`` is no mode: it is the
+         *     line the safe exit dials, in either, and ``forward_call`` never offers it.
+         *     A call tagged as a test reaches only ``test_destinations``, in either mode, unless
+         *     its caller is one of ``verification_callers``.
+         *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
+         *     hours dials ``after_hours_destination`` whichever approved line was asked for.
+         *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the
+         *     ``transfer_reasons`` each of its transfers names and the call records.
+         */
+        "ServiceForwardingConfig-Output": {
+            after_hours_destination?: components["schemas"]["DialE164"] | null;
+            /** Approved Destinations */
+            approved_destinations?: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            default_destination?: components["schemas"]["DialE164"] | null;
+            fallback_to?: components["schemas"]["DialE164"] | null;
+            forward_to: components["schemas"]["DialE164"] | null;
+            hours?: components["schemas"]["StaffedHours"] | null;
+            /** Test Destinations */
+            test_destinations?: {
+                [key: string]: components["schemas"]["NameString"];
+            };
+            /** Transfer Reasons */
+            transfer_reasons?: components["schemas"]["TransferReason"][];
             /** Verification Callers */
             verification_callers?: {
                 [key: string]: components["schemas"]["NameString"];
@@ -23398,6 +23528,7 @@ export interface components {
             approved_destinations: {
                 [key: string]: components["schemas"]["NameString"];
             };
+            default_destination: components["schemas"]["DialE164"] | null;
             fallback_to: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours: components["schemas"]["StaffedHours"] | null;
@@ -23405,6 +23536,8 @@ export interface components {
             test_destinations: {
                 [key: string]: components["schemas"]["NameString"];
             };
+            /** Transfer Reasons */
+            transfer_reasons: components["schemas"]["TransferReason"][];
             /** Verification Callers */
             verification_callers: {
                 [key: string]: components["schemas"]["NameString"];
@@ -23535,6 +23668,8 @@ export interface components {
             context_graph_id: string;
             /** Context Graph Name */
             context_graph_name?: string | null;
+            /** @description The post-call transcript quality audit, off unless the service turns it on. */
+            conversation_audit?: components["schemas"]["ConversationAuditSettings"];
             /**
              * Created At
              * Format: date-time
@@ -23672,6 +23807,9 @@ export interface components {
          *
          *     Each field is optional — None means inherit from the layer above
          *     (workspace VoiceSettings → env vars → hardcoded defaults).
+         *
+         *     A field is read only by the runtimes ``VOICE_CONFIG_FIELD_RUNTIMES`` lists
+         *     (``platform_lib.config.voice_runtime_fields``); a save accepts the others and the runtime ignores them.
          */
         "ServiceVoiceConfig-Input": {
             /**
@@ -23700,7 +23838,7 @@ export interface components {
             filler_style?: "backchannel" | "phrase" | "silent";
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
-            forwarding?: components["schemas"]["ServiceForwardingConfig"] | null;
+            forwarding?: components["schemas"]["ServiceForwardingConfig-Input"] | null;
             gemini_live?: components["schemas"]["GeminiLiveSessionConfig"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
             grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
@@ -23757,6 +23895,9 @@ export interface components {
          *
          *     Each field is optional — None means inherit from the layer above
          *     (workspace VoiceSettings → env vars → hardcoded defaults).
+         *
+         *     A field is read only by the runtimes ``VOICE_CONFIG_FIELD_RUNTIMES`` lists
+         *     (``platform_lib.config.voice_runtime_fields``); a save accepts the others and the runtime ignores them.
          */
         "ServiceVoiceConfig-Output": {
             /**
@@ -26714,7 +26855,7 @@ export interface components {
             service_id: string;
             /**
              * Source
-             * @description Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's.
+             * @description Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's, and every turn on it runs as a test turn: its tools run in simulation mode, and it stays out of EHR sync and billing.
              */
             source?: "playground" | null;
         };
@@ -28953,6 +29094,15 @@ export interface components {
             /** Transcript */
             transcript: string;
         };
+        /**
+         * TransferReason
+         * @description One reason a dynamic service's transfers name (``ServiceForwardingConfig.transfer_reasons``).
+         */
+        TransferReason: {
+            description: components["schemas"]["DescriptionString"];
+            key: components["schemas"]["TransferReasonKey"];
+        };
+        TransferReasonKey: string;
         /** @enum {string} */
         Transport: "gateway" | "decisions" | "vertex" | "vertex_priority" | "vertex_batch" | "bedrock" | "openai_direct" | "voice_vendor";
         /** TriggerCompletedEvent */
@@ -29960,6 +30110,8 @@ export interface components {
             contact_lines?: components["schemas"]["ContactLineInput"][] | null;
             /** Context Graph Id */
             context_graph_id?: string | null;
+            /** @description Replace the audit settings. Omit to keep them; send `enabled: false` to turn the audit off. */
+            conversation_audit?: components["schemas"]["ConversationAuditSettings"] | null;
             /** @description Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null restores the signed default. */
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
@@ -30881,6 +31033,19 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * ValidationErrorResponse
+         * @description The body of a 422.
+         *
+         *     ``detail`` is a string when a route refuses the request itself, and a list of error objects when
+         *     the request fails validation before the route runs.
+         */
+        ValidationErrorResponse: {
+            /** Detail */
+            detail: string | {
+                [key: string]: unknown;
+            }[];
+        };
         VerificationSuccess: components["schemas"]["StatusSuccess"] | components["schemas"]["FieldSuccess"];
         /**
          * VerifiesCaller
@@ -31334,6 +31499,11 @@ export interface components {
             /** Available */
             available: boolean;
             channel: components["schemas"]["ReadinessLabel"] | null;
+            /**
+             * Fallback Forwarding Number Set
+             * @description Whether an inbound voice use case has a fallback forwarding number, where inbound calls forward when channel-manager does not answer. Informational: unset does not block a save. Null for an outbound or unavailable use case. The number itself is never returned.
+             */
+            fallback_forwarding_number_set: boolean | null;
             label: components["schemas"]["ReadinessLabel"];
         };
         /** Voices */
@@ -31715,6 +31885,8 @@ export interface components {
         _ToolMockKey: string;
         _ToolMockValue: string;
         _ToolName: string;
+        /** @enum {string} */
+        _TurnRole: "agent" | "user" | "system";
         _VolumePath: string;
         /**
          * Parameter
@@ -31862,8 +32034,8 @@ export interface components {
         };
         /** @enum {string} */
         src__routes__context_graphs__context_graph_crud___SortField: "name" | "created_at" | "updated_at";
-        /** @constant */
-        src__routes__conversations___SortField: "turn_index";
+        /** @enum {string} */
+        src__routes__conversations___SortField: "turn_index" | "timestamp";
         /** @enum {string} */
         src__routes__dynamic_behavior_sets___SortField: "name" | "updated_at";
         /** CreateRequest */
@@ -35050,6 +35222,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
         };
     };
     "get-eval-quality-analytics": {
@@ -37532,6 +37713,18 @@ export interface operations {
                 continuation_token?: unknown;
                 /** @description Include per-turn tool_calls[] in the returned turns. Off by default, matching GET /conversations/{conversation_id}?include_tool_calls=true. */
                 include_tool_calls?: boolean;
+                /** @description Keep only messages with one of these roles. Repeat the parameter for several. Classic message types map to roles: ``user-message`` and ``external-message`` to ``user``; ``agent-message`` to ``agent``; ``system-message`` to ``system``. Empty keeps every role. */
+                role?: components["schemas"]["_TurnRole"][];
+                /** @description Keep only messages of these exchanges (the ``turn_id`` each message carries). Repeat the parameter for several. Combined with ``role`` as AND. Empty keeps every exchange. */
+                turn_id?: string[];
+                /** @description Keep only messages of this exchange ordinal or later. Messages before the first user turn have no ordinal, so a range drops them. */
+                from_turn_index?: number | null;
+                /** @description Keep only messages of this exchange ordinal or earlier. Must not be below ``from_turn_index``. */
+                to_turn_index?: number | null;
+                /** @description Keep only messages stamped at or after this time. Messages with no timestamp are dropped. */
+                since?: string | null;
+                /** @description Keep only messages stamped before this time. Must be after ``since``. Messages with no timestamp are dropped. */
+                until?: string | null;
             };
             header?: never;
             path: {
@@ -43591,13 +43784,13 @@ export interface operations {
                     "application/json": components["schemas"]["MetricValueListResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid continuation_token or date range, or a page past the first 10,000 values */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
             /** @description Rate limited */
@@ -43685,15 +43878,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Validation Error */
+            /** @description date_from is after date_to */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
             /** @description Rate limited */
@@ -43750,7 +43945,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -45240,6 +45437,18 @@ export interface operations {
                 service_id?: string | null;
                 /** @description Only verdicts with one of these statuses. Repeat the parameter for more than one. */
                 status?: ("passed" | "failed" | "pending" | "skipped" | "error")[];
+                /**
+                 * @description Only verdicts that passed (`true`) or failed (`false`). A verdict with neither, whatever its status, is left
+                 *     out once this is sent.
+                 */
+                passed?: boolean | null;
+                /**
+                 * @description Only verdicts scored at least this, a numeric metric's value. A verdict without a score is left out once this or
+                 *     `max_score` is sent.
+                 */
+                min_score?: number | null;
+                /** @description Only verdicts scored at most this. Send it with `min_score` for a range. */
+                max_score?: number | null;
                 /**
                  * @description Verdicts computed in the last `days` days: the rolling window `GET /analytics/eval-quality` takes. Not used
                  *     when `date_from` and `date_to` are sent.
@@ -48129,13 +48338,22 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationBenchmarkResultsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Run results cannot be read */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -48164,13 +48382,22 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationBenchmarkRunResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation suite or case not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Benchmark selection or case is invalid */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -48197,6 +48424,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BridgeResponse"];
+                };
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -48239,13 +48475,13 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationCaseListResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid continuation_token or tags */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -48272,6 +48508,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateSimulationCasesResponse"];
+                };
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -48311,7 +48556,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -48348,7 +48595,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -48386,20 +48635,22 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationCaseResponse"];
                 };
             };
-            /** @description Simulation case not found */
+            /** @description Simulation case not found, or Service not found for a service_id outside the workspace */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Validation Error */
+            /** @description No case field to update, or the case is invalid */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -48429,13 +48680,22 @@ export interface operations {
                     "application/json": components["schemas"]["BridgeResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation case or service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Case or context is invalid */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -48549,13 +48809,13 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationRunListResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid continuation_token */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -48616,6 +48876,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationRunResponse"];
                 };
             };
+            /** @description Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -48656,14 +48925,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Run has already finished */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -49424,12 +49697,14 @@ export interface operations {
                     };
                 };
             };
-            /** @description Simulation session not found */
+            /** @description Session not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -49591,13 +49866,22 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationSuiteRunResultsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation suite run or run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Run results cannot be read */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -49621,6 +49905,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimulationPerformanceResponse"];
+                };
+            };
+            /** @description Simulation suite run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -49680,6 +49973,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationSuiteResponse"];
                 };
             };
+            /** @description Simulation case not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -49712,6 +50014,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationSuiteResponse"];
                 };
             };
+            /** @description Simulation suite not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -49741,6 +50052,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Simulation suite not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -49778,13 +50098,22 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationSuiteResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation suite not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No suite field to update */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -49822,15 +50151,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Validation Error */
+            /** @description Invalid continuation_token */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -49860,13 +50191,22 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationBenchmarkRunResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Simulation suite or case not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Suite run request or case is invalid */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
                 };
             };
         };
@@ -49892,6 +50232,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListSimulationSuiteRunsResponse"];
+                };
+            };
+            /** @description Simulation suite not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */

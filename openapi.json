@@ -3291,6 +3291,14 @@
             ],
             "title": "Family"
           },
+          "ignored_voice_config_fields": {
+            "description": "Top-level voice_config fields the service sets to a non-default value that this family's runtime does not read. Advisory: the config is valid and saves.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Ignored Voice Config Fields",
+            "type": "array"
+          },
           "source": {
             "enum": [
               "service",
@@ -3310,7 +3318,8 @@
           "family",
           "source",
           "capabilities",
-          "dynamic_behaviors_configured"
+          "dynamic_behaviors_configured",
+          "ignored_voice_config_fields"
         ],
         "title": "BoundFamily",
         "type": "object"
@@ -7893,6 +7902,43 @@
         "title": "ConversationApprovalRequest",
         "type": "object"
       },
+      "ConversationAuditCheck": {
+        "enum": [
+          "obvious_errors",
+          "missed_escalation",
+          "wrong_information",
+          "missed_safety_event"
+        ],
+        "type": "string"
+      },
+      "ConversationAuditSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationAuditCheck"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Checks",
+            "type": "array"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "threshold": {
+            "default": 80,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Threshold",
+            "type": "integer"
+          }
+        },
+        "title": "ConversationAuditSettings",
+        "type": "object"
+      },
       "ConversationCompletion": {
         "description": "How the session that ended a text conversation finished.",
         "properties": {
@@ -10090,7 +10136,7 @@
                 "type": "null"
               }
             ],
-            "description": "Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``, and every turn on it runs as a test turn, as for a conversation started with a test key. It stays out of analytics, production evaluations and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.",
+            "description": "Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``. Every turn on a ``playground`` or ``test`` conversation runs as a test turn, as for a conversation started with a test key, whatever its ``entity_id``. It stays out of analytics, production evaluations, EHR sync and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.",
             "title": "Source"
           },
           "use_case_id": {
@@ -10941,6 +10987,17 @@
             "format": "uuid",
             "title": "Context Graph Id",
             "type": "string"
+          },
+          "conversation_audit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationAuditSettings"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The post-call transcript quality audit. Left out, it is off. See `ConversationAuditSettings`."
           },
           "crisis_call_911_reply": {
             "anyOf": [
@@ -14501,6 +14558,47 @@
         "title": "EffectiveGrant",
         "type": "object"
       },
+      "EffectiveVoice": {
+        "properties": {
+          "model": {
+            "enum": [
+              "gpt-realtime-2.1",
+              "gpt-realtime-2.1-mini"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "reasoning_effort": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort",
+            "type": "string"
+          },
+          "session_provider": {
+            "const": "gpt_realtime",
+            "title": "Session Provider",
+            "type": "string"
+          },
+          "voice": {
+            "maxLength": 256,
+            "title": "Voice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_provider",
+          "model",
+          "voice",
+          "reasoning_effort"
+        ],
+        "title": "EffectiveVoice",
+        "type": "object"
+      },
       "EgressIpsResponse": {
         "properties": {
           "egress_ips": {
@@ -16891,6 +16989,20 @@
         "title": "EntityTypeSummary",
         "type": "object"
       },
+      "ErrorResponse": {
+        "description": "The body of an ``HTTPException``: ``{\"detail\": \"<message>\"}``.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
       "EscalationDailyStats": {
         "properties": {
           "avg_handle_time_seconds": {
@@ -18981,6 +19093,15 @@
             ],
             "title": "Config Key"
           },
+          "honored_voice_config_fields": {
+            "description": "The top-level voice_config fields this family's runtime reads. Saving any other field is accepted, and the runtime ignores it.",
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "title": "Honored Voice Config Fields",
+            "type": "array"
+          },
           "id": {
             "enum": [
               "amigo",
@@ -19052,7 +19173,8 @@
           "legacy_keys",
           "models",
           "voices",
-          "options"
+          "options",
+          "honored_voice_config_fields"
         ],
         "title": "Family",
         "type": "object"
@@ -19094,6 +19216,14 @@
             ],
             "title": "Family"
           },
+          "ignored_voice_config_fields": {
+            "description": "Top-level voice_config fields the service sets to a non-default value that this family's runtime does not read. Advisory: the config is valid and saves.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Ignored Voice Config Fields",
+            "type": "array"
+          },
           "refusals": {
             "description": "What the config the save would store asks of the family that it can't deliver (warm transfer,\nservice-written lines), whether or not this save moves the version set. Empty when it delivers it all.",
             "items": {
@@ -19122,6 +19252,7 @@
           "source",
           "capabilities",
           "dynamic_behaviors_configured",
+          "ignored_voice_config_fields",
           "refusals"
         ],
         "title": "FamilyDelivery",
@@ -22226,6 +22357,18 @@
             ],
             "title": "Forwarded At"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key of the service's ``transfer_reasons`` the agent named for this transfer, None for a service that lists\nnone or a transfer the agent didn't make.",
+            "title": "Reason"
+          },
           "warm_transfer": {
             "title": "Warm Transfer",
             "type": "boolean"
@@ -24517,6 +24660,17 @@
             "title": "Demo Mode",
             "type": "boolean"
           },
+          "effective_voice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EffectiveVoice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a gpt_realtime release version set opens its session with once each null model, voice and reasoning_effort resolves to the runtime's default. Null for any other family."
+          },
           "human_line_configured": {
             "description": "A fallback_to or static forward_to is configured for the safe exit; pickup is not verified.",
             "title": "Human Line Configured",
@@ -24570,7 +24724,8 @@
           "test_callers_registered",
           "verification_callers_registered",
           "human_line_configured",
-          "readiness_requires"
+          "readiness_requires",
+          "effective_voice"
         ],
         "title": "Launch",
         "type": "object"
@@ -30652,6 +30807,11 @@
             "title": "Authored Corrections",
             "type": "boolean"
           },
+          "default_destination_configured": {
+            "description": "A dynamic service names the line a transfer dials when the agent names none.",
+            "title": "Default Destination Configured",
+            "type": "boolean"
+          },
           "forward_call_configured": {
             "title": "Forward Call Configured",
             "type": "boolean"
@@ -30659,6 +30819,14 @@
           "hours_configured": {
             "title": "Hours Configured",
             "type": "boolean"
+          },
+          "transfer_reasons": {
+            "description": "The keys of the reasons every forward_call names and the call records, empty when none.",
+            "items": {
+              "$ref": "#/components/schemas/ReadinessLabel"
+            },
+            "title": "Transfer Reasons",
+            "type": "array"
           },
           "verification_callers_configured": {
             "title": "Verification Callers Configured",
@@ -30673,6 +30841,8 @@
           "forward_call_configured",
           "warm_transfer",
           "hours_configured",
+          "default_destination_configured",
+          "transfer_reasons",
           "verification_callers_configured",
           "authored_corrections"
         ],
@@ -36362,8 +36532,8 @@
         "title": "ServiceEvalQuality",
         "type": "object"
       },
-      "ServiceForwardingConfig": {
-        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for.",
+      "ServiceForwardingConfig-Input": {
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for.\nA dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the\n``transfer_reasons`` each of its transfers names and the call records.",
         "properties": {
           "after_hours_destination": {
             "anyOf": [
@@ -36385,6 +36555,16 @@
             },
             "title": "Approved Destinations",
             "type": "object"
+          },
+          "default_destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "fallback_to": {
             "anyOf": [
@@ -36426,6 +36606,120 @@
             },
             "title": "Test Destinations",
             "type": "object"
+          },
+          "transfer_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/TransferReason"
+            },
+            "maxItems": 20,
+            "title": "Transfer Reasons",
+            "type": "array"
+          },
+          "verification_callers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 10,
+            "propertyNames": {
+              "$ref": "#/components/schemas/PhoneE164"
+            },
+            "title": "Verification Callers",
+            "type": "object"
+          },
+          "warm_transfer": {
+            "default": false,
+            "title": "Warm Transfer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "forward_to"
+        ],
+        "title": "ServiceForwardingConfig",
+        "type": "object"
+      },
+      "ServiceForwardingConfig-Output": {
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for.\nA dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the\n``transfer_reasons`` each of its transfers names and the call records.",
+        "properties": {
+          "after_hours_destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approved_destinations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 50,
+            "propertyNames": {
+              "$ref": "#/components/schemas/DialE164"
+            },
+            "title": "Approved Destinations",
+            "type": "object"
+          },
+          "default_destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forward_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffedHours"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test_destinations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NameString"
+            },
+            "maxProperties": 20,
+            "propertyNames": {
+              "$ref": "#/components/schemas/DialE164"
+            },
+            "title": "Test Destinations",
+            "type": "object"
+          },
+          "transfer_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/TransferReason"
+            },
+            "maxItems": 20,
+            "title": "Transfer Reasons",
+            "type": "array"
           },
           "verification_callers": {
             "additionalProperties": {
@@ -36474,6 +36768,16 @@
             "title": "Approved Destinations",
             "type": "object"
           },
+          "default_destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DialE164"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "fallback_to": {
             "anyOf": [
               {
@@ -36515,6 +36819,14 @@
             "title": "Test Destinations",
             "type": "object"
           },
+          "transfer_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/TransferReason"
+            },
+            "maxItems": 20,
+            "title": "Transfer Reasons",
+            "type": "array"
+          },
           "verification_callers": {
             "additionalProperties": {
               "$ref": "#/components/schemas/NameString"
@@ -36540,7 +36852,9 @@
           "test_destinations",
           "verification_callers",
           "hours",
-          "after_hours_destination"
+          "after_hours_destination",
+          "default_destination",
+          "transfer_reasons"
         ],
         "title": "ServiceForwardingResponse",
         "type": "object"
@@ -36791,6 +37105,10 @@
               }
             ],
             "title": "Context Graph Name"
+          },
+          "conversation_audit": {
+            "$ref": "#/components/schemas/ConversationAuditSettings",
+            "description": "The post-call transcript quality audit, off unless the service turns it on."
           },
           "created_at": {
             "format": "date-time",
@@ -37060,7 +37378,7 @@
         "type": "object"
       },
       "ServiceVoiceConfig-Input": {
-        "description": "Per-service voice pipeline tuning. Overrides workspace/env defaults.\n\nEach field is optional — None means inherit from the layer above\n(workspace VoiceSettings → env vars → hardcoded defaults).",
+        "description": "Per-service voice pipeline tuning. Overrides workspace/env defaults.\n\nEach field is optional — None means inherit from the layer above\n(workspace VoiceSettings → env vars → hardcoded defaults).\n\nA field is read only by the runtimes ``VOICE_CONFIG_FIELD_RUNTIMES`` lists\n(``platform_lib.config.voice_runtime_fields``); a save accepts the others and the runtime ignores them.",
         "properties": {
           "backchannel_delay_ms": {
             "default": 400,
@@ -37170,7 +37488,7 @@
           "forwarding": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ServiceForwardingConfig"
+                "$ref": "#/components/schemas/ServiceForwardingConfig-Input"
               },
               {
                 "type": "null"
@@ -37444,7 +37762,7 @@
         "type": "object"
       },
       "ServiceVoiceConfig-Output": {
-        "description": "Per-service voice pipeline tuning. Overrides workspace/env defaults.\n\nEach field is optional — None means inherit from the layer above\n(workspace VoiceSettings → env vars → hardcoded defaults).",
+        "description": "Per-service voice pipeline tuning. Overrides workspace/env defaults.\n\nEach field is optional — None means inherit from the layer above\n(workspace VoiceSettings → env vars → hardcoded defaults).\n\nA field is read only by the runtimes ``VOICE_CONFIG_FIELD_RUNTIMES`` lists\n(``platform_lib.config.voice_runtime_fields``); a save accepts the others and the runtime ignores them.",
         "properties": {
           "backchannel_delay_ms": {
             "default": 400,
@@ -43869,7 +44187,7 @@
                 "type": "null"
               }
             ],
-            "description": "Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's.",
+            "description": "Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's, and every turn on it runs as a test turn: its tools run in simulation mode, and it stays out of EHR sync and billing.",
             "title": "Source"
           }
         },
@@ -48798,6 +49116,31 @@
         "title": "TranscriptSegment",
         "type": "object"
       },
+      "TransferReason": {
+        "additionalProperties": false,
+        "description": "One reason a dynamic service's transfers name (``ServiceForwardingConfig.transfer_reasons``).",
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/DescriptionString",
+            "maxLength": 200
+          },
+          "key": {
+            "$ref": "#/components/schemas/TransferReasonKey"
+          }
+        },
+        "required": [
+          "key",
+          "description"
+        ],
+        "title": "TransferReason",
+        "type": "object"
+      },
+      "TransferReasonKey": {
+        "maxLength": 63,
+        "minLength": 2,
+        "pattern": "^[a-z0-9][a-z0-9_-]*[a-z0-9]$",
+        "type": "string"
+      },
       "Transport": {
         "enum": [
           "gateway",
@@ -51432,6 +51775,17 @@
             ],
             "title": "Context Graph Id"
           },
+          "conversation_audit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationAuditSettings"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replace the audit settings. Omit to keep them; send `enabled: false` to turn the audit off."
+          },
           "crisis_call_911_reply": {
             "anyOf": [
               {
@@ -53933,6 +54287,31 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "ValidationErrorResponse": {
+        "description": "The body of a 422.\n\n``detail`` is a string when a route refuses the request itself, and a list of error objects when\nthe request fails validation before the route runs.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ValidationErrorResponse",
+        "type": "object"
+      },
       "VerificationSuccess": {
         "discriminator": {
           "mapping": {
@@ -55298,6 +55677,18 @@
               }
             ]
           },
+          "fallback_forwarding_number_set": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether an inbound voice use case has a fallback forwarding number, where inbound calls forward when channel-manager does not answer. Informational: unset does not block a save. Null for an outbound or unavailable use case. The number itself is never returned.",
+            "title": "Fallback Forwarding Number Set"
+          },
           "label": {
             "$ref": "#/components/schemas/ReadinessLabel"
           }
@@ -55305,7 +55696,8 @@
         "required": [
           "label",
           "channel",
-          "available"
+          "available",
+          "fallback_forwarding_number_set"
         ],
         "title": "VoiceUseCase",
         "type": "object"
@@ -56306,6 +56698,14 @@
         "minLength": 1,
         "type": "string"
       },
+      "_TurnRole": {
+        "enum": [
+          "agent",
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
       "_VolumePath": {
         "maxLength": 1024,
         "minLength": 1,
@@ -56614,7 +57014,10 @@
         "type": "string"
       },
       "src__routes__conversations___SortField": {
-        "const": "turn_index",
+        "enum": [
+          "turn_index",
+          "timestamp"
+        ],
         "type": "string"
       },
       "src__routes__dynamic_behavior_sets___SortField": {
@@ -60475,7 +60878,7 @@
         ]
       },
       "put": {
-        "description": "Set phone numbers to be treated as test callers. Calls from these numbers are tagged source='test' and excluded from billing, scores, analytics, outbound EHR sync, and entity views.",
+        "description": "Set phone numbers to be treated as test callers. Calls from these numbers are tagged source='test' and excluded from billing, scores, analytics, outbound EHR sync, and entity views. They are also the only numbers a test credential or the Playground may text, by an outbound start or a channel switch.",
         "operationId": "update-test-caller-numbers",
         "parameters": [
           {
@@ -61997,6 +62400,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsUnavailableResponse"
+                }
+              }
+            },
+            "description": "Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer."
           }
         },
         "summary": "Data Quality Analytics",
@@ -66362,7 +66775,7 @@
     },
     "/v1/{workspace_id}/conversations/{conversation_id}/turns": {
       "get": {
-        "description": "Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order.",
+        "description": "Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``) or by ``timestamp``. The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. A ``timestamp`` sort puts messages with no timestamp last in either direction. ``role``, ``turn_id``, ``from_turn_index``/``to_turn_index`` and ``since``/``until`` narrow the list before it is ordered and paged, so repeat the same filters with each ``continuation_token``. Filters combine as AND; each of ``role`` and ``turn_id`` is an OR across its values. Up to 500 turns per page. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order.",
         "operationId": "list_conversation_turns_v1__workspace_id__conversations__conversation_id__turns_get",
         "parameters": [
           {
@@ -66405,7 +66818,7 @@
             "schema": {
               "default": 50,
               "exclusiveMinimum": 0,
-              "maximum": 200,
+              "maximum": 500,
               "title": "Limit",
               "type": "integer"
             }
@@ -66428,6 +66841,113 @@
               "description": "Include per-turn tool_calls[] in the returned turns. Off by default, matching GET /conversations/{conversation_id}?include_tool_calls=true.",
               "title": "Include Tool Calls",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "Keep only messages with one of these roles. Repeat the parameter for several. Classic message types map to roles: ``user-message`` and ``external-message`` to ``user``; ``agent-message`` to ``agent``; ``system-message`` to ``system``. Empty keeps every role.",
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "description": "Keep only messages with one of these roles. Repeat the parameter for several. Classic message types map to roles: ``user-message`` and ``external-message`` to ``user``; ``agent-message`` to ``agent``; ``system-message`` to ``system``. Empty keeps every role.",
+              "items": {
+                "$ref": "#/components/schemas/_TurnRole"
+              },
+              "maxItems": 3,
+              "title": "Role",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Keep only messages of these exchanges (the ``turn_id`` each message carries). Repeat the parameter for several. Combined with ``role`` as AND. Empty keeps every exchange.",
+            "in": "query",
+            "name": "turn_id",
+            "required": false,
+            "schema": {
+              "description": "Keep only messages of these exchanges (the ``turn_id`` each message carries). Repeat the parameter for several. Combined with ``role`` as AND. Empty keeps every exchange.",
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "title": "Turn Id",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Keep only messages of this exchange ordinal or later. Messages before the first user turn have no ordinal, so a range drops them.",
+            "in": "query",
+            "name": "from_turn_index",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only messages of this exchange ordinal or later. Messages before the first user turn have no ordinal, so a range drops them.",
+              "title": "From Turn Index"
+            }
+          },
+          {
+            "description": "Keep only messages of this exchange ordinal or earlier. Must not be below ``from_turn_index``.",
+            "in": "query",
+            "name": "to_turn_index",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only messages of this exchange ordinal or earlier. Must not be below ``from_turn_index``.",
+              "title": "To Turn Index"
+            }
+          },
+          {
+            "description": "Keep only messages stamped at or after this time. Messages with no timestamp are dropped.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only messages stamped at or after this time. Messages with no timestamp are dropped.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Keep only messages stamped before this time. Must be after ``since``. Messages with no timestamp are dropped.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only messages stamped before this time. Must be after ``since``. Messages with no timestamp are dropped.",
+              "title": "Until"
             }
           }
         ],
@@ -76739,11 +77259,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid continuation_token or date range, or a page past the first 10,000 values"
           },
           "429": {
             "description": "Rate limited"
@@ -77005,17 +77525,24 @@
             "description": "Successful Response"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Metric key is not defined in this workspace"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "date_from is after date_to"
           },
           "429": {
             "description": "Rate limited"
@@ -77206,6 +77733,13 @@
             "description": "Successful Response"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Metric key is not defined in this workspace"
           },
           "422": {
@@ -79831,7 +80365,7 @@
     },
     "/v1/{workspace_id}/production-evals/results": {
       "get": {
-        "description": "List the verdicts one production eval recorded, a page at a time: one row per conversation it graded, so the conversations behind its pass rate can be opened. The scope is that of `GET /v1/{workspace_id}/analytics/eval-quality`: `eval_key` names the eval, `service_id` narrows it to one service, and `days` is the same rolling window, or the UTC days from `date_from` through `date_to` when both are sent, so the rows are the verdicts that pass rate counts, placed by when they were computed. `status` keeps the verdicts with any of the statuses given. Without `sort_by`, failed verdicts come first and each group is newest first; `sort_by` orders by `computed_at` or `score` instead. A page is one read. `rationale`, `justification` and `value` can quote the conversation. Requires `Service.view` permission.",
+        "description": "List the verdicts one production eval recorded, a page at a time: one row per conversation it graded, so the conversations behind its pass rate can be opened. The scope is that of `GET /v1/{workspace_id}/analytics/eval-quality`: `eval_key` names the eval, `service_id` narrows it to one service, and `days` is the same rolling window, or the UTC days from `date_from` through `date_to` when both are sent, so the rows are the verdicts that pass rate counts, placed by when they were computed. `status` keeps the verdicts with any of the statuses given, `passed` the ones that passed or failed, and `min_score` and `max_score` the ones scored within a range. A Playground or test conversation's verdicts are in neither the list nor that pass rate. Without `sort_by`, failed verdicts come first and each group is newest first; `sort_by` orders by `computed_at` or `score` instead. A page is one read. `rationale`, `justification` and `value` can quote the conversation. Requires `Service.view` permission.",
         "operationId": "list-production-eval-results",
         "parameters": [
           {
@@ -79897,6 +80431,60 @@
               "maxItems": 5,
               "title": "Status",
               "type": "array"
+            }
+          },
+          {
+            "description": "Only verdicts that passed (`true`) or failed (`false`). A verdict with neither, whatever its status, is left\nout once this is sent.",
+            "in": "query",
+            "name": "passed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only verdicts that passed (`true`) or failed (`false`). A verdict with neither, whatever its status, is left\nout once this is sent.",
+              "title": "Passed"
+            }
+          },
+          {
+            "description": "Only verdicts scored at least this, a numeric metric's value. A verdict without a score is left out once this or\n`max_score` is sent.",
+            "in": "query",
+            "name": "min_score",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only verdicts scored at least this, a numeric metric's value. A verdict without a score is left out once this or\n`max_score` is sent.",
+              "title": "Min Score"
+            }
+          },
+          {
+            "description": "Only verdicts scored at most this. Send it with `min_score` for a range.",
+            "in": "query",
+            "name": "max_score",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only verdicts scored at most this. Send it with `min_score` for a range.",
+              "title": "Max Score"
             }
           },
           {
@@ -82209,7 +82797,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut` or to declare `declared_languages`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut`, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -82665,7 +83253,7 @@
     },
     "/v1/{workspace_id}/services/{service_id}/readiness": {
       "get": {
-        "description": "Read current configuration and uncached dial eligibility using service read permission.\n\nLabels have all digits redacted. No phone numbers, identifiers, authored speech or model versions are returned.\nA listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call\npolicy still decide which line is selected. This read does not place a call or verify human pickup. An unbound\nservice has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.\nFamily capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's\namigo default. A missing agent version remains unavailable.",
+        "description": "Read current configuration and uncached dial eligibility using service read permission.\n\nLabels have all digits redacted. No phone numbers, identifiers or authored speech are returned. The one model version is the effective realtime model of a gpt_realtime release.\nA listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call\npolicy still decide which line is selected. This read does not place a call or verify human pickup. An unbound\nservice has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.\nFamily capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's\namigo default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback\nforwarding number; this is informational and the number is not returned.",
         "operationId": "get-service-readiness",
         "parameters": [
           {
@@ -84176,15 +84764,25 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation run not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Run results cannot be read"
           }
         },
         "summary": "Get Simulation Benchmark Results",
@@ -84230,15 +84828,25 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite or case not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Benchmark selection or case is invalid"
           }
         },
         "summary": "Run Simulation Benchmark",
@@ -84283,6 +84891,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service not found"
           },
           "422": {
             "content": {
@@ -84423,11 +85041,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid continuation_token or tags"
           }
         },
         "summary": "List Simulation Cases",
@@ -84470,6 +85088,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service not found"
           },
           "422": {
             "content": {
@@ -84519,6 +85147,13 @@
             "description": "Successful Response"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Simulation case not found"
           },
           "422": {
@@ -84574,6 +85209,13 @@
             "description": "Successful Response"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Simulation case not found"
           },
           "422": {
@@ -84639,17 +85281,24 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "Simulation case not found"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation case not found, or Service not found for a service_id outside the workspace"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "No case field to update, or the case is invalid"
           }
         },
         "summary": "Update Simulation Case",
@@ -84705,15 +85354,25 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation case or service not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Case or context is invalid"
           }
         },
         "summary": "Run Simulation Case",
@@ -85026,11 +85685,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid continuation_token"
           }
         },
         "summary": "List Simulation Runs",
@@ -85128,6 +85787,16 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Run not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -85202,9 +85871,23 @@
             "description": "Successful Response"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Run not found"
           },
           "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Run has already finished"
           },
           "422": {
@@ -86438,7 +87121,14 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "Simulation session not found"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session not found"
           },
           "422": {
             "content": {
@@ -86699,15 +87389,25 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite run or run not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Run results cannot be read"
           }
         },
         "summary": "Get Simulation Suite Run Results",
@@ -86752,6 +87452,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite run not found"
           },
           "422": {
             "content": {
@@ -86839,6 +87549,16 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation case not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -86884,6 +87604,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite not found"
           },
           "422": {
             "content": {
@@ -86935,6 +87665,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite not found"
           },
           "422": {
             "content": {
@@ -86997,15 +87737,25 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "No suite field to update"
           }
         },
         "summary": "Update Simulation Suite",
@@ -87105,17 +87855,24 @@
             "description": "Successful Response"
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
             "description": "Simulation suite not found"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid continuation_token"
           }
         },
         "summary": "List Simulation Suite Cases",
@@ -87171,15 +87928,25 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite or case not found"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Suite run request or case is invalid"
           }
         },
         "summary": "Run Simulation Suite",
@@ -87236,6 +88003,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Simulation suite not found"
           },
           "422": {
             "content": {
@@ -93121,8 +93898,20 @@
   ],
   "servers": [
     {
-      "description": "Production",
+      "description": "Production, United States",
       "url": "https://platform.api-us.concurrence.com"
+    },
+    {
+      "description": "Production, European Union",
+      "url": "https://platform.api-eu.concurrence.com"
+    },
+    {
+      "description": "Production, Australia",
+      "url": "https://platform.api-au.concurrence.com"
+    },
+    {
+      "description": "Production, Canada",
+      "url": "https://platform.api-ca.concurrence.com"
     }
   ],
   "tags": [
