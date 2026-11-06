@@ -1,0 +1,33 @@
+name: Tmp Generate
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [sync/18dc18cb]
+    paths: [.github/workflows/tmp-gen.yml]
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run docs:api
+      - run: npm run format:write
+      - run: npm run typecheck
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git reset -q .github/workflows/tmp-gen.yml
+          git commit -m "docs: regenerate api reference" || echo nothing
+          git push origin HEAD:sync/18dc18cb
+# rerun
