@@ -1,3 +1,4 @@
+import type { WithResponseMetadata } from '../core/utils.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export class RecordingsResource extends WorkspaceScopedResource {
@@ -14,7 +15,7 @@ export class RecordingsResource extends WorkspaceScopedResource {
   async getClip(
     callSid: string,
     params: { startMs: number; endMs: number; channel: 'inbound' | 'outbound' | 'stereo' },
-  ) {
+  ): Promise<WithResponseMetadata<Blob>> {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/recordings/{call_sid}/clip', {
         params: {
