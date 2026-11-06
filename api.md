@@ -53,7 +53,7 @@ Notes:
 - Webhooks: `verifyWebhookSignature`, `parseWebhookEvent`, `WebhookVerificationError`
 - Pagination and response helpers: `paginate`, `buildLastResponse`, `extractRequestId`
 - Conversation helpers: `sessionConnectAuthProtocols`
-- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTag`, `ConversationTagsPatch`, `ConversationTagsResponse`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
 - Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_LANGUAGES`, `VOICE_SESSION_PROVIDERS`, `VoiceFamiliesResource`
 - Voice provider types: `AgentVoiceConfig`, `ListFamilyVoicesParams`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceFamily`, `VoiceFamilyListResponse`, `VoiceLanguage`, `VoiceListResponse`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
 - Response and hook types: `PaginatedList`, `ListParams`, `LastResponseInfo`, `ResponseMetadata`, `WithResponseMetadata`, `AmigoResponse`, `RetryOptions`, `RateLimitInfo`, `ClientHooks`, `RequestHookContext`, `ResponseHookContext`, `ErrorHookContext`
@@ -343,6 +343,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `list`
 - `listAutoPaging`
 - `get`
+- `getVoiceQuality`
 - `getTimeline`
 - `getIntelligence`
 - `getBenchmarks`
@@ -365,6 +366,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `sessionConnectUrl`
 - `decideApproval`
 - `listTurns`
+- `updateTags`
 - `acknowledgeTurnDelivery`
 
 ### `integrations`
@@ -511,6 +513,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `recordings`
 
 - `get`
+- `getClip`
 
 ### `audit`
 

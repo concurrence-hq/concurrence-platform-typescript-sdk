@@ -43,6 +43,15 @@ export class CallsResource extends WorkspaceScopedResource {
     )
   }
 
+  /** Get the voice quality measurements for a call */
+  async getVoiceQuality(callId: string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/calls/{call_id}/voice-quality', {
+        params: { path: { workspace_id: this.workspaceId, call_id: callId } },
+      }),
+    )
+  }
+
   /** Get the canonical playback timeline for a call */
   async getTimeline(callId: string) {
     return extractData(
