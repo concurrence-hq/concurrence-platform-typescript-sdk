@@ -10,6 +10,9 @@ export type ConversationTurnAvailableAction =
   components['schemas']['ConversationTurnAvailableAction']
 export type ConversationTurnStateTransition =
   components['schemas']['ConversationTurnStateTransition']
+export type ConversationTag = components['schemas']['ConversationTag']
+export type ConversationTagsPatch = components['schemas']['ConversationTagsPatch']
+export type ConversationTagsResponse = components['schemas']['ConversationTagsResponse']
 export type CreateConversationRequest = components['schemas']['CreateConversationRequest']
 export type SwitchChannelRequest = components['schemas']['SwitchChannelRequest']
 export type TurnRequest = components['schemas']['TurnRequest']
@@ -363,6 +366,23 @@ export class ConversationsResource extends WorkspaceScopedResource {
           path: { workspace_id: this.workspaceId, conversation_id: conversationId },
           query: params,
         },
+      }),
+    )
+  }
+
+  /** Set and remove a conversation's tags */
+  async updateTags(
+    conversationId: string,
+    body: ConversationTagsPatch,
+    options?: { source?: ConversationSource },
+  ) {
+    return extractData(
+      await this.client.PATCH('/v1/{workspace_id}/conversations/{conversation_id}/tags', {
+        params: {
+          path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+          query: options?.source ? { source: options.source } : undefined,
+        },
+        body,
       }),
     )
   }
