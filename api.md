@@ -513,6 +513,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `recordings`
 
 - `get`
+- `getClip`
 
 ### `audit`
 
