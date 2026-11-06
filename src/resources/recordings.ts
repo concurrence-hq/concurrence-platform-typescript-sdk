@@ -9,4 +9,20 @@ export class RecordingsResource extends WorkspaceScopedResource {
       }),
     )
   }
+
+  /** A WAV clip of one channel of a call recording, between two offsets in milliseconds. */
+  async getClip(
+    callSid: string,
+    params: { startMs: number; endMs: number; channel: 'inbound' | 'outbound' | 'stereo' },
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/recordings/{call_sid}/clip', {
+        params: {
+          path: { workspace_id: this.workspaceId, call_sid: callSid },
+          query: { start_ms: params.startMs, end_ms: params.endMs, channel: params.channel },
+        },
+        parseAs: 'blob',
+      }),
+    )
+  }
 }
