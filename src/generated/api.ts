@@ -965,7 +965,7 @@ export interface paths {
         };
         /**
          * Usage Summary
-         * @description Usage summary grouped by event type and date.
+         * @description Usage summary grouped by event type and the date the events were ingested.
          */
         get: operations["usage_summary_v1__workspace_id__analytics_usage_get"];
         put?: never;
@@ -1432,6 +1432,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/calls/{call_id}/voice-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Call voice quality
+         * @description Per-call voice quality computed daily from the call's turn traces and call record: pickup to first audio, whether the caller heard the initial response, turn latency p50 and p95, silence, duration, abandonment and who ended the call.
+         *
+         *     A call is computed the day after it ends, so a recent call answers 404 until then.
+         */
+        get: operations["get-call-voice-quality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/calls/{conversation_id}/eval-results": {
         parameters: {
             query?: never;
@@ -1760,6 +1782,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/conversations/{conversation_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set and remove a conversation's tags
+         * @description Merges ``updates`` (a key not yet on the conversation is added, one that is has its value replaced) and removes ``deletes``, then returns every tag the conversation now carries. A key cannot be in both lists. A conversation carries at most 20 tags: a request that would leave more changes nothing and is refused with 422.
+         */
+        patch: operations["update_conversation_tags_v1__workspace_id__conversations__conversation_id__tags_patch"];
+        trace?: never;
+    };
     "/v1/{workspace_id}/conversations/{conversation_id}/turns": {
         parameters: {
             query?: never;
@@ -1984,7 +2026,7 @@ export interface paths {
         };
         /**
          * Get data source status
-         * @description Get event counts, sync status, and health for a data source.
+         * @description Get event, synced, and failed counts for a data source, and whether it is active.
          */
         get: operations["data-source-status"];
         put?: never;
@@ -2004,7 +2046,7 @@ export interface paths {
         };
         /**
          * Get data source sync history
-         * @description Daily event timeline + recent sync failures for a data source.
+         * @description Daily event, synced, and failed counts plus recent sync failures for a data source.
          */
         get: operations["data-source-sync-history"];
         put?: never;
@@ -4833,6 +4875,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/recordings/{call_sid}/clip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a clip of a call recording
+         * @description A WAV of one channel of the recording from ``start_ms`` to ``end_ms``, at most 120 s, in the channel's stored format (``inbound`` and ``outbound`` in the call's own codec, ``stereo`` PCM16). Pass a message's ``speech_start_ms`` and ``speech_end_ms`` to cut that message. An agent message's offsets are when its audio was sent, slightly before the caller heard it, so its clip is that span and not a sample-exact one. A message without both offsets has no clip. 404 when the call has no recording, 416 when the span runs past the end of it, 422 for an empty, reversed or over-long span.
+         */
+        get: operations["get-recording-clip"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/role-grants": {
         parameters: {
             query?: never;
@@ -5224,7 +5286,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.
+         * @description Update a service's configuration. A field left out keeps what is stored. An explicit `null` clears `voice_config`, `output_checks`, `caller_verification_endpoint_id` and `declared_languages`, and is refused (422) on `version_sets`, which replaces the whole map and always needs `release`. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5798,9 +5860,9 @@ export interface paths {
          *     - **voice_id**: Voice identity UUID — determines the agent's voice persona
          *     - **tone**: Emotional baseline (``calm``, ``sympathetic``,
          *       ``enthusiastic``, ``content``, ``curious``, ``cheerful``,
-         *       ``serious``, ``friendly``). The system also picks a tone for each
-         *       reply from the conversation; this setting is the baseline when a
-         *       reply has none.
+         *       ``serious``, ``friendly``). When set, it overrides the tone the
+         *       system picks for each reply from the conversation; when unset, the
+         *       system's pick is used.
          *     - **speed**: Speech rate multiplier (0.5-2.0)
          *     - **volume**: Volume multiplier (0.0-1.0)
          *     - **language**: The language calls are spoken in (default ``en``), or
@@ -8008,8 +8070,6 @@ export interface components {
             name: string;
             /** Objective */
             objective: string;
-            /** Preload */
-            preload?: components["schemas"]["PreloadSpec"][];
             /** Surface Spec Template */
             surface_spec_template?: {
                 [key: string]: unknown;
@@ -8061,8 +8121,6 @@ export interface components {
             name: string;
             /** Objective */
             objective: string;
-            /** Preload */
-            preload?: components["schemas"]["PreloadSpec"][];
             /** Surface Spec Template */
             surface_spec_template?: {
                 [key: string]: unknown;
@@ -9417,10 +9475,10 @@ export interface components {
             /** Family */
             family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
-             * Ignored Voice Config Fields
-             * @description Top-level voice_config fields the service sets to a non-default value that this family's runtime does not read. Advisory: the config is valid and saves.
+             * Ignored Settings
+             * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves.
              */
-            ignored_voice_config_fields: string[];
+            ignored_settings: string[];
             /**
              * Source
              * @enum {string}
@@ -9951,11 +10009,17 @@ export interface components {
             direction: "inbound" | "outbound" | "playground" | "simulated" | "test";
             /** Duration Seconds */
             duration_seconds: number;
+            /** Ended After Seconds */
+            ended_after_seconds?: number | null;
+            /** Ended By */
+            ended_by?: ("caller" | "agent" | "system") | null;
             /**
              * Final State
              * @default
              */
             final_state?: string;
+            /** First Agent Audio Seconds */
+            first_agent_audio_seconds?: number | null;
             /** Latency Summary */
             latency_summary?: {
                 [key: string]: unknown;
@@ -9991,6 +10055,10 @@ export interface components {
             source: "real" | "simulation" | "playground";
             /** Tool Summary */
             tool_summary?: {
+                [key: string]: unknown;
+            };
+            /** Transfer Summary */
+            transfer_summary?: {
                 [key: string]: unknown;
             };
             /**
@@ -10469,7 +10537,7 @@ export interface components {
          * @description Delivery channels for surfaces.
          * @enum {string}
          */
-        ChannelType: "email" | "web" | "sms";
+        ChannelType: "email" | "web";
         /** ChatRequest */
         ChatRequest: {
             /**
@@ -11144,8 +11212,11 @@ export interface components {
             returning_user_initial_state: string;
             /** States */
             states: components["schemas"]["ContextGraphState-Output"][];
-            /** Terminal State */
-            terminal_state: string;
+            /**
+             * Terminal State
+             * @default
+             */
+            terminal_state?: string;
             /** Topology Description */
             topology_description?: string | null;
             /** Updated At */
@@ -11363,6 +11434,11 @@ export interface components {
              */
             status: "active" | "closed" | "completed" | "in-progress" | "failed" | "paused";
             /**
+             * Tags
+             * @description The labels an app set on the conversation, by key. Empty when it has none.
+             */
+            tags?: components["schemas"]["ConversationTag"][];
+            /**
              * Truncated
              * @description True when the conversation recorded more entries than one read takes (10,000), so the turns stop before the end of the conversation.
              * @default false
@@ -11452,6 +11528,34 @@ export interface components {
              * @default 0
              */
             unique_states?: number;
+        };
+        /** ConversationTag */
+        ConversationTag: {
+            /** Key */
+            key: string;
+            /**
+             * Value
+             * @description Null for a bare label.
+             */
+            value?: string | null;
+        };
+        /** ConversationTagsPatch */
+        ConversationTagsPatch: {
+            /**
+             * Deletes
+             * @description Keys to remove. A key the conversation does not carry is ignored.
+             */
+            deletes?: string[];
+            /**
+             * Updates
+             * @description Tags to set: a key not yet on the conversation is added, and one that is has its value replaced.
+             */
+            updates?: components["schemas"]["ConversationTag"][];
+        };
+        /** ConversationTagsResponse */
+        ConversationTagsResponse: {
+            /** Tags */
+            tags: components["schemas"]["ConversationTag"][];
         };
         /** ConversationThreadRequest */
         ConversationThreadRequest: {
@@ -11700,16 +11804,6 @@ export interface components {
              * @description Destination context-graph state after the turn's state transition.
              */
             to: string;
-        };
-        CorrectionLine: string;
-        /**
-         * CorrectionLines
-         * @description What a caller hears in place of the built-in correction, per language. Both languages or neither: a service
-         *     with one authored line would have callers in the other language hear a built-in line that can contradict it.
-         */
-        CorrectionLines: {
-            en?: components["schemas"]["CorrectionLine"] | null;
-            es?: components["schemas"]["CorrectionLine"] | null;
         };
         /**
          * CostModelsResponse
@@ -12095,8 +12189,13 @@ export interface components {
             returning_user_initial_state: string;
             /** States */
             states: components["schemas"]["ContextGraphState-Input"][];
-            /** Terminal State */
-            terminal_state: string;
+            /**
+             * Terminal State
+             * @description The state that completes the conversation once navigation reaches it. Left out, the graph has none, and the
+             *     caller or the agent ends the call.
+             * @default
+             */
+            terminal_state?: string;
             /** Topology Description */
             topology_description?: string | null;
         };
@@ -12133,6 +12232,11 @@ export interface components {
              * @description Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``. Every turn on a ``playground`` or ``test`` conversation runs as a test turn, as for a conversation started with a test key, whatever its ``entity_id``. It stays out of analytics, production evaluations, EHR sync and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.
              */
             source?: ("playground" | "test") | null;
+            /**
+             * Tags
+             * @description Labels to set on the conversation, at most 20, each a key and an optional value. Change them later with PATCH /v1/{workspace_id}/conversations/{conversation_id}/tags.
+             */
+            tags?: components["schemas"]["ConversationTag"][];
             /**
              * Use Case Id
              * @description The use case the outbound conversation is sent through. Required for non-web; the sender (FROM) is resolved from it, never caller-supplied. Must be owned by this workspace.
@@ -12513,7 +12617,7 @@ export interface components {
             /**
              * Declared Languages
              * @description The languages this service serves, as ISO 639-1 codes: a non-empty list of distinct supported
-             *     languages. Omit or null for none declared, which keeps today's behavior.
+             *     languages. Omit or null for none declared, which serves only the agent's default language.
              */
             declared_languages?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko")[] | null;
             /**
@@ -12547,6 +12651,10 @@ export interface components {
              */
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             name: components["schemas"]["NameString"];
+            /**
+             * @description Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs
+             *     `Service.update`.
+             */
             output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
@@ -12914,7 +13022,6 @@ export interface components {
          * CustomTokenExchangeAuthDict
          * @description Pre-flight exchange that mints a downstream bearer.
          *
-         *     Replaces legacy ``json_token_exchange`` AND ``bearer_token_exchange``.
          *     Downstream call always receives ``Authorization: Bearer {token}``. No
          *     in-process caching — every call mints fresh.
          */
@@ -13330,6 +13437,40 @@ export interface components {
              */
             type: "data_collection";
         };
+        /**
+         * DataFreshness
+         * @description How fresh a query's rows must be to be stated as current.
+         */
+        DataFreshness: {
+            /**
+             * As Of Column
+             * @description The result column holding when the row was last verified (a timestamp or ISO date). A lowercase
+             *     identifier, so the SQL names it without quoting.
+             */
+            as_of_column: string;
+            /**
+             * Max Age Days
+             * @description A row older than this, or with no value, is stale.
+             */
+            max_age_days: number;
+        };
+        /**
+         * DataFreshnessBody
+         * @description The freshness a create or PATCH names. A key it doesn't have, such as a unit, is a 422.
+         */
+        DataFreshnessBody: {
+            /**
+             * As Of Column
+             * @description The result column holding when the row was last verified (a timestamp or ISO date). A lowercase
+             *     identifier, so the SQL names it without quoting.
+             */
+            as_of_column: string;
+            /**
+             * Max Age Days
+             * @description A row older than this, or with no value, is stale.
+             */
+            max_age_days: number;
+        };
         /** DataQualityMetrics */
         DataQualityMetrics: {
             /** Approval Rate 7D */
@@ -13414,6 +13555,8 @@ export interface components {
          *     know, so a later declaration never breaks an older reader.
          */
         DataQueryDeclarations: {
+            /** @description None: rows are returned as they are, with no staleness. */
+            freshness?: components["schemas"]["DataFreshness"] | null;
             /**
              * @description Whose patient record a call returns, and how the call names that patient: the one its
              *     parameters name (``params``, each one of the query's ``parameters``), the ones its rows hold
@@ -13431,6 +13574,8 @@ export interface components {
          *     boundary refuses one: a reader ignores a key it doesn't know (``DataQueryDeclarations``).
          */
         DataQueryDeclarationsBody: {
+            /** @description None: rows are returned as they are, with no staleness. */
+            freshness?: components["schemas"]["DataFreshnessBody"] | null;
             /**
              * @description Whose patient record a call returns, and how the call names that patient: the one its
              *     parameters name (``params``, each one of the query's ``parameters``), the ones its rows hold
@@ -13855,6 +14000,15 @@ export interface components {
             url?: string | null;
         };
         DescriptionString: string;
+        /**
+         * DestinationHours
+         * @description One approved line's own staffed hours and after-hours line, in place of its service's
+         *     (``ServiceForwardingConfig.destination_hours``).
+         */
+        DestinationHours: {
+            after_hours?: components["schemas"]["DialE164"] | null;
+            hours: components["schemas"]["StaffedHours"];
+        };
         /** DestroySessionResponse */
         DestroySessionResponse: {
             /**
@@ -13863,16 +14017,6 @@ export interface components {
              * @constant
              */
             status: "destroyed";
-        };
-        /** DiagnosisCheck */
-        DiagnosisCheck: {
-            correction?: components["schemas"]["CorrectionLines"];
-            /**
-             * Mode
-             * @default cut
-             * @enum {string}
-             */
-            mode?: "cut" | "log" | "off";
         };
         DialE164: string;
         /** Dialability */
@@ -13904,6 +14048,72 @@ export interface components {
             calls: number;
         };
         /**
+         * DisclosurePlayedEvent
+         * @description One play of the call's AI and recording notice, or an attempt none of which could play.
+         *
+         *     Its fields keep the ``voice.disclosure.*`` keys the call's trace records them under.
+         */
+        DisclosurePlayedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "disclosure_played";
+            /**
+             * Voice.Disclosure.Completed
+             * @description Every chunk of the notice reached the line.
+             */
+            "voice.disclosure.completed": boolean;
+            /**
+             * Voice.Disclosure.Duration Ms
+             * @description Milliseconds of the notice's audio that went out.
+             */
+            "voice.disclosure.duration_ms": number;
+            /**
+             * Voice.Disclosure.Failure
+             * @description Why none of it could play, or null when it played.
+             */
+            "voice.disclosure.failure": ("error" | "timeout" | "no_audio" | "no_script") | null;
+            /**
+             * Voice.Disclosure.Language
+             * @enum {string}
+             */
+            "voice.disclosure.language": "en" | "es";
+            /**
+             * Voice.Disclosure.Outcome
+             * @description What a model-spoken play came to. Null for a play cut off and for every other path.
+             */
+            "voice.disclosure.outcome": ("verbatim" | "replayed" | "missed" | "clip" | "failed_closed") | null;
+            /**
+             * Voice.Disclosure.Path
+             * @description What played it: the cascade (``direct``, ``speaker``), the realtime model, or the safe exit.
+             * @enum {string}
+             */
+            "voice.disclosure.path": "direct" | "speaker" | "realtime" | "minimal_risk";
+            /** Voice.Disclosure.Region */
+            "voice.disclosure.region": string;
+            /**
+             * Voice.Disclosure.Started At
+             * @description ISO 8601 time the first chunk was sent, or the attempt began when none was.
+             */
+            "voice.disclosure.started_at": string;
+            /**
+             * Voice.Disclosure.Text
+             * @description The authored notice text.
+             */
+            "voice.disclosure.text": string;
+            /**
+             * Voice.Disclosure.Variant
+             * @enum {string}
+             */
+            "voice.disclosure.variant": "full" | "demo";
+            /**
+             * Voice.Disclosure.Verbatim
+             * @description False when a model-spoken play said other words than the authored text.
+             */
+            "voice.disclosure.verbatim": boolean;
+        };
+        /**
          * DocumentProcessingSpec
          * @description Processing config for a document dataset (``ingestion_mode=document``).
          *
@@ -13922,16 +14132,6 @@ export interface components {
              * @default true
              */
             retain_source?: boolean;
-        };
-        /** DosingOrMedChangeCheck */
-        DosingOrMedChangeCheck: {
-            correction?: components["schemas"]["CorrectionLines"];
-            /**
-             * Mode
-             * @default cut
-             * @enum {string}
-             */
-            mode?: "cut" | "log";
         };
         /**
          * DriveFolderMapping
@@ -16036,7 +16236,7 @@ export interface components {
          * ExternalWriteProposal
          * @description A human-review proposal for an external (EHR) write-back — the Review Queue.
          *
-         *     Staged by connector-runner when a `review_required` sink would otherwise
+         *     Staged by the producer when a `review_required` sink would otherwise
          *     auto-push (the external write proposals table); a reviewer approves/rejects, and the
          *     egress drain delivers approved ones. ``proposed_payload`` is the full FHIR write
          *     body and MAY contain PHI — this surface is workspace-scoped (FORCE-RLS) and
@@ -16144,10 +16344,10 @@ export interface components {
             /** Config Key */
             config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
-             * Honored Voice Config Fields
-             * @description The top-level voice_config fields this family's runtime reads. Saving any other field is accepted, and the runtime ignores it.
+             * Honored Settings
+             * @description The service settings this family reads, as dotted paths from the service (keyterms, voice_config.silence_policy). Saving any other setting is accepted, and the family ignores it.
              */
-            honored_voice_config_fields: string[];
+            honored_settings: string[];
             /**
              * Id
              * @enum {string}
@@ -16177,10 +16377,10 @@ export interface components {
             /** Family */
             family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
-             * Ignored Voice Config Fields
-             * @description Top-level voice_config fields the service sets to a non-default value that this family's runtime does not read. Advisory: the config is valid and saves.
+             * Ignored Settings
+             * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves.
              */
-            ignored_voice_config_fields: string[];
+            ignored_settings: string[];
             /**
              * Refusals
              * @description What the config the save would store asks of the family that it can't deliver (warm transfer,
@@ -17499,15 +17699,6 @@ export interface components {
             /** Explanation */
             explanation?: string | null;
         };
-        /** HealthInformationCheck */
-        HealthInformationCheck: {
-            /**
-             * Mode
-             * @default off
-             * @enum {string}
-             */
-            mode?: "log" | "off";
-        };
         /** HipaaReportResponse */
         HipaaReportResponse: {
             /** Access Controls */
@@ -18346,6 +18537,11 @@ export interface components {
         };
         /** Launch */
         Launch: {
+            /**
+             * Answer Hours Configured
+             * @description The voice config sets answer_hours: outside them the agent takes no call.
+             */
+            answer_hours_configured: boolean;
             /** Demo Mode */
             demo_mode: boolean;
             /** @description What a gpt_realtime release version set opens its session with once each null model, voice and reasoning_effort resolves to the runtime's default. Null for any other family. */
@@ -18363,9 +18559,9 @@ export interface components {
             output_check_modes: components["schemas"]["OutputCheckModes"];
             /**
              * Readiness Requires
-             * @description What the live voice-call readiness check gates this service's phone calls on: the base set every call needs, then the voice config's saved readiness_requires.
+             * @description What the live voice-call readiness check gates this service's phone calls on: the base set every call needs, outside_answer_hours when answer_hours are set, then the voice config's saved readiness_requires.
              */
-            readiness_requires: ("binding" | "service_active" | "residency" | "fleet" | "valkey" | "lakebase" | "platform_api" | "openai_realtime" | "decisions" | "warehouse")[];
+            readiness_requires: ("binding" | "service_active" | "residency" | "fleet" | "valkey" | "lakebase" | "platform_api" | "outside_answer_hours" | "openai_realtime" | "decisions" | "warehouse")[];
             /** Test Callers Registered */
             test_callers_registered: boolean;
             /**
@@ -18809,6 +19005,11 @@ export interface components {
             model_tier?: "free" | "fast" | "balanced" | "max" | "custom";
             name: components["schemas"]["NameString"];
             /**
+             * Notes
+             * @description Free-text notes about the definition.
+             */
+            notes?: string | null;
+            /**
              * Period Granularity
              * @description 'hourly' — one row per workspace per hour. Use for near_realtime metrics where shift-level visibility matters (voice quality, latency). 'daily' — one row per workspace per day (default, cheapest).
              * @default daily
@@ -18846,6 +19047,11 @@ export interface components {
              * @description Raw SQL expression evaluated in pipeline context. Has access to all columns in the source table. Example: 'CASE WHEN duration_seconds > 120 THEN 1.0 ELSE 0.0 END'. Required when extraction_mode='sql_expr'.
              */
             sql_expression?: string | null;
+            /**
+             * Tags
+             * @description Up to 20 slugs (lowercase letters, digits, '-' and '_', at most 64 characters each).
+             */
+            tags?: string[] | null;
             /**
              * Unit
              * @description Display unit (e.g. 'score', 'minutes', '%', 'count').
@@ -18970,6 +19176,55 @@ export interface components {
             imported: number;
             /** Updated */
             updated: number;
+        };
+        /**
+         * MinimalRiskCompletedEvent
+         * @description How the safe exit ended.
+         */
+        MinimalRiskCompletedEvent: {
+            /**
+             * Disclosure Heard
+             * @description The caller had heard all of the notice before the exit began, so the exit did not play it again.
+             */
+            disclosure_heard: boolean;
+            /**
+             * Lines Played
+             * @description The script lines that played whole, in order.
+             */
+            lines_played: ("disclosure" | "transfer" | "end" | "fallback_missed" | "hearing_failure")[];
+            /**
+             * Outcome
+             * @description ``mrc_transferred`` once the hand-off to the human line was placed, ``mrc_failed`` when the hand-off raised
+             *     (the caller may still be on the line), else ``mrc_ended`` (hung up).
+             * @enum {string}
+             */
+            outcome: "mrc_transferred" | "mrc_ended" | "mrc_failed";
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "stt_fatal" | "turn_stalled" | "wire_failed" | "disclosure_failed" | "session_rejected" | "setup_failed" | "service_budget" | "caller_cap" | "outside_answer_hours" | "health_alert" | "data_residency_refused" | "attach_failed";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "minimal_risk_completed";
+        };
+        /**
+         * MinimalRiskStartedEvent
+         * @description The call took the safe exit: the agent stops and a fixed script hands the caller to a person or ends the call.
+         */
+        MinimalRiskStartedEvent: {
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "stt_fatal" | "turn_stalled" | "wire_failed" | "disclosure_failed" | "session_rejected" | "setup_failed" | "service_budget" | "caller_cap" | "outside_answer_hours" | "health_alert" | "data_residency_refused" | "attach_failed";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "minimal_risk_started";
         };
         /**
          * ModelCost
@@ -19455,7 +19710,7 @@ export interface components {
              */
             type: "oauth2_jwt_bearer";
         };
-        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["DynamicBehaviorDecidedEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
+        ObserverSSEEvent: components["schemas"]["ActorAllocatedEvent"] | components["schemas"]["ActorShutdownEvent"] | components["schemas"]["AgentTranscriptDeltaEvent"] | components["schemas"]["AgentTranscriptEvent"] | components["schemas"]["BargeInEvent"] | components["schemas"]["DisclosurePlayedEvent"] | components["schemas"]["DynamicBehaviorDecidedEvent"] | components["schemas"]["EmpathyClassifiedEvent"] | components["schemas"]["ForwardCallResolvedEvent"] | components["schemas"]["LatencyEvent"] | components["schemas"]["MediaAttachedEvent"] | components["schemas"]["MinimalRiskCompletedEvent"] | components["schemas"]["MinimalRiskStartedEvent"] | components["schemas"]["NavTimingEvent"] | components["schemas"]["ParticipantJoinedEvent"] | components["schemas"]["ParticipantLeftEvent"] | components["schemas"]["SessionEndEvent"] | components["schemas"]["SessionInfoEvent"] | components["schemas"]["SessionStartEvent"] | components["schemas"]["SpeakerMutedEvent"] | components["schemas"]["StateTransitionEvent"] | components["schemas"]["ToolCallCompletedEvent"] | components["schemas"]["ToolCallStartedEvent"] | components["schemas"]["UserTranscriptEvent"] | components["schemas"]["VoiceContextAppliedEvent"];
         /** OcrRequest */
         OcrRequest: {
             /**
@@ -19771,8 +20026,7 @@ export interface components {
         OperatorPerformanceTrendPoint: {
             /**
              * Date
-             * Format: date
-             * @description Date for the time bucket
+             * @description Bucket start: a date (YYYY-MM-DD) for a daily or weekly bucket, an ISO-8601 timestamp for an hourly one
              */
             date: string;
             /**
@@ -20049,9 +20303,6 @@ export interface components {
          * @description Mode values follow the library's read model as it adds supported modes.
          */
         OutputCheckModes: {
-            diagnosis: components["schemas"]["ReadinessLabel"];
-            dosing_or_med_change: components["schemas"]["ReadinessLabel"];
-            health_information: components["schemas"]["ReadinessLabel"];
             phi_unverified: components["schemas"]["ReadinessLabel"];
         };
         /**
@@ -20065,7 +20316,7 @@ export interface components {
              */
             active?: boolean;
             /** @default email */
-            channel?: components["schemas"]["ChannelType"];
+            channel?: components["schemas"]["StoredChannelType"];
             /**
              * Consent Required
              * @default true
@@ -20111,6 +20362,7 @@ export interface components {
          * @description Partial update — only provided fields are changed.
          *
          *     Rules and data_templates lists are replaced entirely when provided.
+         *     A rule stored with channel ``sms`` may be sent back with it; any other rule with ``sms`` is refused.
          */
         OutreachSettingsRequest: {
             /** Data Templates */
@@ -20954,13 +21206,13 @@ export interface components {
         };
         /** Policies */
         Policies: {
-            /** Authored Corrections */
-            authored_corrections: boolean;
             /**
              * Default Destination Configured
              * @description A dynamic service names the line a transfer dials when the agent names none.
              */
             default_destination_configured: boolean;
+            /** Destination Hours Configured */
+            destination_hours_configured: boolean;
             /** Forward Call Configured */
             forward_call_configured: boolean;
             /** Hours Configured */
@@ -20974,24 +21226,16 @@ export interface components {
             verification_callers_configured: boolean;
             /** Warm Transfer */
             warm_transfer: boolean;
-        };
-        /**
-         * PreloadSpec
-         * @description A tool call executed deterministically by the engine on state entry.
-         *
-         *     Unlike LLM-driven tool calls, preloads run before any LLM turn —
-         *     the results appear in the interaction log so the engage LLM sees
-         *     them as pre-loaded context.  All preloads in a state execute in
-         *     parallel.  Param values support ``{caller_mrn}`` and ``{entity_id}``
-         *     template variables resolved from the session's caller context.
-         */
-        PreloadSpec: {
-            /** Params */
-            params?: {
-                [key: string]: unknown;
-            };
-            /** Tool Id */
-            tool_id: string;
+            /**
+             * Warm Transfer On Miss
+             * @enum {string}
+             */
+            warm_transfer_on_miss: "hand_back" | "offer_number" | "cold_to_fallback";
+            /**
+             * Warm Transfer On Queue
+             * @enum {string}
+             */
+            warm_transfer_on_queue: "hand_over" | "treat_as_miss";
         };
         /**
          * PriorityQueueItem
@@ -21025,7 +21269,7 @@ export interface components {
              * Data Quality Flags
              * @default []
              */
-            data_quality_flags?: "invalid_direction"[];
+            data_quality_flags?: ("invalid_direction" | "intel_unavailable")[];
             /**
              * Direction
              * @description Call direction
@@ -22964,6 +23208,42 @@ export interface components {
              */
             language?: string;
         };
+        /**
+         * SafeExit
+         * @description The call's safe exit: the agent stopped and a fixed script handed the caller to a person or ended the call.
+         */
+        SafeExit: {
+            /**
+             * Disclosure Heard
+             * @description The caller had heard all of the AI and recording notice before the exit began, so the exit did not
+             *     play it again. When false, the notice was heard only if ``lines_played`` holds ``disclosure``.
+             */
+            disclosure_heard: boolean;
+            /**
+             * Lines Played
+             * @description The script lines that played whole, in order. ``disclosure`` is the AI and recording notice.
+             */
+            lines_played: ("disclosure" | "transfer" | "end" | "fallback_missed" | "hearing_failure")[];
+            /**
+             * Outcome
+             * @description ``mrc_transferred`` once the hand-off to the human line was placed, ``mrc_failed`` when the hand-off raised
+             *     (the caller may still be on the line), else ``mrc_ended`` (hung up). The conversation's ``completion_reason``
+             *     reads these as ``transferred`` and ``error``.
+             * @enum {string}
+             */
+            outcome: "mrc_transferred" | "mrc_ended" | "mrc_failed";
+            /**
+             * Trigger
+             * @description Why the call took the safe exit.
+             * @enum {string}
+             */
+            trigger: "stt_fatal" | "turn_stalled" | "wire_failed" | "disclosure_failed" | "session_rejected" | "setup_failed" | "service_budget" | "caller_cap" | "outside_answer_hours" | "health_alert" | "data_residency_refused" | "attach_failed";
+            /**
+             * Trigger Description
+             * @description ``trigger`` in plain words.
+             */
+            readonly trigger_description: string;
+        };
         /** SafetyState */
         SafetyState: {
             /**
@@ -23444,7 +23724,8 @@ export interface components {
          *     A call tagged as a test reaches only ``test_destinations``, in either mode, unless
          *     its caller is one of ``verification_callers``.
          *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
-         *     hours dials ``after_hours_destination`` whichever approved line was asked for.
+         *     hours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps
+         *     hours of its own in ``destination_hours``.
          *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the
          *     ``transfer_reasons`` each of its transfers names and the call records.
          */
@@ -23455,6 +23736,10 @@ export interface components {
                 [key: string]: components["schemas"]["NameString"];
             };
             default_destination?: components["schemas"]["DialE164"] | null;
+            /** Destination Hours */
+            destination_hours?: {
+                [key: string]: components["schemas"]["DestinationHours"];
+            };
             fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours?: components["schemas"]["StaffedHours"] | null;
@@ -23473,6 +23758,23 @@ export interface components {
              * @default false
              */
             warm_transfer?: boolean;
+            /**
+             * Warm Transfer Answer Timeout S
+             * @default 30
+             */
+            warm_transfer_answer_timeout_s?: number;
+            /**
+             * Warm Transfer On Miss
+             * @default hand_back
+             * @enum {string}
+             */
+            warm_transfer_on_miss?: "hand_back" | "offer_number" | "cold_to_fallback";
+            /**
+             * Warm Transfer On Queue
+             * @default hand_over
+             * @enum {string}
+             */
+            warm_transfer_on_queue?: "hand_over" | "treat_as_miss";
         };
         /**
          * ServiceForwardingConfig
@@ -23488,7 +23790,8 @@ export interface components {
          *     A call tagged as a test reaches only ``test_destinations``, in either mode, unless
          *     its caller is one of ``verification_callers``.
          *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
-         *     hours dials ``after_hours_destination`` whichever approved line was asked for.
+         *     hours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps
+         *     hours of its own in ``destination_hours``.
          *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the
          *     ``transfer_reasons`` each of its transfers names and the call records.
          */
@@ -23499,6 +23802,10 @@ export interface components {
                 [key: string]: components["schemas"]["NameString"];
             };
             default_destination?: components["schemas"]["DialE164"] | null;
+            /** Destination Hours */
+            destination_hours?: {
+                [key: string]: components["schemas"]["DestinationHours"];
+            };
             fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours?: components["schemas"]["StaffedHours"] | null;
@@ -23517,6 +23824,23 @@ export interface components {
              * @default false
              */
             warm_transfer?: boolean;
+            /**
+             * Warm Transfer Answer Timeout S
+             * @default 30
+             */
+            warm_transfer_answer_timeout_s?: number;
+            /**
+             * Warm Transfer On Miss
+             * @default hand_back
+             * @enum {string}
+             */
+            warm_transfer_on_miss?: "hand_back" | "offer_number" | "cold_to_fallback";
+            /**
+             * Warm Transfer On Queue
+             * @default hand_over
+             * @enum {string}
+             */
+            warm_transfer_on_queue?: "hand_over" | "treat_as_miss";
         };
         /**
          * ServiceForwardingResponse
@@ -23529,6 +23853,10 @@ export interface components {
                 [key: string]: components["schemas"]["NameString"];
             };
             default_destination: components["schemas"]["DialE164"] | null;
+            /** Destination Hours */
+            destination_hours: {
+                [key: string]: components["schemas"]["DestinationHours"];
+            };
             fallback_to: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours: components["schemas"]["StaffedHours"] | null;
@@ -23547,6 +23875,23 @@ export interface components {
              * @default false
              */
             warm_transfer: boolean;
+            /**
+             * Warm Transfer Answer Timeout S
+             * @default 30
+             */
+            warm_transfer_answer_timeout_s: number;
+            /**
+             * Warm Transfer On Miss
+             * @default hand_back
+             * @enum {string}
+             */
+            warm_transfer_on_miss: "hand_back" | "offer_number" | "cold_to_fallback";
+            /**
+             * Warm Transfer On Queue
+             * @default hand_over
+             * @enum {string}
+             */
+            warm_transfer_on_queue: "hand_over" | "treat_as_miss";
         };
         /** ServiceListResponse */
         ServiceListResponse: {
@@ -23559,9 +23904,6 @@ export interface components {
         };
         /** ServiceOutputChecks */
         ServiceOutputChecks: {
-            diagnosis?: components["schemas"]["DiagnosisCheck"];
-            dosing_or_med_change?: components["schemas"]["DosingOrMedChangeCheck"];
-            health_information?: components["schemas"]["HealthInformationCheck"];
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
         };
         /**
@@ -23808,10 +24150,11 @@ export interface components {
          *     Each field is optional — None means inherit from the layer above
          *     (workspace VoiceSettings → env vars → hardcoded defaults).
          *
-         *     A field is read only by the runtimes ``VOICE_CONFIG_FIELD_RUNTIMES`` lists
-         *     (``platform_lib.config.voice_runtime_fields``); a save accepts the others and the runtime ignores them.
+         *     A field is read only by the families whose ``reads`` list it (``platform_lib.config.voice_families.specs``); a save
+         *     accepts the others and reports them as ignored.
          */
         "ServiceVoiceConfig-Input": {
+            answer_hours?: components["schemas"]["StaffedHours"] | null;
             /**
              * Backchannel Delay Ms
              * @default 400
@@ -23855,6 +24198,16 @@ export interface components {
             } | null;
             /** Max Buffer Delay Ms */
             max_buffer_delay_ms?: number | null;
+            /**
+             * Max Calls Per Caller
+             * @default 2
+             */
+            max_calls_per_caller?: number;
+            /**
+             * Max Concurrent Calls
+             * @default 60
+             */
+            max_concurrent_calls?: number;
             /** Max Response Sentences */
             max_response_sentences?: number | null;
             /** Max Response Words */
@@ -23896,10 +24249,11 @@ export interface components {
          *     Each field is optional — None means inherit from the layer above
          *     (workspace VoiceSettings → env vars → hardcoded defaults).
          *
-         *     A field is read only by the runtimes ``VOICE_CONFIG_FIELD_RUNTIMES`` lists
-         *     (``platform_lib.config.voice_runtime_fields``); a save accepts the others and the runtime ignores them.
+         *     A field is read only by the families whose ``reads`` list it (``platform_lib.config.voice_families.specs``); a save
+         *     accepts the others and reports them as ignored.
          */
         "ServiceVoiceConfig-Output": {
+            answer_hours?: components["schemas"]["StaffedHours"] | null;
             /**
              * Backchannel Delay Ms
              * @default 400
@@ -23943,6 +24297,16 @@ export interface components {
             } | null;
             /** Max Buffer Delay Ms */
             max_buffer_delay_ms?: number | null;
+            /**
+             * Max Calls Per Caller
+             * @default 2
+             */
+            max_calls_per_caller?: number;
+            /**
+             * Max Concurrent Calls
+             * @default 60
+             */
+            max_concurrent_calls?: number;
             /** Max Response Sentences */
             max_response_sentences?: number | null;
             /** Max Response Words */
@@ -24006,6 +24370,11 @@ export interface components {
             outbound_calls: boolean;
             /** State Carrier */
             state_carrier: ("session_update_and_note" | "note_only") | null;
+            /**
+             * Typed Guardrails
+             * @default false
+             */
+            typed_guardrails: boolean;
             /**
              * Warm Transfer
              * @default false
@@ -25404,8 +25773,7 @@ export interface components {
              *       "block_forward_call": false,
              *       "block_forward_call_after_turns": -1,
              *       "context_strategy": "full",
-             *       "greeting_shield_s": 0,
-             *       "safety_response": "suspend_forward"
+             *       "greeting_shield_s": 0
              *     }
              */
             turn_policy?: components["schemas"]["SimulationTurnPolicyResponse"];
@@ -25806,11 +26174,6 @@ export interface components {
              * @default 0
              */
             greeting_shield_s?: number;
-            /**
-             * Safety Response
-             * @default suspend_forward
-             */
-            safety_response?: string;
         };
         /** SimulationTurnQueryResponse */
         SimulationTurnQueryResponse: {
@@ -26493,39 +26856,44 @@ export interface components {
          */
         StagingGraphConfiguration: {
             /** @default  */
-            description?: components["schemas"]["DescriptionString"];
+            description: components["schemas"]["DescriptionString"];
             /**
              * Dynamic Behaviors
              * @deprecated
              * @description Deprecated: a context graph version carries no dynamic behaviors, so this takes only ``[]`` and can be left
              *     out. Author behaviors in the dynamic behavior sets library and pin them on a service's version set.
              */
-            dynamic_behaviors?: components["schemas"]["DynamicBehavior"][] | null;
+            dynamic_behaviors: components["schemas"]["DynamicBehavior"][] | null;
             /**
              * Global Action Guidelines
              * @default []
              */
-            global_action_guidelines?: string[];
+            global_action_guidelines: string[];
             /**
              * Global Boundary Constraints
              * @default []
              */
-            global_boundary_constraints?: string[];
+            global_boundary_constraints: string[];
             /**
              * Global Intra State Navigation Guidelines
              * @default []
              */
-            global_intra_state_navigation_guidelines?: string[];
+            global_intra_state_navigation_guidelines: string[];
             /** New User Initial State */
             new_user_initial_state: string;
             /** Returning User Initial State */
             returning_user_initial_state: string;
             /** States */
             states: components["schemas"]["ContextGraphState-Output"][];
-            /** Terminal State */
+            /**
+             * Terminal State
+             * @description The state that completes the conversation once navigation reaches it. Left out, the graph has none, and the
+             *     caller or the agent ends the call.
+             * @default
+             */
             terminal_state: string;
             /** Topology Description */
-            topology_description?: string | null;
+            topology_description: string | null;
         };
         /** StagingMirrorApplyRequest */
         StagingMirrorApplyRequest: {
@@ -26858,6 +27226,11 @@ export interface components {
              * @description Set to ``playground`` when the developer console Playground starts the session. It gets its own conversation for the entity and service, never a real client's, and every turn on it runs as a test turn: its tools run in simulation mode, and it stays out of EHR sync and billing.
              */
             source?: "playground" | null;
+            /**
+             * Tags
+             * @description Labels to set on the conversation, at most 20, each a key and an optional value. When the session resumes a conversation (``already_active``), they merge into its tags as updates, and a merge that would pass 20 is refused with 422.
+             */
+            tags?: components["schemas"]["ConversationTag"][];
         };
         /** StartSessionResponse */
         StartSessionResponse: {
@@ -26938,8 +27311,8 @@ export interface components {
          * StaticHeaderAuthDict
          * @description Static workspace-level secret used verbatim as a single header value.
          *
-         *     Replaces legacy ``api_key_header`` and ``bearer_token`` — bearer is just
-         *     ``header_name="Authorization"`` with the SSM secret holding ``"Bearer <token>"``.
+         *     Bearer is just ``header_name="Authorization"`` with the SSM secret holding
+         *     ``"Bearer <token>"``.
          */
         StaticHeaderAuthDict: {
             /** Header Name */
@@ -27035,6 +27408,15 @@ export interface components {
              */
             session_id?: string | null;
         };
+        /**
+         * StoredChannelType
+         * @description Channel as stored on a surface row or outreach rule.
+         *
+         *     ``sms`` predates the end of SMS delivery. It stays readable, and an edit may send a stored ``sms`` back
+         *     unchanged, but no surface or rule is ever switched to it or created with it.
+         * @enum {string}
+         */
+        StoredChannelType: "email" | "web" | "sms";
         /**
          * StoredParameter
          * @description One typed input parameter of a workspace data query.
@@ -27460,7 +27842,7 @@ export interface components {
             archive_reason?: string | null;
             /** Archived At */
             archived_at?: string | null;
-            channel?: components["schemas"]["ChannelType"] | null;
+            channel?: components["schemas"]["StoredChannelType"] | null;
             /**
              * Context
              * @default {}
@@ -29704,12 +30086,6 @@ export interface components {
              * @default -1
              */
             degradation_threshold?: number;
-            /**
-             * Safety Response
-             * @default stay_empathize
-             * @enum {string}
-             */
-            safety_response?: "suspend_forward" | "stay_empathize" | "alert";
             /** Stt Eager Eot Threshold */
             stt_eager_eot_threshold?: number | null;
             /** Stt Eot Threshold */
@@ -29731,8 +30107,6 @@ export interface components {
             degradation_threshold?: number | null;
             /** Greeting Shield S */
             greeting_shield_s?: number | null;
-            /** Safety Response */
-            safety_response?: ("stay_empathize" | "alert") | null;
         };
         /** TurnRequest */
         TurnRequest: {
@@ -30112,11 +30486,11 @@ export interface components {
             context_graph_id?: string | null;
             /** @description Replace the audit settings. Omit to keep them; send `enabled: false` to turn the audit off. */
             conversation_audit?: components["schemas"]["ConversationAuditSettings"] | null;
-            /** @description Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null restores the signed default. */
+            /** @description Reply for an already-in-crisis caller asking us to call 911. Omit to keep; null clears it. */
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Declared Languages
-             * @description Replace the languages this service serves. Omit to keep them; null clears them.
+             * @description Replace the languages this service serves. `null` clears them, and leaving it out keeps them.
              */
             declared_languages?: ("en" | "es" | "ar" | "fr" | "de" | "pt" | "zh" | "ja" | "ko")[] | null;
             /**
@@ -30139,7 +30513,12 @@ export interface components {
              */
             medical_emergency_ending?: ("stay_on_line" | "end_after_script") | null;
             name?: components["schemas"]["NameString"] | null;
-            /** Output Checks */
+            /**
+             * Output Checks
+             * @description Which reply checks run. The block replaces what is stored, and `null` clears it back to the default block,
+             *     where `phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the
+             *     update.
+             */
             output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
              * Platform Caller Verification
@@ -30153,10 +30532,15 @@ export interface components {
             tags?: components["schemas"]["ServiceTag"][] | null;
             /** Tool Capacity */
             tool_capacity?: number | null;
-            /** Version Sets */
+            /**
+             * Version Sets
+             * @description Replaces the whole map: a version set left out of it is dropped, and `release` is required. Leaving the field
+             *     out keeps what is stored. It cannot be cleared, so `null` is refused.
+             */
             version_sets?: {
                 [key: string]: components["schemas"]["VersionSet-Input"];
-            } | null;
+            };
+            /** @description Replaces the voice block. `null` clears it, and leaving it out keeps what's stored. */
             voice_config?: components["schemas"]["ServiceVoiceConfig-Input"] | null;
         };
         /**
@@ -30272,7 +30656,7 @@ export interface components {
          */
         UpdateSurfaceRequest: {
             branding?: components["schemas"]["BrandingConfig"] | null;
-            channel?: components["schemas"]["ChannelType"] | null;
+            channel?: components["schemas"]["StoredChannelType"] | null;
             /** Completion Action Url */
             completion_action_url?: string | null;
             /** Completion Message */
@@ -31288,6 +31672,8 @@ export interface components {
             risk_summary?: {
                 [key: string]: unknown;
             } | null;
+            /** @description The call's safe exit, from its ``call.minimal_risk`` event. Null when the call didn't take it. */
+            safe_exit?: components["schemas"]["SafeExit"] | null;
             /** Safety */
             safety?: {
                 [key: string]: unknown;
@@ -31407,6 +31793,75 @@ export interface components {
              * @default 0
              */
             escalation_rate_today?: number;
+        };
+        /**
+         * VoiceQualityResponse
+         * @description What a caller experienced on one voice call, computed from its turn traces and call record.
+         *
+         *     A metric the call did not record is null, never 0.
+         */
+        VoiceQualityResponse: {
+            /**
+             * Abandoned
+             * @description The completion reason is abandoned, or the caller hung up without hearing any agent audio.
+             */
+            abandoned: boolean;
+            /**
+             * Call Date Utc
+             * @description UTC day the call was recorded.
+             */
+            call_date_utc?: string | null;
+            call_sid: components["schemas"]["NameString"];
+            completion_reason?: components["schemas"]["NameString"] | null;
+            /** Computed At */
+            computed_at?: string | null;
+            /**
+             * Duration Seconds
+             * @description Call duration from the call record.
+             */
+            duration_seconds?: number | null;
+            /**
+             * Ended By
+             * @description Who ended the call, read from the completion reason.
+             * @enum {string}
+             */
+            ended_by: "caller" | "agent" | "transfer" | "system" | "unknown";
+            /**
+             * Heard Initial Response
+             * @description Whether any agent audio reached the caller. Null when the call has no turn rows.
+             */
+            heard_initial_response?: boolean | null;
+            /**
+             * Longest Silence Ms
+             * @description The longest single stretch of that dead air.
+             */
+            longest_silence_ms?: number | null;
+            /**
+             * Pickup To First Audio Ms
+             * @description Pickup to the first agent audio sent, in ms. Null when no agent audio was sent.
+             */
+            pickup_to_first_audio_ms?: number | null;
+            /**
+             * Total Silence Ms
+             * @description Dead air the caller heard: pickup to first audio plus each measured wait.
+             */
+            total_silence_ms?: number | null;
+            /**
+             * Turn Count
+             * @description Caller turns whose wait is measured.
+             * @default 0
+             */
+            turn_count?: number;
+            /**
+             * Turn Latency P50 Ms
+             * @description Median wait a caller heard, from their line's end to the first filler or reply.
+             */
+            turn_latency_p50_ms?: number | null;
+            /**
+             * Turn Latency P95 Ms
+             * @description 95th percentile of the same waits.
+             */
+            turn_latency_p95_ms?: number | null;
         };
         /**
          * VoiceSettingsRequest
@@ -36774,6 +37229,54 @@ export interface operations {
             };
         };
     };
+    "get-call-voice-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceQualityResponse"];
+                };
+            };
+            /** @description No voice quality has been computed for this call in this workspace */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Analytics unavailable: the route couldn't read its data, so treat this 503 as no answer, not as zero. A 200 is always a measured answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsUnavailableResponse"];
+                };
+            };
+        };
+    };
     "get-call-eval-results": {
         parameters: {
             query?: never;
@@ -37702,6 +38205,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OpenerFailureResponse"];
                 };
+            };
+        };
+    };
+    update_conversation_tags_v1__workspace_id__conversations__conversation_id__tags_patch: {
+        parameters: {
+            query?: {
+                /** @description Set to ``playground`` when the developer console Playground changes the tags. Refused with 403 on a real conversation, one no Playground session or test credential started. */
+                source?: "playground" | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationTagsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationTagsResponse"];
+                };
+            };
+            /** @description An external user may not change a conversation's tags, and a Playground or test-credential session may not change a real conversation's */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conversation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request would leave the conversation with more than 20 tags */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -45680,6 +46234,59 @@ export interface operations {
             };
         };
     };
+    "get-recording-clip": {
+        parameters: {
+            query: {
+                /** @description Where the clip starts, in milliseconds from the start of the recording */
+                start_ms: number;
+                /** @description Where the clip ends, in milliseconds from the start of the recording */
+                end_ms: number;
+                /** @description ``inbound`` (the caller), ``outbound`` (the agent) or ``stereo`` (caller left, agent right) */
+                channel: "inbound" | "outbound" | "stereo";
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                call_sid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The clip as a WAV */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/wav": unknown;
+                };
+            };
+            /** @description The call has no recording on this channel */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The span runs past the end of the recording */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "list-role-grants": {
         parameters: {
             query?: {
@@ -52229,7 +52836,7 @@ export interface operations {
                     "application/json": components["schemas"]["TriggerResponse"];
                 };
             };
-            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls, or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
+            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for gemini_live, whose family is on the shared contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -52323,7 +52930,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls, or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
+            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for gemini_live, whose family is on the shared contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
             422: {
                 headers: {
                     [name: string]: unknown;
