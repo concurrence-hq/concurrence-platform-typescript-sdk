@@ -178,7 +178,7 @@ describe('ObserversResource.subscribe — URL building', () => {
 })
 
 describe('ObserversResource.subscribe — frame parsing', () => {
-  it('parses well-formed JSON frames into typed events', async () => {
+  it('preserves known and future event frames without interpreting their payloads', async () => {
     const events: ObserverSSEEvent[] = []
     const r = new ObserversResource(stubClient, 'ws-uuid', 'https://api.example.com')
     const handle = r.subscribe({
@@ -195,6 +195,16 @@ describe('ObserversResource.subscribe — frame parsing', () => {
     )
     expect(events).toHaveLength(1)
     expect(events[0]!.type).toBe('agent_transcript_delta')
+
+    const futureEvent = {
+      type: 'future_observation',
+      data: { status: 'unknown', value: null },
+      timestamp: 123,
+      seq: 7,
+    }
+    FakeWebSocket.instances[0]!.emit(JSON.stringify(futureEvent))
+    expect(events).toHaveLength(2)
+    expect(events[1]).toEqual(futureEvent)
 
     handle.close()
     await handle.done
