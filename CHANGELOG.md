@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.138.0] - 2026-11-06
+
+### Features
+
+- turn idempotency keys, createIdempotencyKey and acknowledgeTurnDelivery (#520)
+
+### Maintenance
+
+- sync API types from platform (18dc18cb) (#527)
+
 ## [0.137.0] - 2026-11-04
 
 ### Features
