@@ -1,0 +1,38 @@
+name: Tmp Generate
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [sync/18dc18cb]
+    paths: [.github/workflows/tmp-gen.yml, _v2_openapi.json]
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/sync-openapi.mjs --spec _v2_openapi.json
+      - run: rm _v2_openapi.json
+      - run: npm run gen-types
+      - run: npm run docs:api
+      - run: npx vitest run --project unit tests/type-snapshots.test.ts -u
+      - name: Typecheck report
+        continue-on-error: true
+        run: npm run typecheck 2>&1 | tee /tmp/tc.txt
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git reset -q .github/workflows/tmp-gen.yml
+          git status --short
+          git commit -m "chore: generated files" || echo nothing
+          git push origin HEAD:sync/18dc18cb
