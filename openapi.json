@@ -2941,6 +2941,22 @@
         "title": "BindingUpsertRequest",
         "type": "object"
       },
+      "BlocklistedNumberCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "cut",
+            "enum": [
+              "cut",
+              "off"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "BlocklistedNumberCheck",
+        "type": "object"
+      },
       "Body_upload_intake_file_v1__workspace_id__intake_files_post": {
         "properties": {
           "dataset": {
@@ -19831,6 +19847,12 @@
             "title": "Entities Updated",
             "type": "integer"
           },
+          "erased_resource_count": {
+            "default": 0,
+            "description": "Resources dropped because an erasure recorded their source key ({source_system}:{ResourceType}:{id}).",
+            "title": "Erased Resource Count",
+            "type": "integer"
+          },
           "error_count": {
             "default": 0,
             "title": "Error Count",
@@ -22989,6 +23011,29 @@
               }
             ],
             "title": "Reasoning Effort"
+          },
+          "replace": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxProperties": 100,
+                "minProperties": 1,
+                "propertyNames": {
+                  "maxLength": 100,
+                  "minLength": 1
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pronunciation replacements: a phrase the agent says mapped to how xAI speaks it. Matched case-insensitively on whole words, longest key first. Keys and values are stripped, and keys that differ only by case are refused. xAI changes the audio and not its transcript; the runtime applies the same map to the transcript before the output checks read it, so they judge what the caller hears. https://docs.x.ai/developers/model-capabilities/audio/speech-to-speech",
+            "title": "Replace"
           },
           "speed": {
             "anyOf": [
@@ -26372,6 +26417,189 @@
         "title": "MigrationConversationsResponse",
         "type": "object"
       },
+      "MigrationTextThread": {
+        "properties": {
+          "channel_kind": {
+            "const": "sms",
+            "title": "Channel Kind",
+            "type": "string"
+          },
+          "context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 8192,
+                  "type": "string"
+                }
+              ]
+            },
+            "maxProperties": 50,
+            "title": "Context",
+            "type": "object"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/PhoneE164"
+          },
+          "source_conversation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Conversation Id",
+            "type": "string"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/MigrationTextTurn"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Turns",
+            "type": "array"
+          },
+          "use_case_id": {
+            "format": "uuid",
+            "title": "Use Case Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel_kind",
+          "recipient",
+          "use_case_id",
+          "source_conversation_id",
+          "turns"
+        ],
+        "title": "MigrationTextThread",
+        "type": "object"
+      },
+      "MigrationTextThreadResult": {
+        "properties": {
+          "appended": {
+            "title": "Appended",
+            "type": "integer"
+          },
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "skipped_existing": {
+            "title": "Skipped Existing",
+            "type": "integer"
+          },
+          "source_conversation_id": {
+            "title": "Source Conversation Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "imported",
+              "conflict",
+              "out_of_order"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_conversation_id",
+          "conversation_id",
+          "appended",
+          "skipped_existing",
+          "status"
+        ],
+        "title": "MigrationTextThreadResult",
+        "type": "object"
+      },
+      "MigrationTextThreadsBody": {
+        "properties": {
+          "threads": {
+            "items": {
+              "$ref": "#/components/schemas/MigrationTextThread"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Threads",
+            "type": "array"
+          }
+        },
+        "required": [
+          "threads"
+        ],
+        "title": "MigrationTextThreadsBody",
+        "type": "object"
+      },
+      "MigrationTextThreadsResponse": {
+        "properties": {
+          "threads": {
+            "items": {
+              "$ref": "#/components/schemas/MigrationTextThreadResult"
+            },
+            "title": "Threads",
+            "type": "array"
+          }
+        },
+        "required": [
+          "threads"
+        ],
+        "title": "MigrationTextThreadsResponse",
+        "type": "object"
+      },
+      "MigrationTextTurn": {
+        "properties": {
+          "role": {
+            "enum": [
+              "user",
+              "agent",
+              "external_event"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "source_message_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Message Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_message_id",
+          "role",
+          "text",
+          "sent_at"
+        ],
+        "title": "MigrationTextTurn",
+        "type": "object"
+      },
       "MinimalRiskCompletedEvent": {
         "description": "How the safe exit ended.",
         "properties": {
@@ -29584,7 +29812,7 @@
         "type": "object"
       },
       "PatientListItem": {
-        "description": "Typed patient list item — replaces untyped dict.",
+        "description": "Typed patient list item.",
         "properties": {
           "birth_date": {
             "anyOf": [
@@ -37454,6 +37682,9 @@
       "ServiceOutputChecks": {
         "additionalProperties": false,
         "properties": {
+          "blocklisted_number": {
+            "$ref": "#/components/schemas/BlocklistedNumberCheck"
+          },
           "phi_unverified": {
             "$ref": "#/components/schemas/PhiUnverifiedCheck"
           }
@@ -37463,8 +37694,12 @@
       },
       "ServiceOutputChecksRequest": {
         "additionalProperties": false,
-        "description": "The reply checks a service sets. Only `phi_unverified` can be set.",
+        "description": "The reply checks a service sets: `phi_unverified` and `blocklisted_number`.",
         "properties": {
+          "blocklisted_number": {
+            "$ref": "#/components/schemas/BlocklistedNumberCheck",
+            "description": "`cut`, the default, stops a reply that speaks a number on the platform phone blocklist, and the caller hears\nthe no-confirmed-number correction in its place. `off` lets the reply speak it, for a test service. A listed\nnumber is still never dialed and is still refused as a destination."
+          },
           "phi_unverified": {
             "$ref": "#/components/schemas/PhiUnverifiedCheck",
             "description": "On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not\nverified, and the caller hears a correction in its place. `off`, the default, does not run the check."
@@ -83825,7 +84060,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut`, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` away from its default, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -94719,6 +94954,69 @@
         ]
       }
     },
+    "/v1/{workspace_id}/world/migration/text-threads": {
+      "post": {
+        "description": "For each sms thread, resolves or creates the active conversation an inbound reply from the recipient on the use case resolves to, under the service the use case is bound to, stores the context on it, and appends the v1 messages to its transcript in sent_at order (source v1_migration). A re-run appends only messages not yet imported. A thread whose conversation already holds a turn from the live v2 path is left alone and reported as conflict; one whose new message is older than its imported tail is left alone and reported as out_of_order. Recipient and use case are unique per batch. Sends no message and ends no session. Admin-only with platform:admin scope; at most 100 threads of 500 messages each.",
+        "operationId": "import-migration-text-threads",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationTextThreadsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationTextThreadsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "An entity_id that is not a person entity in this workspace."
+          },
+          "403": {
+            "description": "Insufficient permissions, or no platform:admin scope."
+          },
+          "404": {
+            "description": "A use case that is not bound to a service in this workspace."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import in-flight v1 text threads with their transcripts",
+        "tags": [
+          "World"
+        ]
+      }
+    },
     "/v1/{workspace_id}/world/search": {
       "get": {
         "description": "Enhanced entity search with type, source, and confidence filters.",
@@ -94753,6 +95051,7 @@
             "schema": {
               "anyOf": [
                 {
+                  "maxLength": 64,
                   "type": "string"
                 },
                 {
