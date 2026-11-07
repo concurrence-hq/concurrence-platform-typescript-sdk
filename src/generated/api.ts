@@ -5243,7 +5243,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set `output_checks.phi_unverified` to `cut`, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` away from its default, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -7960,6 +7960,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/world/migration/text-threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import in-flight v1 text threads with their transcripts
+         * @description For each sms thread, resolves or creates the active conversation an inbound reply from the recipient on the use case resolves to, under the service the use case is bound to, stores the context on it, and appends the v1 messages to its transcript in sent_at order (source v1_migration). A re-run appends only messages not yet imported. A thread whose conversation already holds a turn from the live v2 path is left alone and reported as conflict; one whose new message is older than its imported tail is left alone and reported as out_of_order. Recipient and use case are unique per batch. Sends no message and ends no session. Admin-only with platform:admin scope; at most 100 threads of 500 messages each.
+         */
+        post: operations["import-migration-text-threads"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/world/search": {
         parameters: {
             query?: never;
@@ -9362,6 +9382,15 @@ export interface components {
              * @deprecated
              */
             source?: string | null;
+        };
+        /** BlocklistedNumberCheck */
+        BlocklistedNumberCheck: {
+            /**
+             * Mode
+             * @default cut
+             * @enum {string}
+             */
+            mode?: "cut" | "off";
         };
         /** Body_upload_intake_file_v1__workspace_id__intake_files_post */
         Body_upload_intake_file_v1__workspace_id__intake_files_post: {
@@ -16502,6 +16531,12 @@ export interface components {
             /** Entities Updated */
             entities_updated: number;
             /**
+             * Erased Resource Count
+             * @description Resources dropped because an erasure recorded their source key ({source_system}:{ResourceType}:{id}).
+             * @default 0
+             */
+            erased_resource_count?: number;
+            /**
              * Error Count
              * @default 0
              */
@@ -17597,6 +17632,13 @@ export interface components {
             model?: "grok-voice-3.0" | null;
             /** Reasoning Effort */
             reasoning_effort?: ("none" | "high") | null;
+            /**
+             * Replace
+             * @description Pronunciation replacements: a phrase the agent says mapped to how xAI speaks it. Matched case-insensitively on whole words, longest key first. Keys and values are stripped, and keys that differ only by case are refused. xAI changes the audio and not its transcript; the runtime applies the same map to the transcript before the output checks read it, so they judge what the caller hears. https://docs.x.ai/developers/model-capabilities/audio/speech-to-speech
+             */
+            replace?: {
+                [key: string]: string;
+            } | null;
             /** Speed */
             speed?: number | null;
             /** Voice */
@@ -19177,6 +19219,76 @@ export interface components {
             /** Updated */
             updated: number;
         };
+        /** MigrationTextThread */
+        MigrationTextThread: {
+            /**
+             * Channel Kind
+             * @constant
+             */
+            channel_kind: "sms";
+            /** Context */
+            context?: {
+                [key: string]: number | string;
+            };
+            /** Entity Id */
+            entity_id?: string | null;
+            recipient: components["schemas"]["PhoneE164"];
+            /** Source Conversation Id */
+            source_conversation_id: string;
+            /** Turns */
+            turns: components["schemas"]["MigrationTextTurn"][];
+            /**
+             * Use Case Id
+             * Format: uuid
+             */
+            use_case_id: string;
+        };
+        /** MigrationTextThreadResult */
+        MigrationTextThreadResult: {
+            /** Appended */
+            appended: number;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /** Skipped Existing */
+            skipped_existing: number;
+            /** Source Conversation Id */
+            source_conversation_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "imported" | "conflict" | "out_of_order";
+        };
+        /** MigrationTextThreadsBody */
+        MigrationTextThreadsBody: {
+            /** Threads */
+            threads: components["schemas"]["MigrationTextThread"][];
+        };
+        /** MigrationTextThreadsResponse */
+        MigrationTextThreadsResponse: {
+            /** Threads */
+            threads: components["schemas"]["MigrationTextThreadResult"][];
+        };
+        /** MigrationTextTurn */
+        MigrationTextTurn: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "agent" | "external_event";
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /** Source Message Id */
+            source_message_id: string;
+            /** Text */
+            text: string;
+        };
         /**
          * MinimalRiskCompletedEvent
          * @description How the safe exit ended.
@@ -20619,7 +20731,7 @@ export interface components {
         };
         /**
          * PatientListItem
-         * @description Typed patient list item — replaces untyped dict.
+         * @description Typed patient list item.
          */
         PatientListItem: {
             /**
@@ -23904,13 +24016,20 @@ export interface components {
         };
         /** ServiceOutputChecks */
         ServiceOutputChecks: {
+            blocklisted_number?: components["schemas"]["BlocklistedNumberCheck"];
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
         };
         /**
          * ServiceOutputChecksRequest
-         * @description The reply checks a service sets. Only `phi_unverified` can be set.
+         * @description The reply checks a service sets: `phi_unverified` and `blocklisted_number`.
          */
         ServiceOutputChecksRequest: {
+            /**
+             * @description `cut`, the default, stops a reply that speaks a number on the platform phone blocklist, and the caller hears
+             *     the no-confirmed-number correction in its place. `off` lets the reply speak it, for a test service. A listed
+             *     number is still never dialed and is still refused as a destination.
+             */
+            blocklisted_number?: components["schemas"]["BlocklistedNumberCheck"];
             /**
              * @description On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not
              *     verified, and the caller hears a correction in its place. `off`, the default, does not run the check.
@@ -54831,6 +54950,62 @@ export interface operations {
             };
             /** @description Insufficient permissions. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "import-migration-text-threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrationTextThreadsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MigrationTextThreadsResponse"];
+                };
+            };
+            /** @description An entity_id that is not a person entity in this workspace. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions, or no platform:admin scope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A use case that is not bound to a service in this workspace. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

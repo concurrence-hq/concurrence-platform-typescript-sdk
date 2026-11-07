@@ -227,6 +227,7 @@ exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
   "get-workspace-usage-cost-models",
   "get-workspace-usage-cost-overview",
   "heal-surface-field",
+  "import-migration-text-threads",
   "import-staging-service-clone",
   "invoke-function",
   "invoke-operation-grant",

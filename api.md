@@ -337,6 +337,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `putEntityEnrichment`
 - `listEventTypes`
 - `importMigrationConversations`
+- `importMigrationTextThreads`
 
 ### `calls`
 
