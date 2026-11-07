@@ -6,6 +6,7 @@ import { mockFetch } from '../helpers/mock-fetch.js'
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
 let lastVoiceUpdateBody: unknown
+let lastSafetyUpdateBody: unknown
 
 const VOICE_SETTINGS_FIXTURE = {
   language: 'en',
@@ -77,10 +78,42 @@ const client = new AmigoClient({
 
     [`PUT ${BASE}/settings/retention`]: () =>
       Response.json({ ...RETENTION_FIXTURE, call_recordings_days: 180 }),
+
+    [`GET ${BASE}/settings/safety`]: () =>
+      Response.json({
+        output_checks: {
+          phi_unverified: { mode: 'off', source: 'platform' },
+          diagnosis: { mode: 'cut', source: 'workspace' },
+        },
+      }),
+
+    [`PUT ${BASE}/settings/safety`]: ({ body }) => {
+      lastSafetyUpdateBody = body
+      return Response.json({
+        output_checks: { diagnosis: { mode: 'off', source: 'workspace' } },
+      })
+    },
   }),
 })
 
 describe('SettingsResource', () => {
+  describe('safety', () => {
+    it('gets each reply check with its effective mode and source', async () => {
+      const result = await client.settings.safety.get()
+      expect(result.output_checks.diagnosis).toEqual({ mode: 'cut', source: 'workspace' })
+      expect(result.output_checks.phi_unverified?.source).toBe('platform')
+    })
+
+    it('updates the workspace defaults', async () => {
+      const body = {
+        output_checks: { diagnosis: 'off' },
+      } as Parameters<typeof client.settings.safety.update>[0]
+      const result = await client.settings.safety.update(body)
+      expect(lastSafetyUpdateBody).toEqual(body)
+      expect(result.output_checks.diagnosis?.mode).toBe('off')
+    })
+  })
+
   beforeEach(() => {
     lastVoiceUpdateBody = undefined
   })
