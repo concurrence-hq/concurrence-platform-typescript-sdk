@@ -255,6 +255,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `list`
 - `listAutoPaging`
 - `get`
+- `getSafety`
 - `update`
 - `planCreate`
 - `planUpdate`
@@ -507,6 +508,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `dataResidency.update`
 - `http.get`
 - `http.update`
+- `safety.get`
+- `safety.update`
 - `formTemplates.list`
 - `formTemplates.update`
 - `formTemplates.resolve`

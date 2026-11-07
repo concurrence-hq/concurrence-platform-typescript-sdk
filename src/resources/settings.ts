@@ -126,6 +126,26 @@ export class SettingsResource extends WorkspaceScopedResource {
       ),
   }
 
+  /**
+   * Workspace safety defaults. `get()` returns each reply check's effective
+   * mode and the layer it comes from (`platform`, `workspace` or `service`).
+   */
+  readonly safety = {
+    get: async () =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/settings/safety', {
+          params: { path: { workspace_id: this.workspaceId } },
+        }),
+      ),
+    update: async (body: components['schemas']['SafetySettingsRequest']) =>
+      extractData(
+        await this.client.PUT('/v1/{workspace_id}/settings/safety', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+  }
+
   readonly formTemplates = {
     /** List all form templates for a workspace. */
     list: async (

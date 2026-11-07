@@ -71,6 +71,11 @@ const client = new AmigoClient({
 
     [`GET ${BASE}/services/${SERVICE_ID}`]: () => Response.json(SERVICE_FIXTURE),
 
+    [`GET ${BASE}/services/${SERVICE_ID}/safety`]: () =>
+      Response.json({
+        output_checks: { dispatch_promise: { mode: 'count', source: 'service' } },
+      }),
+
     [`GET ${BASE}/services/not-found`]: () =>
       Response.json({ detail: 'Service not found', error_code: 'not_found' }, { status: 404 }),
 
@@ -92,6 +97,11 @@ describe('ServicesResource', () => {
   beforeEach(() => {
     lastCreateBody = undefined
     lastUpdateBody = undefined
+  })
+
+  it('gets the effective safety checks for a service', async () => {
+    const result = await client.services.getSafety(SERVICE_ID)
+    expect(result.output_checks.dispatch_promise).toEqual({ mode: 'count', source: 'service' })
   })
 
   it('creates a service', async () => {

@@ -68,6 +68,15 @@ export class ServicesResource extends WorkspaceScopedResource {
     )
   }
 
+  /** The reply checks a service runs, each with its effective mode and the layer it comes from. */
+  async getSafety(serviceId: ServiceId | string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/services/{service_id}/safety', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+      }),
+    )
+  }
+
   async update(serviceId: ServiceId | string, body: components['schemas']['UpdateServiceRequest']) {
     return extractData(
       await this.client.PUT('/v1/{workspace_id}/services/{service_id}', {

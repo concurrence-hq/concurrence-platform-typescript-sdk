@@ -5372,6 +5372,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/services/{service_id}/safety": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a service's effective safety checks
+         * @description Get the safety checks a service runs: every key's effective value and whether it comes from the platform
+         *     default, the workspace default or the service's own setting.
+         *
+         *     Permissions: `Service.view`.
+         */
+        get: operations["get-service-safety"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/services/{service_id}/staging-clone-preview": {
         parameters: {
             query?: never;
@@ -5823,6 +5846,39 @@ export interface paths {
          *     Permissions: admin, owner (``Workspace.update``).
          */
         put: operations["update-retention-policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/settings/safety": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get workspace safety defaults
+         * @description Get the workspace's safety defaults: every key with the value a service that sets nothing runs, and whether it
+         *     is the platform default or the workspace's own.
+         *
+         *     Permissions: authenticated (any role).
+         */
+        get: operations["get-safety-settings"];
+        /**
+         * Update workspace safety defaults
+         * @description Replace the workspace's safety defaults for the families sent.
+         *
+         *     A key the workspace names applies to every service in it that does not set the key itself, from the next call
+         *     or message. Any key can be set to `off`, which turns the check off. Each change to a key is audited as
+         *     `workspace.safety.output_checks.<key>.update`, with the old and new value.
+         *
+         *     Permissions: admin, owner.
+         */
+        put: operations["update-safety-settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -10575,6 +10631,15 @@ export interface components {
              */
             message: string;
         };
+        /** CheckerLabelCheck */
+        CheckerLabelCheck: {
+            /**
+             * Mode
+             * @default cut
+             * @enum {string}
+             */
+            mode?: "cut" | "count" | "off";
+        };
         /** ClaimMappingItem */
         ClaimMappingItem: {
             /** Changed By */
@@ -12681,8 +12746,8 @@ export interface components {
             medical_emergency_ending?: "stay_on_line" | "end_after_script";
             name: components["schemas"]["NameString"];
             /**
-             * @description Which reply checks run. Left out, `phi_unverified` is `off`. Setting it to anything but `off` needs
-             *     `Service.update`.
+             * @description Which reply checks run. A key left out inherits the workspace default (`GET /v1/{workspace_id}/settings/safety`),
+             *     and the platform default where the workspace sets none. Setting any key needs `Service.update`.
              */
             output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
@@ -19338,6 +19403,15 @@ export interface components {
              */
             type: "minimal_risk_started";
         };
+        /** MisspelledWordCheck */
+        MisspelledWordCheck: {
+            /**
+             * Mode
+             * @default cut
+             * @enum {string}
+             */
+            mode?: "cut" | "off";
+        };
         /**
          * ModelCost
          * @description Cost and pricing status for one model.
@@ -21334,6 +21408,8 @@ export interface components {
              * @description The keys of the reasons every forward_call names and the call records, empty when none.
              */
             transfer_reasons: components["schemas"]["ReadinessLabel"][];
+            /** Unsupported Language Route */
+            unsupported_language_route: boolean;
             /** Verification Callers Configured */
             verification_callers_configured: boolean;
             /** Warm Transfer */
@@ -23356,6 +23432,32 @@ export interface components {
              */
             readonly trigger_description: string;
         };
+        /**
+         * SafetySettingsRequest
+         * @description The workspace defaults to store. A family left out keeps what is stored.
+         */
+        SafetySettingsRequest: {
+            /**
+             * @description The workspace default reply checks. The block replaces the stored one: a key it names becomes the default for
+             *     every service that does not set it, and a key it leaves out inherits the platform default. `{}` clears them.
+             */
+            output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
+        };
+        /**
+         * SafetySettingsResponse
+         * @description Each safety key with its effective value and source.
+         */
+        SafetySettingsResponse: {
+            /**
+             * Output Checks
+             * @description The reply checks a voice call runs.
+             */
+            output_checks: {
+                [key: string]: components["schemas"]["SafetyValue"];
+            };
+        };
+        /** @enum {string} */
+        SafetySource: "platform" | "workspace" | "service";
         /** SafetyState */
         SafetyState: {
             /**
@@ -23398,6 +23500,19 @@ export interface components {
              * @default 0
              */
             match_count?: number;
+        };
+        /**
+         * SafetyValue
+         * @description One safety key's effective value and the layer it comes from.
+         */
+        SafetyValue: {
+            /**
+             * Mode
+             * @description The mode the check runs in. `off` means the check does not run.
+             */
+            mode: string;
+            /** @description `platform` (the default), `workspace` (the workspace default) or `service` (the service's override). */
+            source: components["schemas"]["SafetySource"];
         };
         /**
          * SaveFieldResponse
@@ -23855,12 +23970,19 @@ export interface components {
             fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours?: components["schemas"]["StaffedHours"] | null;
+            /**
+             * Receiver Classifier
+             * @default twilio_amd
+             * @enum {string}
+             */
+            receiver_classifier?: "twilio_amd" | "platform";
             /** Test Destinations */
             test_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
             /** Transfer Reasons */
             transfer_reasons?: components["schemas"]["TransferReason"][];
+            unsupported_language_destination?: components["schemas"]["DialE164"] | null;
             /** Verification Callers */
             verification_callers?: {
                 [key: string]: components["schemas"]["NameString"];
@@ -23921,12 +24043,19 @@ export interface components {
             fallback_to?: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours?: components["schemas"]["StaffedHours"] | null;
+            /**
+             * Receiver Classifier
+             * @default twilio_amd
+             * @enum {string}
+             */
+            receiver_classifier?: "twilio_amd" | "platform";
             /** Test Destinations */
             test_destinations?: {
                 [key: string]: components["schemas"]["NameString"];
             };
             /** Transfer Reasons */
             transfer_reasons?: components["schemas"]["TransferReason"][];
+            unsupported_language_destination?: components["schemas"]["DialE164"] | null;
             /** Verification Callers */
             verification_callers?: {
                 [key: string]: components["schemas"]["NameString"];
@@ -23972,12 +24101,19 @@ export interface components {
             fallback_to: components["schemas"]["DialE164"] | null;
             forward_to: components["schemas"]["DialE164"] | null;
             hours: components["schemas"]["StaffedHours"] | null;
+            /**
+             * Receiver Classifier
+             * @default twilio_amd
+             * @enum {string}
+             */
+            receiver_classifier: "twilio_amd" | "platform";
             /** Test Destinations */
             test_destinations: {
                 [key: string]: components["schemas"]["NameString"];
             };
             /** Transfer Reasons */
             transfer_reasons: components["schemas"]["TransferReason"][];
+            unsupported_language_destination: components["schemas"]["DialE164"] | null;
             /** Verification Callers */
             verification_callers: {
                 [key: string]: components["schemas"]["NameString"];
@@ -24017,22 +24153,47 @@ export interface components {
         /** ServiceOutputChecks */
         ServiceOutputChecks: {
             blocklisted_number?: components["schemas"]["BlocklistedNumberCheck"];
+            diagnosis?: components["schemas"]["CheckerLabelCheck"];
+            dispatch_promise?: components["schemas"]["CheckerLabelCheck"];
+            dosing_or_med_change?: components["schemas"]["CheckerLabelCheck"];
+            false_confirmation?: components["schemas"]["CheckerLabelCheck"];
+            misspelled_word?: components["schemas"]["MisspelledWordCheck"];
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
         };
         /**
          * ServiceOutputChecksRequest
-         * @description The reply checks a service sets: `phi_unverified` and `blocklisted_number`.
+         * @description The reply checks a service or a workspace sets. A key left out inherits: a service's from the workspace default,
+         *     the workspace's from the platform default. Every key can be set to `off`.
          */
         ServiceOutputChecksRequest: {
             /**
-             * @description `cut`, the default, stops a reply that speaks a number on the platform phone blocklist, and the caller hears
-             *     the no-confirmed-number correction in its place. `off` lets the reply speak it, for a test service. A listed
-             *     number is still never dialed and is still refused as a destination.
+             * @description `cut`, the platform default, stops a reply that speaks a number on the platform phone blocklist, and the caller
+             *     hears the no-confirmed-number correction in its place. `off` lets the reply speak it. A listed number is still
+             *     never dialed and is still refused as a destination.
              */
             blocklisted_number?: components["schemas"]["BlocklistedNumberCheck"];
+            /** @description A reply that says what is wrong with the caller, or that a symptom needs no care. `cut`, `count` or `off`. */
+            diagnosis?: components["schemas"]["CheckerLabelCheck"];
+            /** @description A reply that says emergency help is called, sent or on the way. `cut`, `count` or `off`. */
+            dispatch_promise?: components["schemas"]["CheckerLabelCheck"];
+            /**
+             * @description A reply that gives dosing advice or tells the caller to change a medication. `cut` (the platform default)
+             *     replaces it with a correction, `count` lets it play and counts it, `off` lets it play.
+             */
+            dosing_or_med_change?: components["schemas"]["CheckerLabelCheck"];
+            /**
+             * @description A reply that says a booking, message or other action is done when no write on the call backs it. `cut`,
+             *     `count` or `off`.
+             */
+            false_confirmation?: components["schemas"]["CheckerLabelCheck"];
+            /**
+             * @description `cut`, the platform default, stops a reply that spells back, letter by letter, a word close to but not the one
+             *     the caller just said. `off` lets the spelling play.
+             */
+            misspelled_word?: components["schemas"]["MisspelledWordCheck"];
             /**
              * @description On a voice call, `cut` stops a reply that reads something from a patient's record to a caller who has not
-             *     verified, and the caller hears a correction in its place. `off`, the default, does not run the check.
+             *     verified, and the caller hears a correction in its place. `off`, the platform default, does not run the check.
              */
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
         };
@@ -24182,8 +24343,8 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * @description The block with its defaults filled in. `phi_unverified` is the only key a service can set and the only one a
-             *     call reads, and it is `off` unless the service sets it to `cut`.
+             * @description The checks the service's calls run: its own block over the workspace defaults. Where each value comes from:
+             *     `GET /v1/{workspace_id}/services/{service_id}/safety`.
              */
             output_checks?: components["schemas"]["ServiceOutputChecks"];
             /**
@@ -25664,7 +25825,7 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Runs */
-            runs: components["schemas"]["src__routes__simulations__SimulationRunListResponse__Item"][];
+            runs: components["schemas"]["src__routes__simulations__runs__SimulationRunListResponse__Item"][];
             /**
              * Total
              * @description Runs that match the filters, across every page.
@@ -25813,7 +25974,7 @@ export interface components {
              * Sessions
              * @description Newest first.
              */
-            sessions: components["schemas"]["src__routes__simulations__SimulationSessionListResponse__Item"][];
+            sessions: components["schemas"]["src__routes__simulations__coverage__SimulationSessionListResponse__Item"][];
         };
         /** SimulationSessionResponse */
         SimulationSessionResponse: {
@@ -30634,9 +30795,9 @@ export interface components {
             name?: components["schemas"]["NameString"] | null;
             /**
              * Output Checks
-             * @description Which reply checks run. The block replaces what is stored, and `null` clears it back to the default block,
-             *     where `phi_unverified` is `off`. Leaving it out keeps what's stored. Takes effect for a call set up after the
-             *     update.
+             * @description Which reply checks run. The block replaces what is stored: a key it names overrides the workspace default and a
+             *     key it leaves out inherits it. `null` clears the block, so every key inherits. Leaving it out keeps what's stored.
+             *     Takes effect for a call set up after the update.
              */
             output_checks?: components["schemas"]["ServiceOutputChecksRequest"] | null;
             /**
@@ -33288,43 +33449,7 @@ export interface components {
         /** @enum {string} */
         src__routes__services___SortField: "name" | "created_at" | "updated_at";
         /** Item */
-        src__routes__simulations__SimulationRunListResponse__Item: {
-            /** Branch Name */
-            branch_name: string | null;
-            /** Completed At */
-            completed_at: string | null;
-            /** Created At */
-            created_at: string | null;
-            /**
-             * Error
-             * @description Failure reason saved by complete-run. Null unless status is failed, and null on
-             *     failed runs older than the column.
-             */
-            error: string | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Service Id
-             * Format: uuid
-             */
-            service_id: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "running" | "completed" | "failed";
-            /** Tags */
-            tags: string[];
-            /** Total Sessions */
-            total_sessions: number;
-            /** Total Turns */
-            total_turns: number;
-        };
-        /** Item */
-        src__routes__simulations__SimulationSessionListResponse__Item: {
+        src__routes__simulations__coverage__SimulationSessionListResponse__Item: {
             /** Created At */
             created_at: string | null;
             /** Fork Turn Index */
@@ -33362,6 +33487,42 @@ export interface components {
             tags: string[];
             /** Terminal Reached */
             terminal_reached: boolean;
+            /** Total Turns */
+            total_turns: number;
+        };
+        /** Item */
+        src__routes__simulations__runs__SimulationRunListResponse__Item: {
+            /** Branch Name */
+            branch_name: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Created At */
+            created_at: string | null;
+            /**
+             * Error
+             * @description Failure reason saved by complete-run. Null unless status is failed, and null on
+             *     failed runs older than the column.
+             */
+            error: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "completed" | "failed";
+            /** Tags */
+            tags: string[];
+            /** Total Sessions */
+            total_sessions: number;
             /** Total Turns */
             total_turns: number;
         };
@@ -47968,6 +48129,59 @@ export interface operations {
             };
         };
     };
+    "get-service-safety": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetySettingsResponse"];
+                };
+            };
+            /** @description Requires `Service.view` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "preview-staging-service-clone": {
         parameters: {
             query?: never;
@@ -48949,6 +49163,89 @@ export interface operations {
                 content?: never;
             };
             /** @description Validation error, including a null for a retention period or legal_hold, a legal hold turned on without a reason of its own, and a legal hold left on without a reason */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-safety-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetySettingsResponse"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "update-safety-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetySettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetySettingsResponse"];
+                };
+            };
+            /** @description Requires an admin or owner */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unknown key or mode */
             422: {
                 headers: {
                     [name: string]: unknown;
