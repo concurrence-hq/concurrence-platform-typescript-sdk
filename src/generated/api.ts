@@ -3917,6 +3917,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/metric-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search metric definitions
+         * @description Search the workspace's metric definitions, built-ins included unless ``include_builtin`` is false.
+         *
+         *     Permissions: authenticated (any role).
+         */
+        get: operations["list-metric-definitions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/metric-definitions/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a metric definition
+         * @description Get one metric definition with its latest revision.
+         *
+         *     Permissions: authenticated (any role).
+         */
+        get: operations["get-metric-definition"];
+        /**
+         * Create or replace a metric definition
+         * @description Create or replace one metric definition.
+         *
+         *     ``expected_revision`` is the revision the caller read (0 for a new key); a key at another revision is a 409
+         *     and nothing is saved. A built-in accepts changes to its override fields only (``active``,
+         *     ``freshness_sla_minutes``, ``id``, ``valid_range_min``, ``valid_range_max``, ``period_granularity``); any other
+         *     difference from the built-in is a 422.
+         *
+         *     Permissions: admin, owner.
+         */
+        put: operations["put-metric-definition"];
+        post?: never;
+        /**
+         * Delete a custom metric definition
+         * @description Delete a custom metric definition. Its results stay.
+         *
+         *     Permissions: admin, owner.
+         */
+        delete: operations["delete-metric-definition"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/metric-definitions/{key}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a metric definition's revisions
+         * @description A key's revisions, newest first, without their definitions.
+         *
+         *     Permissions: authenticated (any role).
+         */
+        get: operations["list-metric-definition-revisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/metric-definitions/{key}/revisions/{revision}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one revision of a metric definition
+         * @description One revision of a key, with the definition as saved (the removed one for a delete).
+         *
+         *     Permissions: authenticated (any role).
+         */
+        get: operations["get-metric-definition-revision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/metric-store/refresh": {
         parameters: {
             query?: never;
@@ -4943,7 +5048,7 @@ export interface paths {
         };
         /**
          * List runs (framework + conversation)
-         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Combines framework runs and conversation runs at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), ``source_conversation_id`` (the conversation a run came from), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.
+         * @description Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Combines framework runs and conversation runs at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), ``source_conversation_id`` (the conversation a run came from), ``entity_id``, ``tag`` (``key:value`` or ``key:*``), ``source`` (test / playground / production) and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set; ``tag`` and ``source`` exclude them too. ``continuation_token`` is an opaque page cursor.
          */
         get: operations["list_runs_v1__workspace_id__runs_get"];
         put?: never;
@@ -5360,7 +5465,7 @@ export interface paths {
          *     policy still decide which line is selected. This read does not place a call or verify human pickup. An unbound
          *     service has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.
          *     Family capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's
-         *     amigo default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback
+         *     concurrence default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback
          *     forwarding number; this is informational and the number is not returned.
          */
         get: operations["get-service-readiness"];
@@ -9558,7 +9663,7 @@ export interface components {
             /** Dynamic Behaviors Configured */
             dynamic_behaviors_configured: boolean;
             /** Family */
-            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Ignored Settings
              * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves.
@@ -11514,9 +11619,9 @@ export interface components {
             service_id?: string | null;
             /**
              * Session Provider
-             * @description The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
+             * @description The voice runtime that handled the conversation, as its session recorded it at start: `concurrence` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Source
              * @description What started the conversation. A text conversation reads ``test`` when a test key or the ``test`` marker started it, ``playground`` when the developer console Playground did, and null otherwise. A call reads the source its call intelligence recorded (``real``, ``simulation`` or ``playground``), and null when it recorded none, as a test call does.
@@ -13081,6 +13186,8 @@ export interface components {
             name: components["schemas"]["NameString"];
             /** Schedule */
             schedule?: string | null;
+            /** @description Event triggers only: fire once count matching events arrive within window_minutes, then hold off for cooldown_minutes. Omitted, the trigger fires on every matching event. Refused on a cron trigger. */
+            threshold?: components["schemas"]["TriggerThreshold"] | null;
             /**
              * Timezone
              * @default UTC
@@ -16446,7 +16553,7 @@ export interface components {
              * Id
              * @enum {string}
              */
-            id: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
+            id: "concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
             /** Legacy Keys */
             legacy_keys: "realtime_voice"[];
             /** Models */
@@ -16469,7 +16576,7 @@ export interface components {
             /** Dynamic Behaviors Configured */
             dynamic_behaviors_configured: boolean;
             /** Family */
-            family: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Ignored Settings
              * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves.
@@ -19175,6 +19282,90 @@ export interface components {
              */
             valid_range_min?: number | null;
         };
+        /** MetricDefinitionItem */
+        MetricDefinitionItem: {
+            definition: components["schemas"]["MetricDefinition"];
+            /**
+             * Revision
+             * @description The latest revision of the key; 0 when it has none.
+             */
+            revision: number;
+            /**
+             * Transform Kind
+             * @description Read-only: ``scalar`` for a per-entity metric, ``non_scalar`` for an aggregate one.
+             * @enum {string}
+             */
+            readonly transform_kind: "scalar" | "non_scalar";
+            /**
+             * Updated At
+             * @description When the latest revision was made; null when the key has none.
+             */
+            updated_at: string | null;
+        };
+        /** MetricDefinitionListResponse */
+        MetricDefinitionListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["MetricDefinitionItem"][];
+        };
+        /** MetricDefinitionRevision */
+        MetricDefinitionRevision: {
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "created" | "updated" | "deleted";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Credential Id */
+            created_by_credential_id: string | null;
+            /** Definition Version */
+            definition_version: string;
+            /** Note */
+            note: string | null;
+            /** Revision */
+            revision: number;
+        };
+        /** MetricDefinitionRevisionDetail */
+        MetricDefinitionRevisionDetail: {
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "created" | "updated" | "deleted";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Credential Id */
+            created_by_credential_id: string | null;
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+            /** Definition Version */
+            definition_version: string;
+            /** Note */
+            note: string | null;
+            /** Revision */
+            revision: number;
+        };
+        /** MetricDefinitionRevisionListResponse */
+        MetricDefinitionRevisionListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["MetricDefinitionRevision"][];
+        };
         /** MetricListResponse */
         MetricListResponse: {
             /** Metrics */
@@ -21832,6 +22023,17 @@ export interface components {
         ProvisionResponse: {
             workspace: components["schemas"]["WorkspaceResponse"];
         };
+        /** PutMetricDefinitionRequest */
+        PutMetricDefinitionRequest: {
+            definition: components["schemas"]["MetricDefinition"];
+            /**
+             * Expected Revision
+             * @description The revision the caller read; 0 for a key with none.
+             */
+            expected_revision: number;
+            /** Note */
+            note?: string | null;
+        };
         /**
          * QualityBreakdown
          * @description Structured breakdown of how quality score was computed.
@@ -22852,12 +23054,12 @@ export interface components {
             service_name?: string | null;
             /**
              * Session Provider
-             * @description The voice runtime that handled the run, as its session recorded it at start: ``amigo``
+             * @description The voice runtime that handled the run, as its session recorded it at start: ``concurrence``
              *     (also every text run) or ``gpt_realtime``. Null on a run recorded before the platform kept
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Source
              * @description What started the run's conversation: ``test`` when a test key or the ``test`` marker did, ``playground``
@@ -22881,6 +23083,12 @@ export interface components {
              * @enum {string}
              */
             status: "running" | "paused" | "dormant" | "completed" | "failed" | "timed_out";
+            /**
+             * Tags
+             * @description The labels an app put on the run's conversation, ordered by key. Empty on a conversation with none,
+             *     on a framework run, and on a live call before its row exists.
+             */
+            tags?: components["schemas"]["RunTag"][];
             /**
              * @description Channel-neutral takeover eligibility, derived from this run's own fields.
              *
@@ -23277,6 +23485,16 @@ export interface components {
              * Format: uuid
              */
             run_id: string;
+        };
+        /**
+         * RunTag
+         * @description One of an app's own labels on a conversation: a key and an optional value (null for a bare label).
+         */
+        RunTag: {
+            /** Key */
+            key: string;
+            /** Value */
+            value?: string | null;
         };
         /** RunTakeoverRequest */
         RunTakeoverRequest: {
@@ -23953,8 +24171,8 @@ export interface components {
          *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
          *     hours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps
          *     hours of its own in ``destination_hours``.
-         *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the
-         *     ``transfer_reasons`` each of its transfers names and the call records.
+         *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials. A service
+         *     in either mode can list the ``transfer_reasons`` each of its transfers names and the call records.
          */
         "ServiceForwardingConfig-Input": {
             after_hours_destination?: components["schemas"]["DialE164"] | null;
@@ -24026,8 +24244,8 @@ export interface components {
          *     ``hours`` is none either: on a dynamic service, a transfer outside its staffed
          *     hours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps
          *     hours of its own in ``destination_hours``.
-         *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the
-         *     ``transfer_reasons`` each of its transfers names and the call records.
+         *     A dynamic service can also name a ``default_destination``, the line a transfer that names none dials. A service
+         *     in either mode can list the ``transfer_reasons`` each of its transfers names and the call records.
          */
         "ServiceForwardingConfig-Output": {
             after_hours_destination?: components["schemas"]["DialE164"] | null;
@@ -24511,7 +24729,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -24610,7 +24828,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -26639,6 +26857,8 @@ export interface components {
             tool_spec_category: string;
         };
         SlugString: string;
+        /** @enum {string} */
+        SortField: "key" | "updated_at";
         /** SourceBreakdownItem */
         SourceBreakdownItem: {
             /** Count */
@@ -29758,7 +29978,7 @@ export interface components {
         };
         /**
          * TransferReason
-         * @description One reason a dynamic service's transfers name (``ServiceForwardingConfig.transfer_reasons``).
+         * @description One reason a service's transfers name (``ServiceForwardingConfig.transfer_reasons``).
          */
         TransferReason: {
             description: components["schemas"]["DescriptionString"];
@@ -29916,6 +30136,8 @@ export interface components {
              * @description Cron schedule expression (e.g. '0 9 * * 1-5')
              */
             schedule?: string | null;
+            /** @description How many matching events fire the trigger, and within what window; null fires on every one */
+            threshold?: components["schemas"]["TriggerThreshold"] | null;
             /**
              * Timezone
              * @description IANA timezone for schedule evaluation
@@ -30037,6 +30259,22 @@ export interface components {
             workspace_id: string;
         };
         /**
+         * TriggerThreshold
+         * @description How many matching events an event trigger waits for before it fires: ``count`` of them inside the last
+         *     ``window_minutes``. Once it fires, it holds off for ``cooldown_minutes`` however many more arrive.
+         */
+        TriggerThreshold: {
+            /**
+             * Cooldown Minutes
+             * @default 60
+             */
+            cooldown_minutes?: number;
+            /** Count */
+            count: number;
+            /** Window Minutes */
+            window_minutes: number;
+        };
+        /**
          * TriggerableEvent
          * @description Closed set of world events that trigger definitions may subscribe to.
          *
@@ -30045,7 +30283,7 @@ export interface components {
          *     not silently create never-matching triggers.
          * @enum {string}
          */
-        TriggerableEvent: "amigo.trigger.cron" | "appointment.booked" | "appointment.cancelled" | "appointment.confirmed" | "booking.requested" | "call.ended" | "call.intelligence" | "call.outcome" | "channel.message.received" | "conversation.channel_switched" | "conversation.started" | "conversation.turn_recorded" | "coverage.created" | "entity.enriched" | "entity.resolved" | "medication.refill_requested" | "outbound.initiated" | "outbound.scheduled" | "patient.created" | "patient.updated" | "relationship.established" | "review.approve" | "review.correct" | "review.reject" | "surface.created" | "surface.submitted" | "ticket.created" | "triage.completed" | "trigger.completed" | "trigger.failed" | "trigger.fired";
+        TriggerableEvent: "amigo.trigger.cron" | "appointment.booked" | "appointment.cancelled" | "appointment.confirmed" | "booking.requested" | "call.ended" | "call.failure_signal" | "call.intelligence" | "call.outcome" | "channel.message.received" | "conversation.channel_switched" | "conversation.started" | "conversation.turn_recorded" | "coverage.created" | "entity.enriched" | "entity.resolved" | "medication.refill_requested" | "outbound.initiated" | "outbound.scheduled" | "patient.created" | "patient.updated" | "relationship.established" | "review.approve" | "review.correct" | "review.reject" | "surface.created" | "surface.submitted" | "ticket.created" | "triage.completed" | "trigger.completed" | "trigger.failed" | "trigger.fired";
         /** Turn */
         Turn: {
             /** Agent Action */
@@ -30971,6 +31209,8 @@ export interface components {
             name?: components["schemas"]["NameString"] | null;
             /** Schedule */
             schedule?: string | null;
+            /** @description Event triggers only: replaces the trigger's threshold, and an explicit null clears it, so the trigger fires on every matching event again. Refused on a cron trigger, or with a schedule. */
+            threshold?: components["schemas"]["TriggerThreshold"] | null;
             /** Timezone */
             timezone?: string | null;
         };
@@ -31841,7 +32081,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
              * Similarity Boost
              * @default 0
@@ -44488,6 +44728,300 @@ export interface operations {
             };
         };
     };
+    "list-metric-definitions": {
+        parameters: {
+            query?: {
+                sort_by?: string[];
+                /** @description Case-insensitive substring of the key, name or description. */
+                query?: components["schemas"]["SearchString"] | null;
+                tag?: components["schemas"]["SearchString"] | null;
+                /** @description Keep the definitions that apply to this service's product types (its tag keys), or to every service. */
+                service_id?: string | null;
+                include_builtin?: boolean;
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricDefinitionListResponse"];
+                };
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-metric-definition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricDefinitionItem"];
+                };
+            };
+            /** @description Metric not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "put-metric-definition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutMetricDefinitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricDefinitionItem"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key is at another revision than expected_revision */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "delete-metric-definition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Metric not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The metric changed while it was being deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A built-in metric can't be deleted */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "list-metric-definition-revisions": {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricDefinitionRevisionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-metric-definition-revision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                key: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricDefinitionRevisionDetail"];
+                };
+            };
+            /** @description Revision not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     refresh_metric_store_v1__workspace_id__metric_store_refresh_post: {
         parameters: {
             query?: never;
@@ -46736,6 +47270,12 @@ export interface operations {
                 search?: components["schemas"]["SearchString"] | null;
                 /** @description Filter by up to 100 conversation IDs, matching each run's ``source_conversation_id``, such as the conversation a Playground session ran. A run with no source conversation (a framework run, or a live call before its conversation is recorded) is excluded. Repeated values are ORed; combines with other filters using AND. */
                 source_conversation_id?: string[];
+                /** @description Filter conversation and framework runs by up to 100 entity IDs. Live voice runs carry no entity and are excluded. Repeated values are ORed; combines with other filters using AND. */
+                entity_id?: string[];
+                /** @description Filter conversation runs by up to 20 tags of at most 321 characters, each ``key:value`` or ``key:*`` (the key at any value, a bare label included). The key ends at the first colon, so a tag whose key contains a colon cannot be filtered. Framework runs and live voice runs carry no tags and are excluded. Repeated values of one key are ORed, different keys are ANDed; combines with other filters using AND. */
+                tag?: string[];
+                /** @description Filter conversation runs by what started them: ``test`` (a test key), ``playground`` (the developer console Playground) or ``production`` (neither). Framework runs carry no source and are excluded; a live voice run is production. Repeated values are ORed; combines with other filters using AND. */
+                source?: ("test" | "playground" | "production")[];
             };
             header?: never;
             path: {
@@ -54128,7 +54668,7 @@ export interface operations {
             header?: never;
             path: {
                 workspace_id: string;
-                family: "amigo" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
+                family: "concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
             };
             cookie?: never;
         };

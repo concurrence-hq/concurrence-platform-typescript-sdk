@@ -474,6 +474,12 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getCatalog`
 - `getValues`
 - `getTrend`
+- `definitions.list`
+- `definitions.get`
+- `definitions.put`
+- `definitions.delete`
+- `definitions.listRevisions`
+- `definitions.getRevision`
 
 ### `voiceFamilies`
 
