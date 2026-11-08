@@ -619,7 +619,7 @@ const version = await client.agents.createVersion(agent.id, {
   },
   voice_config: {
     voice_id: 'voice-abc123',
-    session_provider: 'inhouse' satisfies VoiceSessionProvider,
+    session_provider: 'concurrence' satisfies VoiceSessionProvider,
   },
 })
 
@@ -669,7 +669,7 @@ console.log(service.agent_name, service.channel_type, service.version_sets)
 await client.services.update(service.id, {
   voice_config: {
     ...(service.voice_config ?? {}),
-    session_provider: 'inhouse' satisfies VoiceSessionProvider,
+    session_provider: 'concurrence' satisfies VoiceSessionProvider,
   },
 })
 

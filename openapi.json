@@ -3275,7 +3275,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -8324,7 +8324,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -8338,7 +8338,7 @@
                 "type": "null"
               }
             ],
-            "description": "The voice runtime that handled the conversation, as its session recorded it at start: `amigo` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.",
+            "description": "The voice runtime that handled the conversation, as its session recorded it at start: `concurrence` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.",
             "title": "Session Provider"
           },
           "source": {
@@ -12036,6 +12036,17 @@
               }
             ],
             "title": "Schedule"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriggerThreshold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event triggers only: fire once count matching events arrive within window_minutes, then hold off for cooldown_minutes. Omitted, the trigger fires on every matching event. Refused on a cron trigger."
           },
           "timezone": {
             "default": "UTC",
@@ -19398,7 +19409,7 @@
           },
           "id": {
             "enum": [
-              "amigo",
+              "concurrence",
               "gpt_realtime",
               "eleven_realtime",
               "gpt_live",
@@ -19494,7 +19505,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -26148,6 +26159,221 @@
         "title": "MetricDefinition",
         "type": "object"
       },
+      "MetricDefinitionItem": {
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/MetricDefinition"
+          },
+          "revision": {
+            "description": "The latest revision of the key; 0 when it has none.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "transform_kind": {
+            "description": "Read-only: ``scalar`` for a per-entity metric, ``non_scalar`` for an aggregate one.",
+            "enum": [
+              "scalar",
+              "non_scalar"
+            ],
+            "readOnly": true,
+            "title": "Transform Kind",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the latest revision was made; null when the key has none.",
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "definition",
+          "revision",
+          "updated_at",
+          "transform_kind"
+        ],
+        "title": "MetricDefinitionItem",
+        "type": "object"
+      },
+      "MetricDefinitionListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MetricDefinitionItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "MetricDefinitionListResponse",
+        "type": "object"
+      },
+      "MetricDefinitionRevision": {
+        "properties": {
+          "change": {
+            "enum": [
+              "created",
+              "updated",
+              "deleted"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_credential_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Credential Id"
+          },
+          "definition_version": {
+            "title": "Definition Version",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "definition_version",
+          "change",
+          "note",
+          "created_by_credential_id",
+          "created_at"
+        ],
+        "title": "MetricDefinitionRevision",
+        "type": "object"
+      },
+      "MetricDefinitionRevisionDetail": {
+        "properties": {
+          "change": {
+            "enum": [
+              "created",
+              "updated",
+              "deleted"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_credential_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Credential Id"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "definition_version": {
+            "title": "Definition Version",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "definition_version",
+          "change",
+          "note",
+          "created_by_credential_id",
+          "created_at",
+          "definition"
+        ],
+        "title": "MetricDefinitionRevisionDetail",
+        "type": "object"
+      },
+      "MetricDefinitionRevisionListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MetricDefinitionRevision"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "MetricDefinitionRevisionListResponse",
+        "type": "object"
+      },
       "MetricListResponse": {
         "properties": {
           "metrics": {
@@ -32630,6 +32856,37 @@
         "title": "ProvisionResponse",
         "type": "object"
       },
+      "PutMetricDefinitionRequest": {
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/MetricDefinition"
+          },
+          "expected_revision": {
+            "description": "The revision the caller read; 0 for a key with none.",
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "definition",
+          "expected_revision"
+        ],
+        "title": "PutMetricDefinitionRequest",
+        "type": "object"
+      },
       "QualityBreakdown": {
         "description": "Structured breakdown of how quality score was computed.",
         "properties": {
@@ -34990,7 +35247,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -35004,7 +35261,7 @@
                 "type": "null"
               }
             ],
-            "description": "The voice runtime that handled the run, as its session recorded it at start: ``amigo``\n(also every text run) or ``gpt_realtime``. Null on a run recorded before the platform kept\nit, on a text conversation before its first session starts, and on a framework run. A live\nin-house call reports it before its row exists.",
+            "description": "The voice runtime that handled the run, as its session recorded it at start: ``concurrence``\n(also every text run) or ``gpt_realtime``. Null on a run recorded before the platform kept\nit, on a text conversation before its first session starts, and on a framework run. A live\nin-house call reports it before its row exists.",
             "title": "Session Provider"
           },
           "source": {
@@ -35070,6 +35327,14 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "tags": {
+            "description": "The labels an app put on the run's conversation, ordered by key. Empty on a conversation with none,\non a framework run, and on a live call before its row exists.",
+            "items": {
+              "$ref": "#/components/schemas/RunTag"
+            },
+            "title": "Tags",
+            "type": "array"
           },
           "takeover": {
             "$ref": "#/components/schemas/TakeoverEligibility",
@@ -36005,6 +36270,31 @@
           "mode"
         ],
         "title": "RunSwitchModeResponse",
+        "type": "object"
+      },
+      "RunTag": {
+        "description": "One of an app's own labels on a conversation: a key and an optional value (null for a bare label).",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "RunTag",
         "type": "object"
       },
       "RunTakeoverRequest": {
@@ -37329,7 +37619,7 @@
         "type": "object"
       },
       "ServiceForwardingConfig-Input": {
-        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps\nhours of its own in ``destination_hours``.\nA dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the\n``transfer_reasons`` each of its transfers names and the call records.",
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps\nhours of its own in ``destination_hours``.\nA dynamic service can also name a ``default_destination``, the line a transfer that names none dials. A service\nin either mode can list the ``transfer_reasons`` each of its transfers names and the call records.",
         "properties": {
           "after_hours_destination": {
             "anyOf": [
@@ -37491,7 +37781,7 @@
         "type": "object"
       },
       "ServiceForwardingConfig-Output": {
-        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps\nhours of its own in ``destination_hours``.\nA dynamic service can also name a ``default_destination``, the line a transfer that names none dials, and the\n``transfer_reasons`` each of its transfers names and the call records.",
+        "description": "Per-service call-forwarding destination + transfer mechanism.\n\nThis block gates the ``forward_call`` tool: None means the agent cannot\ntransfer at all. When present, ``forward_to`` picks the destination mode,\nand the tool schema follows it — a static service gets an argument-less\ntool, a dynamic one gets a required ``phone_number`` that must be one of\n``approved_destinations`` (none approved means no tool). Nothing cascades:\na service is one mode or the other. ``fallback_to`` is no mode: it is the\nline the safe exit dials, in either, and ``forward_call`` never offers it.\nA call tagged as a test reaches only ``test_destinations``, in either mode, unless\nits caller is one of ``verification_callers``.\n``hours`` is none either: on a dynamic service, a transfer outside its staffed\nhours dials ``after_hours_destination`` whichever approved line was asked for, unless that line keeps\nhours of its own in ``destination_hours``.\nA dynamic service can also name a ``default_destination``, the line a transfer that names none dials. A service\nin either mode can list the ``transfer_reasons`` each of its transfers names and the call records.",
         "properties": {
           "after_hours_destination": {
             "anyOf": [
@@ -38727,7 +39017,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -39135,7 +39425,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -43521,6 +43811,13 @@
         "maxLength": 63,
         "minLength": 2,
         "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        "type": "string"
+      },
+      "SortField": {
+        "enum": [
+          "key",
+          "updated_at"
+        ],
         "type": "string"
       },
       "SourceBreakdownItem": {
@@ -50196,7 +50493,7 @@
       },
       "TransferReason": {
         "additionalProperties": false,
-        "description": "One reason a dynamic service's transfers name (``ServiceForwardingConfig.transfer_reasons``).",
+        "description": "One reason a service's transfers name (``ServiceForwardingConfig.transfer_reasons``).",
         "properties": {
           "description": {
             "$ref": "#/components/schemas/DescriptionString",
@@ -50483,6 +50780,17 @@
             "description": "Cron schedule expression (e.g. '0 9 * * 1-5')",
             "title": "Schedule"
           },
+          "threshold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriggerThreshold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many matching events fire the trigger, and within what window; null fires on every one"
+          },
           "timezone": {
             "description": "IANA timezone for schedule evaluation",
             "title": "Timezone",
@@ -50709,6 +51017,37 @@
         "title": "TriggerRunResponse",
         "type": "object"
       },
+      "TriggerThreshold": {
+        "additionalProperties": false,
+        "description": "How many matching events an event trigger waits for before it fires: ``count`` of them inside the last\n``window_minutes``. Once it fires, it holds off for ``cooldown_minutes`` however many more arrive.",
+        "properties": {
+          "cooldown_minutes": {
+            "default": 60,
+            "maximum": 1440,
+            "minimum": 1,
+            "title": "Cooldown Minutes",
+            "type": "integer"
+          },
+          "count": {
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "window_minutes": {
+            "maximum": 1440,
+            "minimum": 1,
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "window_minutes"
+        ],
+        "title": "TriggerThreshold",
+        "type": "object"
+      },
       "TriggerableEvent": {
         "description": "Closed set of world events that trigger definitions may subscribe to.\n\nThe database column intentionally remains text for compatibility with old\nrows, but API writes must choose from this list so typoed event names do\nnot silently create never-matching triggers.",
         "enum": [
@@ -50718,6 +51057,7 @@
           "appointment.confirmed",
           "booking.requested",
           "call.ended",
+          "call.failure_signal",
           "call.intelligence",
           "call.outcome",
           "channel.message.received",
@@ -53746,6 +54086,17 @@
             ],
             "title": "Schedule"
           },
+          "threshold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriggerThreshold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event triggers only: replaces the trigger's threshold, and an explicit null clears it, so the trigger fires on every matching event again. Refused on a cron trigger, or with a schedule."
+          },
           "timezone": {
             "anyOf": [
               {
@@ -55654,7 +56005,7 @@
             "anyOf": [
               {
                 "enum": [
-                  "amigo",
+                  "concurrence",
                   "gpt_realtime",
                   "eleven_realtime",
                   "gpt_live",
@@ -78260,6 +78611,475 @@
         ]
       }
     },
+    "/v1/{workspace_id}/metric-definitions": {
+      "get": {
+        "description": "Search the workspace's metric definitions, built-ins included unless ``include_builtin`` is false.\n\nPermissions: authenticated (any role).",
+        "operationId": "list-metric-definitions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Sort By",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Case-insensitive substring of the key, name or description.",
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SearchString"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive substring of the key, name or description.",
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SearchString"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "description": "Keep the definitions that apply to this service's product types (its tag keys), or to every service.",
+            "in": "query",
+            "name": "service_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep the definitions that apply to this service's product types (its tag keys), or to every service.",
+              "title": "Service Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_builtin",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Builtin",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricDefinitionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Service not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Search metric definitions",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/metric-definitions/{key}": {
+      "delete": {
+        "description": "Delete a custom metric definition. Its results stay.\n\nPermissions: admin, owner.",
+        "operationId": "delete-metric-definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Metric not found"
+          },
+          "409": {
+            "description": "The metric changed while it was being deleted"
+          },
+          "422": {
+            "description": "A built-in metric can't be deleted"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Delete a custom metric definition",
+        "tags": [
+          "Metrics"
+        ]
+      },
+      "get": {
+        "description": "Get one metric definition with its latest revision.\n\nPermissions: authenticated (any role).",
+        "operationId": "get-metric-definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricDefinitionItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Metric not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Get a metric definition",
+        "tags": [
+          "Metrics"
+        ]
+      },
+      "put": {
+        "description": "Create or replace one metric definition.\n\n``expected_revision`` is the revision the caller read (0 for a new key); a key at another revision is a 409\nand nothing is saved. A built-in accepts changes to its override fields only (``active``,\n``freshness_sla_minutes``, ``id``, ``valid_range_min``, ``valid_range_max``, ``period_granularity``); any other\ndifference from the built-in is a 422.\n\nPermissions: admin, owner.",
+        "operationId": "put-metric-definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutMetricDefinitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricDefinitionItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Workspace not found"
+          },
+          "409": {
+            "description": "The key is at another revision than expected_revision"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Create or replace a metric definition",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/metric-definitions/{key}/revisions": {
+      "get": {
+        "description": "A key's revisions, newest first, without their definitions.\n\nPermissions: authenticated (any role).",
+        "operationId": "list-metric-definition-revisions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricDefinitionRevisionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "List a metric definition's revisions",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/metric-definitions/{key}/revisions/{revision}": {
+      "get": {
+        "description": "One revision of a key, with the definition as saved (the removed one for a delete).\n\nPermissions: authenticated (any role).",
+        "operationId": "get-metric-definition-revision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricDefinitionRevisionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Revision not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "summary": "Get one revision of a metric definition",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
     "/v1/{workspace_id}/metric-store/refresh": {
       "post": {
         "deprecated": true,
@@ -82752,7 +83572,7 @@
     },
     "/v1/{workspace_id}/runs": {
       "get": {
-        "description": "Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Combines framework runs and conversation runs at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), ``source_conversation_id`` (the conversation a run came from), and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set. ``continuation_token`` is an opaque page cursor.",
+        "description": "Paginated, newest-first list of runs for the workspace behind the unified ``Run`` contract. Combines framework runs and conversation runs at read time. Filter by ``kind`` (conversation / framework), ``channel`` (voice/sms/whatsapp/email/web/imessage — conversation runs only), ``status`` (``live`` expands to running + paused), ``service_id`` (service UUIDs), ``source_conversation_id`` (the conversation a run came from), ``entity_id``, ``tag`` (``key:value`` or ``key:*``), ``source`` (test / playground / production) and ``search`` (entity name, caller ID or phone number). Repeated filter values are ORed within each axis; axes combine with AND. Service filtering applies to conversation and live voice runs before pagination. Historical framework runs have no stored service attribution and are excluded when service_id is set; ``tag`` and ``source`` exclude them too. ``continuation_token`` is an opaque page cursor.",
         "operationId": "list_runs_v1__workspace_id__runs_get",
         "parameters": [
           {
@@ -82907,6 +83727,59 @@
               },
               "maxItems": 100,
               "title": "Source Conversation Id",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Filter conversation and framework runs by up to 100 entity IDs. Live voice runs carry no entity and are excluded. Repeated values are ORed; combines with other filters using AND.",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Filter conversation and framework runs by up to 100 entity IDs. Live voice runs carry no entity and are excluded. Repeated values are ORed; combines with other filters using AND.",
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "title": "Entity Id",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Filter conversation runs by up to 20 tags of at most 321 characters, each ``key:value`` or ``key:*`` (the key at any value, a bare label included). The key ends at the first colon, so a tag whose key contains a colon cannot be filtered. Framework runs and live voice runs carry no tags and are excluded. Repeated values of one key are ORed, different keys are ANDed; combines with other filters using AND.",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Filter conversation runs by up to 20 tags of at most 321 characters, each ``key:value`` or ``key:*`` (the key at any value, a bare label included). The key ends at the first colon, so a tag whose key contains a colon cannot be filtered. Framework runs and live voice runs carry no tags and are excluded. Repeated values of one key are ORed, different keys are ANDed; combines with other filters using AND.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "title": "Tag",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Filter conversation runs by what started them: ``test`` (a test key), ``playground`` (the developer console Playground) or ``production`` (neither). Framework runs carry no source and are excluded; a live voice run is production. Repeated values are ORed; combines with other filters using AND.",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Filter conversation runs by what started them: ``test`` (a test key), ``playground`` (the developer console Playground) or ``production`` (neither). Framework runs carry no source and are excluded; a live voice run is production. Repeated values are ORed; combines with other filters using AND.",
+              "items": {
+                "enum": [
+                  "test",
+                  "playground",
+                  "production"
+                ],
+                "type": "string"
+              },
+              "title": "Source",
               "type": "array"
             }
           }
@@ -84725,7 +85598,7 @@
     },
     "/v1/{workspace_id}/services/{service_id}/readiness": {
       "get": {
-        "description": "Read current configuration and uncached dial eligibility using service read permission.\n\nLabels have all digits redacted. No phone numbers, identifiers or authored speech are returned. The one model version is the effective realtime model of a gpt_realtime release.\nA listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call\npolicy still decide which line is selected. This read does not place a call or verify human pickup. An unbound\nservice has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.\nFamily capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's\namigo default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback\nforwarding number; this is informational and the number is not returned.",
+        "description": "Read current configuration and uncached dial eligibility using service read permission.\n\nLabels have all digits redacted. No phone numbers, identifiers or authored speech are returned. The one model version is the effective realtime model of a gpt_realtime release.\nA listed destination passes the channel-manager dial gate if selected; hours, test-call routing and live call\npolicy still decide which line is selected. This read does not place a call or verify human pickup. An unbound\nservice has empty use-case results. A missing use case is unavailable, and a failed read returns service unavailable.\nFamily capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's\nconcurrence default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback\nforwarding number; this is informational and the number is not returned.",
         "operationId": "get-service-readiness",
         "parameters": [
           {
@@ -93363,7 +94236,7 @@
             "required": true,
             "schema": {
               "enum": [
-                "amigo",
+                "concurrence",
                 "gpt_realtime",
                 "eleven_realtime",
                 "gpt_live",

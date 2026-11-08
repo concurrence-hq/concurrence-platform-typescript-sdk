@@ -31,7 +31,7 @@ const SERVICE_FIXTURE = {
   tags: [],
   tool_capacity: 5,
   voice_config: {
-    session_provider: 'amigo',
+    session_provider: 'concurrence',
     tts_provider: 'cartesia',
   },
   created_at: '2026-01-01T00:00:00Z',
@@ -105,7 +105,7 @@ describe('ServicesResource', () => {
   })
 
   it('creates a service', async () => {
-    const sessionProvider = 'amigo' satisfies VoiceSessionProvider
+    const sessionProvider = 'concurrence' satisfies VoiceSessionProvider
     const ttsProvider = 'cartesia' satisfies TtsProvider
     const body = {
       name: 'Scheduling Service',

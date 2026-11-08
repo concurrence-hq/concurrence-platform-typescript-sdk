@@ -829,6 +829,11 @@ export type {
   MetricListParams,
   MetricValuesParams,
   MetricTrendParams,
+  MetricDefinition,
+  MetricDefinitionRevision,
+  PutMetricDefinitionRequest,
+  MetricDefinitionListParams,
+  MetricDefinitionRevisionListParams,
 } from './resources/metrics.js'
 /** @deprecated Use `MetricValue` instead. */
 export type MetricValueResponse = MetricValueAlias
