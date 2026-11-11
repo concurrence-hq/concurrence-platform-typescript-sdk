@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.143.0] - 2026-11-11
+
+### Features
+
+- expose live Playground tool execution (ALL-2621) (#534)
+
+### Maintenance
+
+- avoid duplicate package verification during publish (ALL-2622) (#533)
+
 ## [0.142.0] - 2026-11-11
 
 ### Maintenance
