@@ -11843,6 +11843,11 @@ export interface components {
              */
             tags?: components["schemas"]["ConversationTag"][];
             /**
+             * Tool Execution
+             * @description Stored explicit Playground tool policy. ``live`` runs its tools for real. Null means no explicit live policy: Playground and test conversations simulate, while ordinary production conversations retain their existing tool behavior.
+             */
+            tool_execution?: "live" | null;
+            /**
              * Truncated
              * @description True when the conversation recorded more entries than one read takes (10,000), so the turns stop before the end of the conversation.
              * @default false
@@ -12633,7 +12638,7 @@ export interface components {
             service_id: string;
             /**
              * Source
-             * @description Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``. Every turn on a ``playground`` or ``test`` conversation runs as a test turn, as for a conversation started with a test key, whatever its ``entity_id``. It stays out of analytics, production evaluations, EHR sync and billing, and its tools run in simulation mode. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.
+             * @description Marks the conversation as test traffic. Set ``playground`` when the developer console Playground starts the conversation: a Playground session writes only to conversations a Playground session or test credential started, never a real one. Set ``test`` from your own test harness: the conversation is stored with source ``test``. Every turn on a ``playground`` or ``test`` conversation runs as a test turn, as for a conversation started with a test key, whatever its ``entity_id``. It stays out of analytics, production evaluations, EHR sync and billing, and its tools simulate unless a Playground conversation explicitly requests ``tool_execution=live``. Live tools retain test classification but can change connected systems. ``test`` needs ``Workspace.update`` (admin or owner) unless the key is already a test key. Web only (422 on another channel); an external user gets 403.
              */
             source?: ("playground" | "test") | null;
             /**
@@ -12641,6 +12646,11 @@ export interface components {
              * @description Labels to set on the conversation, at most 20, each a key and an optional value. Change them later with PATCH /v1/{workspace_id}/conversations/{conversation_id}/tags.
              */
             tags?: components["schemas"]["ConversationTag"][];
+            /**
+             * Tool Execution
+             * @description ``live`` runs this Playground conversation's tools for real: its integration calls reach the connected systems and can change them. Null (default) keeps Playground and test tools simulated; ordinary production conversations retain their existing tool behavior. Only with ``source`` ``playground`` on the web channel (422 otherwise), only for a workspace admin or owner on a production credential (403 otherwise), and fixed for the conversation's life. The conversation retains test classification and is excluded from automatic EHR sync and billing.
+             */
+            tool_execution?: "live" | null;
             /**
              * Use Case Id
              * @description The use case the outbound conversation is sent through. Required for non-web; the sender (FROM) is resolved from it, never caller-supplied. Must be owned by this workspace.
