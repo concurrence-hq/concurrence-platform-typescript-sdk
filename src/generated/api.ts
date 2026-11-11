@@ -34851,6 +34851,7 @@ export interface components {
             /** Name */
             name: string;
         };
+        SafeExit: components["schemas"]["src__services__safe_exit_reader__SafeExit"];
     };
     responses: never;
     parameters: never;
