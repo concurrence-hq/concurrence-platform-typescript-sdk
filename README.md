@@ -683,6 +683,28 @@ await client.services.upsertVersionSet(service.id, 'canary', {
 await client.services.update(service.id, { platform_caller_verification: false })
 ```
 
+#### Harness settings, pins and releases
+
+Each harness a service runs declares its settings. Read the schema, then replace the service's values.
+A key left out runs the harness default.
+
+```typescript
+const schema = await client.services.getSettingsSchema(service.id)
+const current = await client.services.getSettings(service.id)
+await client.services.setSettings(service.id, { settings: { ...current.settings } })
+
+// Pin a harness to a registered release; setting the pin back to its default is the rollback
+const { effective_harnesses } = await client.services.getHarnesses(service.id)
+await client.services.setHarnessPins(service.id, {
+  pins: [{ kind: 'voice', harness: 'concurrence', tag: 'in-tree' }],
+})
+
+// Platform-level (scope `platform:harnesses` or `platform:admin`)
+const { items: releases } = await client.harnesses.listReleases({ kind: 'voice' })
+const defaults = await client.harnesses.listDefaults()
+await client.harnesses.setDefault('voice', 'concurrence', { tag: 'in-tree' })
+```
+
 ### Runs
 
 List runs with optional service, kind, channel, and status filters. Values within a filter

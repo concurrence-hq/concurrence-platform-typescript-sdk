@@ -14,6 +14,8 @@ export type ListVoiceJudgeResultsParams = NonNullable<
 >
 /** One dynamic behavior pin on a version set: a library set at an exact version. */
 export type DynamicBehaviorPin = components['schemas']['VersionSetBehaviorPin']
+export type SetServiceSettingsRequest = components['schemas']['SetServiceSettingsRequest']
+export type SetHarnessPinsRequest = components['schemas']['SetHarnessPinsRequest']
 export type VoiceJudgeResult = components['schemas']['VoiceJudgeResultRow']
 export type ServicePlan = components['schemas']['ServicePlanResponse']
 export type VoiceJudgeResultListResponse = components['schemas']['VoiceJudgeRecentResponse']
@@ -208,6 +210,77 @@ export class ServicesResource extends WorkspaceScopedResource {
       },
       expected_updated_at: service.updated_at,
     })
+  }
+
+  /**
+   * The service's own setting values, and each setting its harnesses declare with the value
+   * it runs on and where that value comes from: `service`, else `harness_default`.
+   */
+  async getSettings(serviceId: ServiceId | string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/services/{service_id}/settings', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+      }),
+    )
+  }
+
+  /**
+   * Replace the service's setting values. A key applies to every harness of the service that
+   * declares it, and its value has to satisfy each declaring spec's type, bounds and choices
+   * (`ValidationError` otherwise). A key left out runs the harness default, and a PUT of the
+   * values the service already stores writes nothing. Every change is audited. Needs the
+   * `Service.update` permission.
+   */
+  async setSettings(serviceId: ServiceId | string, body: SetServiceSettingsRequest) {
+    return extractData(
+      await this.client.PUT('/v1/{workspace_id}/services/{service_id}/settings', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+        body,
+      }),
+    )
+  }
+
+  /**
+   * Every setting each voice and text harness the service runs declares: its type, bounds,
+   * choices, default and description, with the harness, the release it runs and the schema's
+   * version. A setting exists only when the harness declares it.
+   */
+  async getSettingsSchema(serviceId: ServiceId | string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/services/{service_id}/settings/schema', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+      }),
+    )
+  }
+
+  /**
+   * The service's harness pins, and the release each voice and text harness runs on its calls:
+   * the service's pin, else the harness default.
+   */
+  async getHarnesses(serviceId: ServiceId | string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/services/{service_id}/harnesses', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+      }),
+    )
+  }
+
+  /**
+   * Replace the service's harness pins. A pin names a registered release exactly, or is
+   * `{ kind, harness, tag: 'in-tree' }`. A harness left out follows its default, so setting a
+   * pin back is the rollback, and `pins: []` clears every pin. A release the running
+   * agent-engine image does not carry yet is refused. A change that would leave stored settings
+   * no harness declares is refused with `ValidationError` listing them, unless `drop_orphaned`
+   * is `true`, which deletes them. Every change is audited. Needs the `Service.update`
+   * permission.
+   */
+  async setHarnessPins(serviceId: ServiceId | string, body: SetHarnessPinsRequest) {
+    return extractData(
+      await this.client.PUT('/v1/{workspace_id}/services/{service_id}/harness-pins', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+        body,
+      }),
+    )
   }
 
   async delete(serviceId: ServiceId | string): Promise<void> {

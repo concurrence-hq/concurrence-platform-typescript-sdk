@@ -262,6 +262,11 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `upsertVersionSet`
 - `setDynamicBehaviorPin`
 - `clearDynamicBehaviorPin`
+- `getSettings`
+- `setSettings`
+- `getSettingsSchema`
+- `getHarnesses`
+- `setHarnessPins`
 - `delete`
 - `listVoiceJudgeResults`
 - `previewPrompt`
@@ -784,6 +789,12 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `metering`
 
 - `emit`
+
+### `harnesses`
+
+- `listDefaults`
+- `setDefault`
+- `listReleases`
 
 ### `metricStore`
 
