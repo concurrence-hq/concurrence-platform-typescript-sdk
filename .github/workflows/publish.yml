@@ -156,6 +156,8 @@ jobs:
         run: npm run prepublishOnly
 
       - name: Publish to npm
+        # Verify package already ran the full prepublishOnly gate on this checkout.
+        # Do not run that lifecycle again; direct npm publish still keeps its gate.
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -168,10 +170,10 @@ jobs:
             trap 'rm -f "$NPM_USERCONFIG"' EXIT
             echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN_TRIMMED}" > "$NPM_USERCONFIG"
             chmod 600 "$NPM_USERCONFIG"
-            npm publish --userconfig "$NPM_USERCONFIG" --access public --provenance
+            npm publish --ignore-scripts --userconfig "$NPM_USERCONFIG" --access public --provenance
           else
             echo "Using npm trusted publishing via OIDC."
-            npm publish --access public --provenance
+            npm publish --ignore-scripts --access public --provenance
           fi
 
       - name: Publish Summary
