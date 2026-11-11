@@ -388,6 +388,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/harness-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List harness defaults
+         * @description The release each harness runs on every service that does not pin one, one entry per harness. A default the platform may no longer run says why (`refusal`). Read from a copy at most 30 seconds old. Requires `platform:harnesses` or `platform:admin` scope.
+         */
+        get: operations["list-harness-defaults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/harness-defaults/{kind}/{harness}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a harness default
+         * @description Set the release a harness runs on every service that does not pin one: `{tag: "in-tree"}` or a registered release named exactly, `{repo, tag, asset, sha256}`. A release is validated as a pin is: it matches its registry entry on repo, tag, asset and sha256, its contract is supported, it is not revoked, the entry is this kind and harness, and the running agent-engine image carries it. Unpinned services move on the sessions that start from 30 seconds after it; pinned services never move. Audited as `harness_default.update`. Requires `platform:harnesses` or `platform:admin` scope.
+         */
+        put: operations["set-harness-default"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/harness-releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List harness releases
+         * @description The harness releases the platform may be asked to run: every release in platform-v2's `harness_releases.json`, in the order they were imported, filtered by `kind` and `harness`. Each says why the platform refuses it, if it does (`refusal`), and whether the running agent-engine image carries it (`baked`, null when agent-engine could not say). A release a service may pin, or a default may name, has no `refusal` and is `baked`. Requires `platform:harnesses` or `platform:admin` scope.
+         */
+        get: operations["list-harness-releases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces": {
         parameters: {
             query?: never;
@@ -4190,7 +4250,7 @@ export interface paths {
         };
         /**
          * List the models this workspace may pin
-         * @description Every model the workspace's data residency allows in its region. A regional workspace sees only the models whose every request path stays in the region's geography. Any role.
+         * @description Every model the workspace's data residency allows in its region. A regional workspace sees only the models whose every request path stays in the region's geography. Each model lists the engage reasoning efforts a version set may set on it in this region. Any role.
          */
         get: operations["list-workspace-models"];
         put?: never;
@@ -5348,7 +5408,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` away from its default, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
+         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.
          */
         post: operations["create-service"];
         delete?: never;
@@ -5391,7 +5451,7 @@ export interface paths {
         get: operations["get-service"];
         /**
          * Update a service
-         * @description Update a service's configuration. A field left out keeps what is stored. An explicit `null` clears `voice_config`, `output_checks`, `caller_verification_endpoint_id` and `declared_languages`, and is refused (422) on `version_sets`, which replaces the whole map and always needs `release`. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. Requires `Service.update` permission.
+         * @description Update a service's configuration. A field left out keeps what is stored. An explicit `null` clears `voice_config`, `output_checks`, `emergency_floor`, `caller_verification_endpoint_id` and `declared_languages`, and is refused (422) on `version_sets`, which replaces the whole map and always needs `release`. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. A service's harness pins are checked again as `PUT .../harness-pins` checks them, so a `channel_type`, family, agent or version set change that leaves a pin that no longer fits, or a stored pin that no longer validates, is refused with 422, with the same `code` and `fields` in its plan. An update that changes the harness pins or what their fit depends on lands only on the service as this request read it: a change by another writer in between is a 409 and nothing is stored. Every other update is last-write-wins, except that it stores the harness pins as the service holds them when it writes, so it never reverts a pin set after this request read the service. Requires `Service.update` permission.
          */
         put: operations["update-service"];
         post?: never;
@@ -5400,6 +5460,46 @@ export interface paths {
          * @description Delete a service. Requires `Service.delete` permission.
          */
         delete: operations["delete-service"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/harness-pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a service's harness pins
+         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. Requires `Service.update` permission.
+         */
+        put: operations["set-service-harness-pins"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/harnesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a service's harnesses
+         * @description The service's harness pins, and the release each voice and text harness runs on its calls: the service's pin, else the harness default. Requires `Service.view` permission.
+         */
+        get: operations["get-service-harnesses"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5486,12 +5586,56 @@ export interface paths {
         };
         /**
          * Get a service's effective safety checks
-         * @description Get the safety checks a service runs: every key's effective value and whether it comes from the platform
-         *     default, the workspace default or the service's own setting.
+         * @description Get the safety checks a service runs, its reply checks and its floor on text: every key's effective value and
+         *     whether it comes from the platform default, the workspace default or the service's own setting.
          *
          *     Permissions: `Service.view`.
          */
         get: operations["get-service-safety"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a service's harness settings
+         * @description The service's own setting values, and each declared setting of each harness it runs with its value and source: `service`, else `harness_default`. Requires `Service.view` permission.
+         */
+        get: operations["get-service-settings"];
+        /**
+         * Set a service's harness settings
+         * @description Replace the service's setting values. A key applies to every harness of the service that declares it, and its value has to satisfy each declaring spec's type, bounds and choices. A key left out runs the harness default. A PUT of the values the service already stores writes nothing. Only Amigo administrators set a system service's settings. Every change is audited as `service.settings.update`. Requires `Service.update` permission.
+         */
+        put: operations["set-service-settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/settings/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the settings a service's harnesses declare
+         * @description Every setting each voice and text harness the service runs declares: its type, bounds, choices, default and description, with the harness, the release it runs and the schema's version. A setting exists only when the harness declares it. Requires `Service.view` permission.
+         */
+        get: operations["get-service-settings-schema"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5979,7 +6123,7 @@ export interface paths {
          *
          *     A key the workspace names applies to every service in it that does not set the key itself, from the next call
          *     or message. Any key can be set to `off`, which turns the check off. Each change to a key is audited as
-         *     `workspace.safety.output_checks.<key>.update`, with the old and new value.
+         *     `workspace.safety.<family>.<key>.update` (`output_checks`, `emergency_floor`), with the old and new value.
          *
          *     Permissions: admin, owner.
          */
@@ -8213,6 +8357,15 @@ export interface components {
             /** Filler Hint */
             filler_hint?: string | null;
         };
+        /** ActionPromiseCheck */
+        ActionPromiseCheck: {
+            /**
+             * Mode
+             * @default retry
+             * @enum {string}
+             */
+            mode?: "retry" | "off";
+        };
         /**
          * ActionState
          * @description User-facing engagement state with actions and exit conditions.
@@ -9290,6 +9443,27 @@ export interface components {
              */
             workspace_id: string;
         };
+        /** AuthoredLine */
+        AuthoredLine: {
+            /** Completed */
+            completed?: boolean | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "disclosure" | "emergency" | "crisis" | "correction" | "safe_exit" | "authored";
+            /** Text */
+            text?: string | null;
+            /**
+             * Text Truncated
+             * @default false
+             */
+            text_truncated?: boolean;
+            /** Timestamp */
+            timestamp?: string | null;
+            /** Verbatim */
+            verbatim?: boolean | null;
+        };
         /** Availability */
         Availability: {
             /** Available */
@@ -9899,6 +10073,7 @@ export interface components {
             /** Error */
             error?: string | null;
             escalation?: components["schemas"]["EscalationState"] | null;
+            evidence?: components["schemas"]["CallEvidence"] | null;
             /** Final State */
             final_state?: string | null;
             /** Fork Turn Index */
@@ -9919,6 +10094,7 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            manifest?: components["schemas"]["RunManifest"] | null;
             /** Media Start Time */
             media_start_time?: string | null;
             /** Parent Session Id */
@@ -9947,6 +10123,8 @@ export interface components {
             score_rationale?: string | null;
             /** Service Id */
             service_id?: string | null;
+            /** Session Provider */
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /** Source */
             source?: ("real" | "simulation" | "playground") | null;
             /**
@@ -10094,6 +10272,33 @@ export interface components {
             conversation_id: string;
             /** Results */
             results: components["schemas"]["CallEvalResult"][];
+        };
+        /**
+         * CallEvidence
+         * @description Recorded facts only. Empty lists mean no evidence, not proof an action never occurred.
+         *
+         *     Each list retains its first 200 records in journal order. Timestamps are the
+         *     recorded event times, not ingestion times. No tool arguments or results are copied.
+         */
+        CallEvidence: {
+            /** Authored Lines */
+            authored_lines?: components["schemas"]["AuthoredLine"][];
+            /**
+             * Invalid Entries
+             * @default 0
+             */
+            invalid_entries?: number;
+            /** Safe Exits */
+            safe_exits?: components["schemas"]["platform_lib__calls__evidence__CallEvidence__SafeExit"][];
+            /** State Path */
+            state_path?: components["schemas"]["StateVisit"][];
+            /** Tool Calls */
+            tool_calls?: components["schemas"]["ToolOutcome"][];
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated?: boolean;
         };
         /**
          * CallIntelligenceDetail
@@ -12828,6 +13033,12 @@ export interface components {
             /** @default  */
             description?: components["schemas"]["DescriptionString"];
             /**
+             * @description How the medical-emergency and crisis floor acts on the service's text conversations, voice notes and
+             *     simulations. A key left out inherits the workspace default, and the platform default where the workspace sets
+             *     none. Setting any key needs `Service.update`.
+             */
+            emergency_floor?: components["schemas"]["ServiceEmergencyFloorRequest"] | null;
+            /**
              * Environment
              * @default production
              * @enum {string}
@@ -14628,6 +14839,47 @@ export interface components {
             /** Resource Key */
             resource_key: string;
             resource_type: components["schemas"]["_ResourceType"];
+        };
+        /**
+         * EffectiveHarness
+         * @description The release one harness runs on a service, and where that came from. ``repo``, ``asset`` and ``sha256`` are
+         *     None for ``in-tree``. agent-engine loads the wheel it baked at ``/opt/harnesses/<sha256>/``.
+         */
+        EffectiveHarness: {
+            /** Asset */
+            asset: string | null;
+            /**
+             * Contract Version
+             * @description The contract the release was built on, from the registry. None for ``in-tree`` and when ``error`` is set.
+             */
+            contract_version: string | null;
+            /**
+             * Error
+             * @description Why the harness has nothing to run on the service: its stored pin is invalid, or its pin or default names a
+             *     release the platform may no longer run (revoked, unregistered, or off the supported contract range). Set, the
+             *     entry names no release, so the harness has nothing to run. None otherwise.
+             */
+            error: string | null;
+            /** Harness */
+            harness: string;
+            kind: components["schemas"]["HarnessKind"];
+            /** Repo */
+            repo: string | null;
+            /** Sha256 */
+            sha256: string | null;
+            /**
+             * Source
+             * @description ``invalid_pin``: the service stores a pin of this harness that no longer validates. The entry names no
+             *     release, so the harness has nothing to run until the pin is set again. A ``pin`` or ``harness_default`` with an
+             *     ``error`` names a release the platform may no longer run, and names no release either.
+             * @enum {string}
+             */
+            source: "pin" | "harness_default" | "invalid_pin";
+            /**
+             * Tag
+             * @description The release tag, or ``in-tree``. None when ``error`` is set.
+             */
+            tag: string | null;
         };
         /** EffectiveVoice */
         EffectiveVoice: {
@@ -17884,6 +18136,115 @@ export interface components {
             world_scope: components["schemas"]["WorldScope"];
             write_floor: components["schemas"]["WriteFloor"];
         };
+        /** HarnessDefaultListResponse */
+        HarnessDefaultListResponse: {
+            /**
+             * Items
+             * @description One per harness, in (kind, harness) order.
+             */
+            items: components["schemas"]["HarnessDefaultResponse"][];
+        };
+        /** HarnessDefaultResponse */
+        HarnessDefaultResponse: {
+            /** Asset */
+            asset: string | null;
+            /** Harness */
+            harness: string;
+            kind: components["schemas"]["HarnessKind"];
+            /**
+             * Refusal
+             * @description Why the platform may not run this default's release now (revoked, unregistered, an unsupported contract), so
+             *     every unpinned service's sessions of this harness fail closed until it is set again. None for ``in-tree`` and for
+             *     a release the platform may run.
+             */
+            refusal?: string | null;
+            /** Repo */
+            repo: string | null;
+            /** Sha256 */
+            sha256: string | null;
+            /** Tag */
+            tag: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string | null;
+        };
+        /** @enum {string} */
+        HarnessKind: "voice" | "text";
+        /** HarnessPin */
+        HarnessPin: {
+            /**
+             * Asset
+             * @description The wheel's file name on the release.
+             */
+            asset?: string | null;
+            /**
+             * Harness
+             * @description A voice family (``grok_voice``, ``gpt_live``, ...) or a text provider family (``openai``, ``anthropic``, ...).
+             */
+            harness: string;
+            kind: components["schemas"]["HarnessKind"];
+            /** Repo */
+            repo?: string | null;
+            sha256?: components["schemas"]["Sha256"] | null;
+            /**
+             * Tag
+             * @description A release tag of the harness, e.g. ``grok_voice-v1.2.0`` or ``grok_voice-v1.2.0-hotfix.1``, or ``in-tree``.
+             */
+            tag: string;
+        };
+        /** HarnessReleaseListResponse */
+        HarnessReleaseListResponse: {
+            /** Continuation Token */
+            continuation_token?: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["src__routes__harness_platform__HarnessReleaseListResponse__Item"][];
+        };
+        /** @enum {string} */
+        HarnessSettingSource: "harness_default" | "service";
+        HarnessSettingValue: boolean | number | string | string[];
+        /**
+         * HarnessSettings
+         * @description The settings one harness declares, resolved for a service by platform-api: the service's value, else the
+         *     harness default. Only keys the harness declares are served.
+         */
+        HarnessSettings: {
+            /** Harness */
+            harness: string;
+            kind: components["schemas"]["HarnessKind"];
+            /** Settings */
+            settings?: {
+                [key: string]: components["schemas"]["ServedHarnessSetting"];
+            };
+        };
+        /**
+         * HarnessSettingsSchema
+         * @description What one harness the service runs declares.
+         */
+        HarnessSettingsSchema: {
+            /** Harness */
+            harness: string;
+            /**
+             * Harness Version
+             * @description The schema's version: the release's, or `0.0.0` for `in-tree`.
+             */
+            harness_version: string;
+            /** Kind */
+            kind: string;
+            /** Settings */
+            settings: components["schemas"]["SettingSpec"][];
+            /**
+             * Tag
+             * @description The release the service runs, or `in-tree`. None when the harness has nothing to run (its effective entry has
+             *     an `error`); it then lists the in-tree schema.
+             */
+            tag: string | null;
+        };
         /** HealFieldRequest */
         HealFieldRequest: {
             /** Context */
@@ -17912,6 +18273,15 @@ export interface components {
             corrected_value: string;
             /** Explanation */
             explanation?: string | null;
+        };
+        /** HeldTextFloor */
+        HeldTextFloor: {
+            /**
+             * Mode
+             * @default enforce
+             * @enum {string}
+             */
+            mode?: "enforce" | "off";
         };
         /** HipaaReportResponse */
         HipaaReportResponse: {
@@ -18374,6 +18744,19 @@ export interface components {
              *     and ``version`` the pinned version; ``enabled`` and ``states`` come from the pin, the rest from that version.
              */
             dynamic_behaviors: components["schemas"]["DynamicBehavior"][];
+            /**
+             * Effective Harnesses
+             * @description The release each voice and text harness runs, resolved once here: the service's pin, else the harness default,
+             *     with the repo, tag, asset and sha256 of a release. agent-engine resolves a session's harness from it at session
+             *     start and loads the wheel it baked at ``/opt/harnesses/<sha256>/``.
+             */
+            effective_harnesses: components["schemas"]["EffectiveHarness"][];
+            /**
+             * Harness Settings
+             * @description Each harness in ``effective_harnesses``'s declared settings, resolved here: the service's value, else the
+             *     harness default. agent-engine resolves its session's from it once, at session start.
+             */
+            harness_settings: components["schemas"]["HarnessSettings"][];
             service: components["schemas"]["Service"];
         };
         /** InternalSkillResponse */
@@ -22529,6 +22912,25 @@ export interface components {
             /** Type */
             type: string;
         };
+        /**
+         * ReleaseRef
+         * @description A registered release, named exactly, or ``{tag: "in-tree"}``.
+         */
+        ReleaseRef: {
+            /**
+             * Asset
+             * @description The wheel's file name on the release.
+             */
+            asset?: string | null;
+            /** Repo */
+            repo?: string | null;
+            sha256?: components["schemas"]["Sha256"] | null;
+            /**
+             * Tag
+             * @description A release tag of the harness, e.g. ``grok_voice-v1.2.0`` or ``grok_voice-v1.2.0-hotfix.1``, or ``in-tree``.
+             */
+            tag: string;
+        };
         /** RenameColumnAction */
         RenameColumnAction: {
             from: components["schemas"]["IdentifierString"];
@@ -23614,47 +24016,33 @@ export interface components {
              */
             language?: string;
         };
-        /**
-         * SafeExit
-         * @description The call's safe exit: the agent stopped and a fixed script handed the caller to a person or ended the call.
-         */
-        SafeExit: {
+        /** SafeExitEvidence */
+        SafeExitEvidence: {
             /**
              * Disclosure Heard
-             * @description The caller had heard all of the AI and recording notice before the exit began, so the exit did not
-             *     play it again. When false, the notice was heard only if ``lines_played`` holds ``disclosure``.
+             * @description Whether the disclosure completed before or during the exit.
              */
             disclosure_heard: boolean;
             /**
-             * Lines Played
-             * @description The script lines that played whole, in order. ``disclosure`` is the AI and recording notice.
-             */
-            lines_played: ("disclosure" | "transfer" | "end" | "fallback_missed" | "hearing_failure")[];
-            /**
              * Outcome
-             * @description ``mrc_transferred`` once the hand-off to the human line was placed, ``mrc_failed`` when the hand-off raised
-             *     (the caller may still be on the line), else ``mrc_ended`` (hung up). The conversation's ``completion_reason``
-             *     reads these as ``transferred`` and ``error``.
              * @enum {string}
              */
             outcome: "mrc_transferred" | "mrc_ended" | "mrc_failed";
+            /** Transfer Attempted */
+            transfer_attempted?: boolean | null;
             /**
              * Trigger
-             * @description Why the call took the safe exit.
              * @enum {string}
              */
             trigger: "stt_fatal" | "turn_stalled" | "wire_failed" | "disclosure_failed" | "session_rejected" | "setup_failed" | "service_budget" | "caller_cap" | "outside_answer_hours" | "health_alert" | "data_residency_refused" | "attach_failed";
-            /**
-             * Trigger Description
-             * @description ``trigger`` in plain words.
-             */
-            readonly trigger_description: string;
         };
         /**
          * SafetySettingsRequest
          * @description The workspace defaults to store. A family left out keeps what is stored.
          */
         SafetySettingsRequest: {
+            /** @description The workspace default for the floor on text. The block replaces the stored one, as `output_checks` does. */
+            emergency_floor?: components["schemas"]["ServiceEmergencyFloorRequest"] | null;
             /**
              * @description The workspace default reply checks. The block replaces the stored one: a key it names becomes the default for
              *     every service that does not set it, and a key it leaves out inherits the platform default. `{}` clears them.
@@ -23667,8 +24055,15 @@ export interface components {
          */
         SafetySettingsResponse: {
             /**
+             * Emergency Floor
+             * @description How the medical-emergency and crisis floor acts on text conversations, voice notes and simulations.
+             */
+            emergency_floor: {
+                [key: string]: components["schemas"]["SafetyValue"];
+            };
+            /**
              * Output Checks
-             * @description The reply checks a voice call runs.
+             * @description The reply checks a call runs.
              */
             output_checks: {
                 [key: string]: components["schemas"]["SafetyValue"];
@@ -23936,6 +24331,14 @@ export interface components {
             status: "delivered" | "queued_no_subscriber" | "deduplicated" | "failed" | "unknown";
         };
         /**
+         * ServedHarnessSetting
+         * @description One declared setting's value for a service, and the layer it came from.
+         */
+        ServedHarnessSetting: {
+            source: components["schemas"]["HarnessSettingSource"];
+            value: components["schemas"]["HarnessSettingValue"];
+        };
+        /**
          * Service
          * @description A service links an agent + context graph + version sets.
          */
@@ -23979,6 +24382,7 @@ export interface components {
             demo_mode?: boolean;
             /** Description */
             description: string;
+            emergency_floor?: components["schemas"]["ServiceEmergencyFloor"];
             /**
              * Environment
              * @default production
@@ -24131,6 +24535,39 @@ export interface components {
              * @description Service identifier, or null for cost that could not be attributed.
              */
             service_id: string | null;
+        };
+        /** ServiceEmergencyFloor */
+        ServiceEmergencyFloor: {
+            held_text?: components["schemas"]["HeldTextFloor"];
+            text_medical?: components["schemas"]["TextMedicalFloor"];
+            text_self_harm?: components["schemas"]["TextSelfHarmFloor"];
+        };
+        /**
+         * ServiceEmergencyFloorRequest
+         * @description How the medical-emergency and crisis floor acts on text conversations (SMS, email, web chat and the other
+         *     messaging channels), voice notes and simulations. A key left out inherits: a service's from the workspace default,
+         *     the workspace's from the platform default, which is today's behavior. Every key can be set to `off`, and then the
+         *     floor neither replaces nor alters the reply: the agent's own reply and tools run, no hold opens, and the hit is
+         *     only counted. A voice call's floor is not set here.
+         */
+        ServiceEmergencyFloorRequest: {
+            /**
+             * @description A message on a conversation an operator holds. `enforce`, the platform default, answers it with the floor's
+             *     script when it names any emergency. `off` leaves every held message to the operator.
+             */
+            held_text?: components["schemas"]["HeldTextFloor"];
+            /**
+             * @description A message that describes a medical emergency, such as chest pain or trouble breathing. `shadow`, the platform
+             *     default, detects and counts it and opens the floor's hold, and the agent's reply goes out. `enforce` answers it
+             *     with the floor's emergency-number script instead. `off` leaves it to the agent.
+             */
+            text_medical?: components["schemas"]["TextMedicalFloor"];
+            /**
+             * @description A message that says the person is thinking about harming or killing themselves. `enforce`, the platform default,
+             *     answers it with the floor's crisis script (the region's crisis line, the service's crisis contacts and the
+             *     emergency number) in place of the agent's reply. `off` leaves it to the agent.
+             */
+            text_self_harm?: components["schemas"]["TextSelfHarmFloor"];
         };
         /**
          * ServiceEvalQuality
@@ -24359,6 +24796,20 @@ export interface components {
              */
             warm_transfer_on_queue: "hand_over" | "treat_as_miss";
         };
+        /** ServiceHarnessesResponse */
+        ServiceHarnessesResponse: {
+            /**
+             * Effective Harnesses
+             * @description What each harness runs on the service's calls: its pin, else the harness default.
+             */
+            effective_harnesses: components["schemas"]["EffectiveHarness"][];
+            /**
+             * Pins
+             * @description The service's own pins that validate. A stored pin that no longer does shows as its harness's
+             *     `invalid_pin` entry in `effective_harnesses`.
+             */
+            pins: components["schemas"]["HarnessPin"][];
+        };
         /** ServiceListResponse */
         ServiceListResponse: {
             /** Continuation Token */
@@ -24370,6 +24821,7 @@ export interface components {
         };
         /** ServiceOutputChecks */
         ServiceOutputChecks: {
+            action_promise?: components["schemas"]["ActionPromiseCheck"];
             blocklisted_number?: components["schemas"]["BlocklistedNumberCheck"];
             diagnosis?: components["schemas"]["CheckerLabelCheck"];
             dispatch_promise?: components["schemas"]["CheckerLabelCheck"];
@@ -24377,6 +24829,7 @@ export interface components {
             false_confirmation?: components["schemas"]["CheckerLabelCheck"];
             misspelled_word?: components["schemas"]["MisspelledWordCheck"];
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
+            unbacked_action_claims?: components["schemas"]["UnbackedActionClaimsCheck"];
         };
         /**
          * ServiceOutputChecksRequest
@@ -24384,6 +24837,12 @@ export interface components {
          *     the workspace's from the platform default. Every key can be set to `off`.
          */
         ServiceOutputChecksRequest: {
+            /**
+             * @description A reply that called no tool and tells the caller the agent is doing something now, on text or a realtime call.
+             *     `retry`, the platform default, gives the agent one more go with a note to act or say what it can't do. `off`
+             *     sends the reply as written.
+             */
+            action_promise?: components["schemas"]["ActionPromiseCheck"];
             /**
              * @description `cut`, the platform default, stops a reply that speaks a number on the platform phone blocklist, and the caller
              *     hears the no-confirmed-number correction in its place. `off` lets the reply speak it. A listed number is still
@@ -24414,6 +24873,14 @@ export interface components {
              *     verified, and the caller hears a correction in its place. `off`, the platform default, does not run the check.
              */
             phi_unverified?: components["schemas"]["PhiUnverifiedCheck"];
+            /**
+             * @description Text only. A reply that says something was done for the client, such as an escalation, a handoff or a message
+             *     passed to a team, when no tool that succeeded in the turn did it. `off`, the platform default, does not read the
+             *     reply. `log` reads it and counts a claim it finds; the reply goes out as written. `enforce` holds the reply back
+             *     and gives the agent one more go with a note to call the tool first or not claim it; a second reply that still
+             *     claims it goes out cut before the claim, with the false-confirmation correction in its place.
+             */
+            unbacked_action_claims?: components["schemas"]["UnbackedActionClaimsCheck"];
         };
         /**
          * ServicePlanResponse
@@ -24530,6 +24997,17 @@ export interface components {
             /** Description */
             description: string;
             /**
+             * Effective Harnesses
+             * @description The release each voice and text harness runs on the service's calls: its pin, else the harness default.
+             *     Set by the single-service GET and `GET /v1/{workspace_id}/services/{service_id}/harnesses`, left out of lists.
+             */
+            effective_harnesses?: components["schemas"]["EffectiveHarness"][] | null;
+            /**
+             * @description How the floor acts on the service's text conversations: its own block over the workspace defaults. Where each
+             *     value comes from: `GET /v1/{workspace_id}/services/{service_id}/safety`.
+             */
+            emergency_floor?: components["schemas"]["ServiceEmergencyFloor"];
+            /**
              * Environment
              * @default production
              * @enum {string}
@@ -24593,6 +25071,30 @@ export interface components {
              * Format: uuid
              */
             workspace_id: string;
+        };
+        /** ServiceSettingsResponse */
+        ServiceSettingsResponse: {
+            /**
+             * Harnesses
+             * @description Each harness's declared settings, resolved: the service's value (`source: service`), else the harness
+             *     default (`source: harness_default`).
+             */
+            harnesses: components["schemas"]["HarnessSettings"][];
+            /**
+             * Settings
+             * @description The service's own values.
+             */
+            settings: {
+                [key: string]: components["schemas"]["SettingValue"];
+            };
+        };
+        /** ServiceSettingsSchemaResponse */
+        ServiceSettingsSchemaResponse: {
+            /**
+             * Harnesses
+             * @description One entry per harness the service runs, in (kind, harness) order: its pin, else the harness default.
+             */
+            harnesses: components["schemas"]["HarnessSettingsSchema"][];
         };
         /** ServiceTag */
         ServiceTag: {
@@ -25044,6 +25546,67 @@ export interface components {
              */
             op: "set_column_nullable";
         };
+        /** SetHarnessPinsRequest */
+        SetHarnessPinsRequest: {
+            /**
+             * Drop Orphaned
+             * @description Delete the service's stored settings that no harness it would run on these pins declares. Left false, a save
+             *     that would orphan any is refused with 422 and lists them.
+             * @default false
+             */
+            drop_orphaned?: boolean;
+            /**
+             * Pins
+             * @description The service's pins, replacing the ones it has. At most one per harness. A harness left out follows its
+             *     default, and `[]` clears every pin.
+             */
+            pins: components["schemas"]["HarnessPin"][];
+        };
+        /** SetServiceSettingsRequest */
+        SetServiceSettingsRequest: {
+            /**
+             * Settings
+             * @description The service's values, replacing the ones it has. A key left out runs the harness default, and `{}` clears
+             *     every value.
+             */
+            settings: {
+                [key: string]: components["schemas"]["SettingValue"];
+            };
+        };
+        /** @enum {string} */
+        SettingArea: "timing" | "turn_taking" | "tools" | "call_control" | "speech" | "context" | "flows" | "greeting" | "retries" | "channel" | "guardrails" | "safety";
+        /** @enum {string} */
+        SettingScope: "workspace" | "service";
+        /**
+         * SettingSpec
+         * @description One setting a harness declares: its type, bounds, choices, default and where a tenant may set it.
+         */
+        SettingSpec: {
+            area: components["schemas"]["SettingArea"];
+            /** Choices */
+            choices?: string[] | null;
+            default: components["schemas"]["SettingValue"];
+            /** Description */
+            description: string;
+            /** Key */
+            key: string;
+            /** Max Length */
+            max_length?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Scopes */
+            scopes: components["schemas"]["SettingScope"][];
+            type: components["schemas"]["SettingType"];
+            unit?: components["schemas"]["SettingUnit"] | null;
+        };
+        /** @enum {string} */
+        SettingType: "bool" | "int" | "float" | "duration_ms" | "enum" | "string" | "string_list";
+        /** @enum {string} */
+        SettingUnit: "ms" | "s" | "tokens" | "count" | "percent";
+        SettingValue: boolean | number | string | string[];
+        Sha256: string;
         /**
          * SignalResponseAlignment
          * @description Whether the agent's response aligned with a salient signal in the call.
@@ -27807,6 +28370,15 @@ export interface components {
              */
             type: "state_transition";
         };
+        /** StateVisit */
+        StateVisit: {
+            /** Previous State */
+            previous_state?: string | null;
+            /** State */
+            state: string;
+            /** Timestamp */
+            timestamp?: string | null;
+        };
         /**
          * StaticHeaderAuthDict
          * @description Static workspace-level secret used verbatim as a single header value.
@@ -28955,6 +29527,24 @@ export interface components {
             /** Turn Count */
             turn_count: number;
         };
+        /** TextMedicalFloor */
+        TextMedicalFloor: {
+            /**
+             * Mode
+             * @default shadow
+             * @enum {string}
+             */
+            mode?: "enforce" | "shadow" | "off";
+        };
+        /** TextSelfHarmFloor */
+        TextSelfHarmFloor: {
+            /**
+             * Mode
+             * @default enforce
+             * @enum {string}
+             */
+            mode?: "enforce" | "off";
+        };
         /** TextStartedEvent */
         TextStartedEvent: {
             /** Channel Kind */
@@ -29199,6 +29789,8 @@ export interface components {
             endpoint_name?: string | null;
             /** Error Message */
             error_message?: string | null;
+            /** Executed */
+            executed?: boolean | null;
             /** Input */
             input?: {
                 [key: string]: unknown;
@@ -29516,6 +30108,22 @@ export interface components {
              * @default
              */
             tool_type?: string;
+        };
+        /** ToolOutcome */
+        ToolOutcome: {
+            /** Call Id */
+            call_id?: string | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "succeeded" | "failed" | "not_executed" | "unknown";
+            /** Timestamp */
+            timestamp?: string | null;
         };
         /**
          * ToolPerformanceResponse
@@ -30322,6 +30930,7 @@ export interface components {
             engine_turn_id?: string | null;
             /** Eot Confidence */
             eot_confidence?: number | null;
+            evidence?: components["schemas"]["TurnEvidence"] | null;
             /** Filler Type */
             filler_type?: string | null;
             /** Id */
@@ -30555,6 +31164,19 @@ export interface components {
              * @default null
              */
             status_code?: number | null;
+        };
+        /**
+         * TurnEvidence
+         * @description Playback provenance supplied by the runtime, never guessed from transcript words.
+         */
+        TurnEvidence: {
+            /** Authored Kind */
+            authored_kind?: ("disclosure" | "emergency" | "crisis" | "correction" | "safe_exit" | "authored") | null;
+            /** Completed */
+            completed?: boolean | null;
+            safe_exit?: components["schemas"]["SafeExitEvidence"] | null;
+            /** Verbatim */
+            verbatim?: boolean | null;
         };
         /** TurnMessageEvent */
         TurnMessageEvent: {
@@ -30838,6 +31460,15 @@ export interface components {
         };
         /** @enum {string} */
         Unavailable: "agent_not_in_workspace" | "version_not_found" | "config_unreadable" | "config_incompatible" | "channel_manager_unavailable";
+        /** UnbackedActionClaimsCheck */
+        UnbackedActionClaimsCheck: {
+            /**
+             * Mode
+             * @default off
+             * @enum {string}
+             */
+            mode?: "off" | "log" | "enforce";
+        };
         /** UpdateAgentRequest */
         UpdateAgentRequest: {
             description?: components["schemas"]["DescriptionString"] | null;
@@ -31017,6 +31648,12 @@ export interface components {
              */
             demo_mode?: boolean | null;
             description?: components["schemas"]["DescriptionString"] | null;
+            /**
+             * Emergency Floor
+             * @description How the floor acts on the service's text conversations, voice notes and simulations. The block replaces what is
+             *     stored, as `output_checks` does: `null` clears it and leaving it out keeps it. Takes effect for the next message.
+             */
+            emergency_floor?: components["schemas"]["ServiceEmergencyFloorRequest"] | null;
             /** Environment */
             environment?: ("sandbox" | "production") | null;
             /** Is Active */
@@ -31882,6 +32519,25 @@ export interface components {
              */
             unpriced_tokens: number;
         };
+        /**
+         * UsageUnavailableResponse
+         * @description Usage is unavailable for the requested period.
+         */
+        UsageUnavailableResponse: {
+            /**
+             * Detail
+             * @constant
+             */
+            detail: "Usage and cost data unavailable";
+            /**
+             * Published Through
+             * @description Last usage date the workspace's latest published calculation covers, when the period ends after it.
+             *
+             *     Present when no complete calculation covers the period: null when nothing is published or publication
+             *     already reaches the period's end. Absent when the warehouse is unavailable.
+             */
+            published_through?: string | null;
+        };
         /** @enum {string} */
         UseCaseDialability: "own_number" | "listed" | "not_listed";
         /** UserTranscriptEvent */
@@ -32193,7 +32849,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** @description The call's safe exit, from its ``call.minimal_risk`` event. Null when the call didn't take it. */
-            safe_exit?: components["schemas"]["SafeExit"] | null;
+            safe_exit?: components["schemas"]["src__services__safe_exit_reader__SafeExit"] | null;
             /** Safety */
             safety?: {
                 [key: string]: unknown;
@@ -32863,6 +33519,28 @@ export interface components {
         /** @enum {string} */
         _TurnRole: "agent" | "user" | "system";
         _VolumePath: string;
+        /** SafeExit */
+        platform_lib__calls__evidence__CallEvidence__SafeExit: {
+            /**
+             * Disclosure Heard
+             * @description Whether the disclosure completed before or during the exit.
+             */
+            disclosure_heard: boolean;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "mrc_transferred" | "mrc_ended" | "mrc_failed";
+            /** Timestamp */
+            timestamp?: string | null;
+            /** Transfer Attempted */
+            transfer_attempted?: boolean | null;
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "stt_fatal" | "turn_stalled" | "wire_failed" | "disclosure_failed" | "session_rejected" | "setup_failed" | "service_budget" | "caller_cap" | "outside_answer_hours" | "health_alert" | "data_residency_refused" | "attach_failed";
+        };
         /**
          * Parameter
          * @description Typed declaration of one input parameter.
@@ -33075,6 +33753,38 @@ export interface components {
         src__routes__external_roles___SortField: "created_at";
         /** @constant */
         src__routes__external_write_proposals___SortField: "created_at";
+        /** Item */
+        src__routes__harness_platform__HarnessReleaseListResponse__Item: {
+            /** Asset */
+            asset: string;
+            /**
+             * Baked
+             * @description Whether the running agent-engine image carries it, None when agent-engine could not say. A pin or a default
+             *     naming a release the image does not carry is refused until agent-engine's CD deploys it.
+             */
+            baked: boolean | null;
+            /** Conformance */
+            conformance: string;
+            /** Contract Version */
+            contract_version: string;
+            /** Harness */
+            harness: string;
+            /** Harness Version */
+            harness_version: string;
+            kind: components["schemas"]["HarnessKind"];
+            /**
+             * Refusal
+             * @description Why the platform may not run it (revoked, an unsupported contract, conformance not ``pass``), or None when a
+             *     pin or a default may name it.
+             */
+            refusal: string | null;
+            /** Repo */
+            repo: string;
+            /** Sha256 */
+            sha256: string;
+            /** Tag */
+            tag: string;
+        };
         /**
          * Request
          * @description Add a new endpoint to a REST integration.
@@ -33950,6 +34660,14 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * Reasoning Efforts
+             * @description The engage reasoning efforts a version set may set on this model here; unset runs the model's default.
+             *     None when its provider sets its own effort (Claude, Gemini) and a version set's is not sent. Empty when it
+             *     can run no engage tool round in this region (GPT-6 Astra and GPT-6.1 Sol where the gateway serves no
+             *     Responses route).
+             */
+            reasoning_efforts: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh")[] | null;
+            /**
              * Regional
              * @description Whether every path this model's requests can take stays in the region's geography.
              */
@@ -34087,6 +34805,42 @@ export interface components {
              */
             workspace_id: string;
         };
+        /**
+         * SafeExit
+         * @description The call's safe exit: the agent stopped and a fixed script handed the caller to a person or ended the call.
+         */
+        src__services__safe_exit_reader__SafeExit: {
+            /**
+             * Disclosure Heard
+             * @description The caller had heard all of the AI and recording notice before the exit began, so the exit did not
+             *     play it again. When false, the notice was heard only if ``lines_played`` holds ``disclosure``.
+             */
+            disclosure_heard: boolean;
+            /**
+             * Lines Played
+             * @description The script lines that played whole, in order. ``disclosure`` is the AI and recording notice.
+             */
+            lines_played: ("disclosure" | "transfer" | "end" | "fallback_missed" | "hearing_failure")[];
+            /**
+             * Outcome
+             * @description ``mrc_transferred`` once the hand-off to the human line was placed, ``mrc_failed`` when the hand-off raised
+             *     (the caller may still be on the line), else ``mrc_ended`` (hung up). The conversation's ``completion_reason``
+             *     reads these as ``transferred`` and ``error``.
+             * @enum {string}
+             */
+            outcome: "mrc_transferred" | "mrc_ended" | "mrc_failed";
+            /**
+             * Trigger
+             * @description Why the call took the safe exit.
+             * @enum {string}
+             */
+            trigger: "stt_fatal" | "turn_stalled" | "wire_failed" | "disclosure_failed" | "session_rejected" | "setup_failed" | "service_budget" | "caller_cap" | "outside_answer_hours" | "health_alert" | "data_residency_refused" | "attach_failed";
+            /**
+             * Trigger Description
+             * @description ``trigger`` in plain words.
+             */
+            readonly trigger_description: string;
+        };
         /** Item */
         src__services__staging_clone_catalog__StagingSourceServices__Item: {
             /**
@@ -34097,6 +34851,7 @@ export interface components {
             /** Name */
             name: string;
         };
+        SafeExit: components["schemas"]["src__services__safe_exit_reader__SafeExit"];
     };
     responses: never;
     parameters: never;
@@ -34995,6 +35750,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetricStoreRunResponse"];
+                };
+            };
+        };
+    };
+    "list-harness-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HarnessDefaultListResponse"];
+                };
+            };
+            /** @description platform:harnesses or platform:admin scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "set-harness-default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "voice" | "text";
+                harness: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseRef"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HarnessDefaultResponse"];
+                };
+            };
+            /** @description platform:harnesses or platform:admin scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such harness. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The release is not registered as named, the platform may not run it, or it is not in the running agent-engine image (`detail.code` `harness_release_not_deployed`). `detail` says why. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The harness defaults table does not exist yet, or agent-engine could not confirm which releases its image baked (`detail.code` `harness_bake_unconfirmed`). Nothing was stored. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "list-harness-releases": {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["HarnessKind"] | null;
+                harness?: string | null;
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HarnessReleaseListResponse"];
+                };
+            };
+            /** @description platform:harnesses or platform:admin scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -48448,7 +49326,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Name already taken, or a pinned dynamic behavior set is archived. */
+            /** @description An update of the harness fit found the service changed since this request read it, so nothing was stored. Or the name is taken, or a pinned dynamic behavior set is archived. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -48505,6 +49383,128 @@ export interface operations {
                 content?: never;
             };
             /** @description Not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "set-service-harness-pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetHarnessPinsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceHarnessesResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions, or a system service and a caller who is not an Amigo administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The service changed while the pins were checked, or its version sets pin an archived dynamic behavior set. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unknown harness, a pin that does not fit the service, a release not registered as named, a release not in the running agent-engine image (`detail.code` `harness_release_not_deployed`), or stored settings the pins would orphan. `detail` has the refusal's `code`, `message` and `fields`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description agent-engine could not confirm which releases its image baked (`detail.code` `harness_bake_unconfirmed`). Nothing was stored. Try again. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-service-harnesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceHarnessesResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -48719,6 +49719,174 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "get-service-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSettingsResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "set-service-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetServiceSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSettingsResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions, or a system service and a caller who is not an Amigo administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The service changed while the settings were checked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A key no harness of the service declares, or a value outside its spec. `detail` names the harness, its version and the key. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-service-settings-schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSettingsSchemaResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -54195,12 +55363,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The service or billing data is unavailable, or no complete calculation covers the period. */
+            /** @description The service or billing data is unavailable, or no complete calculation covers the period. When none covers it, the body carries `published_through`: the last published usage date when publication stops before `end_date`, otherwise null. */
             503: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UsageUnavailableResponse"];
+                };
             };
         };
     };
