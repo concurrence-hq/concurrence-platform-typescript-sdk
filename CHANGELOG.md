@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.142.0] - 2026-11-11
+
+### Maintenance
+
+- sync API types from platform (72d0169e)
+
 ## [0.141.0] - 2026-11-08
 
 ### Maintenance
