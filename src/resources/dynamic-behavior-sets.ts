@@ -68,10 +68,10 @@ export class DynamicBehaviorSetsResource extends WorkspaceScopedResource {
    * the workspace's sets that aren't archived, whatever the case; a taken name throws
    * `ConflictError` (409).
    *
-   * Two things need the `platform:admin` scope, which no workspace API key carries: setting
-   * the set's own `id`, and a `first_version` in `replace` mode. A request that does either
-   * without the scope is refused by the API with `PermissionError` (403). Leave `id` out so the
-   * platform generates it, and leave `mode` out (it defaults to `add`).
+   * Needs the `DynamicBehaviorSet.create` permission (workspace admin or owner), for a
+   * `first_version` in `add` or `replace` mode alike. Setting the set's own `id` also needs the
+   * `platform:admin` scope, which no workspace API key carries; without it the API refuses the
+   * request with `PermissionError` (403). Leave `id` out so the platform generates it.
    */
   async create(body: CreateDynamicBehaviorSetRequest): Promise<DynamicBehaviorSet> {
     return extractData(
@@ -127,9 +127,9 @@ export class DynamicBehaviorSetsResource extends WorkspaceScopedResource {
    * version and call again. A set that is archived also throws `ConflictError`; restore it with
    * `update` first.
    *
-   * A version in `replace` mode needs the `platform:admin` scope, which no workspace API key
-   * carries; the API refuses it with `PermissionError` (403). Write `add` mode versions with a
-   * workspace key.
+   * Needs the `DynamicBehaviorSet.update` permission (workspace admin or owner), for a version
+   * in `add` or `replace` mode alike. To restore an earlier version, read it and pass its
+   * content here: the result is a new version, and the earlier ones never change.
    */
   async createVersion(
     setId: string,

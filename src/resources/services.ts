@@ -187,9 +187,8 @@ export class ServicesResource extends WorkspaceScopedResource {
    * `states` entry has to be an action or data collection state of the graph version the
    * version set runs and is listed once, and there are at most 254 pins, one per set and no two
    * sets with the same name ignoring case, whose enabled conditions and examples fit 160,000
-   * characters together; on a `gpt_realtime` service an enabled pin is refused (`ValidationError`). Pinning a replace-mode
-   * version, or changing the pin of one, needs the `platform:admin` scope, which no workspace
-   * API key carries (`PermissionError`). The write also needs the `Service.update` permission.
+   * characters together; on a `gpt_realtime` service an enabled pin is refused (`ValidationError`). The write needs the
+   * `Service.update` permission, for a pin on an `add`- or `replace`-mode version alike.
    *
    * A pin takes effect for calls and conversations that load the service's configuration after
    * the write; a call already in progress can keep the one it loaded.
@@ -221,7 +220,7 @@ export class ServicesResource extends WorkspaceScopedResource {
    * Concurrency, the `ConfigurationError` for a missing version set, and the permissions are the
    * same as `setDynamicBehaviorPin`: the write carries the `updated_at` of the read as
    * `expected_updated_at`, so a change to the service in between throws `ConflictError` (409)
-   * and stores nothing. Removing a replace-mode pin does not need the `platform:admin` scope.
+   * and stores nothing.
    * To disable a pin instead of removing it, call `setDynamicBehaviorPin` with `enabled: false`.
    */
   async clearDynamicBehaviorPin(
