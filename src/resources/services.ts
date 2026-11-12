@@ -9,6 +9,12 @@ export interface ListServicesParams extends ListParams {
   type?: string
 }
 
+export type GetServiceConfigurationIdentityParams = NonNullable<
+  operations['get-service-configuration-identity']['parameters']['query']
+>
+export type ServiceConfigurationIdentityResponse =
+  components['schemas']['ServiceConfigurationIdentityResponse']
+
 export type ListVoiceJudgeResultsParams = NonNullable<
   operations['list-voice-judge-recent']['parameters']['query']
 >
@@ -66,6 +72,29 @@ export class ServicesResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/services/{service_id}', {
         params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+      }),
+    )
+  }
+
+  /**
+   * Read the configuration digest for an explicitly selected version set, without returning
+   * the configuration. Pass the returned `updated_at` unchanged as `expected_updated_at`
+   * on a conditional settings, harness pins or version set write. Keep it as a string:
+   * converting through `Date` loses sub-millisecond precision.
+   *
+   * The timestamp guards only the service row. Referenced configurations and defaults can
+   * change the digest without changing that timestamp; it does not lock the whole config.
+   */
+  async getConfigurationIdentity(
+    serviceId: ServiceId | string,
+    params: GetServiceConfigurationIdentityParams,
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/services/{service_id}/configuration-identity', {
+        params: {
+          path: { workspace_id: this.workspaceId, service_id: serviceId },
+          query: params,
+        },
       }),
     )
   }
@@ -230,6 +259,10 @@ export class ServicesResource extends WorkspaceScopedResource {
    * (`ValidationError` otherwise). A key left out runs the harness default, and a PUT of the
    * values the service already stores writes nothing. Every change is audited. Needs the
    * `Service.update` permission.
+   *
+   * Pass the service's `updated_at` string unchanged as `expected_updated_at` to refuse
+   * a stale write with `ConflictError` (409), including a no-op. The SDK does not retry it.
+   * This checks the service row only; see `getConfigurationIdentity` for its limits.
    */
   async setSettings(serviceId: ServiceId | string, body: SetServiceSettingsRequest) {
     return extractData(
@@ -273,6 +306,11 @@ export class ServicesResource extends WorkspaceScopedResource {
    * no harness declares is refused with `ValidationError` listing them, unless `drop_orphaned`
    * is `true`, which deletes them. Every change is audited. Needs the `Service.update`
    * permission.
+   *
+   * Pass the service's `updated_at` string unchanged as `expected_updated_at` to refuse
+   * a stale write with `ConflictError` (409), including a no-op, without storing or dropping
+   * anything. The SDK does not retry it. This checks the service row only; see
+   * `getConfigurationIdentity` for its limits.
    */
   async setHarnessPins(serviceId: ServiceId | string, body: SetHarnessPinsRequest) {
     return extractData(

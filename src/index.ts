@@ -893,7 +893,9 @@ export type {
 
 export type {
   DynamicBehaviorPin,
+  GetServiceConfigurationIdentityParams,
   ListVoiceJudgeResultsParams,
+  ServiceConfigurationIdentityResponse,
   SetHarnessPinsRequest,
   SetServiceSettingsRequest,
   VoiceJudgeResult,
