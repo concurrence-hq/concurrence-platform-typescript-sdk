@@ -11514,6 +11514,20 @@
             "description": "Optional world entity UUID to bind caller context directly. Precedence rules: (1) when this resolves to a world entity in the workspace, it WINS — `caller_id` is not used for identity resolution, and the resolution provenance is `entity_id_lookup`; (2) when this is a well-formed UUID with no matching entity (stale, deleted, wrong workspace), the session falls back to phone lookup against `caller_id` (provenance `phone_lookup`) — no error is raised, the sim is survivable; (3) malformed UUIDs are rejected with HTTP 422 before the session starts. The supplied `caller_id` is still recorded on the active call and surfaced in the greeting metadata in case (1).",
             "title": "Entity Id"
           },
+          "expected_service_config_digest": {
+            "anyOf": [
+              {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The candidate the session must run: the `service_config_digest` the service's `configuration-identity` answers for its default version set. Every turn of the session, and of its forks, runs only on a configuration with this digest. One that has since changed fails the create or the step with HTTP 409 `simulation_config_mismatch`, and a fork branch with that `error`. Omitted, the session runs whatever configuration the service has at each turn.",
+            "title": "Expected Service Config Digest"
+          },
           "service_id": {
             "format": "uuid",
             "title": "Service Id",
@@ -22253,6 +22267,17 @@
             "description": "Why the branch failed. Null when it stepped.",
             "title": "Error"
           },
+          "harness_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationHarnessExecution"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the branch's turn ran on. Null for a failed branch and when the agent runtime reported none."
+          },
           "observation": {
             "anyOf": [
               {
@@ -23866,6 +23891,14 @@
         ],
         "title": "HarnessSettingsSchema",
         "type": "object"
+      },
+      "HarnessSource": {
+        "enum": [
+          "pin",
+          "workspace_default",
+          "harness_default"
+        ],
+        "type": "string"
       },
       "HealFieldRequest": {
         "properties": {
@@ -42997,6 +43030,106 @@
         "title": "SimulationForkResponse",
         "type": "object"
       },
+      "SimulationHarnessExecution": {
+        "description": "What one simulation request ran on, as the agent runtime reported it. Nothing here is derived by this API.",
+        "properties": {
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationHarnessSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the request resolved no text harness: a voice service's simulation, or a voice note."
+          },
+          "receipts": {
+            "description": "One receipt per round a release answered, each naming this digest and the selected release's wheel. Empty\nwhen no round ran on a release, whatever is selected: a selection alone is not proof of execution.",
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Receipts",
+            "type": "array"
+          },
+          "service_config_digest": {
+            "description": "The digest of the configuration the request's engine loaded.",
+            "title": "Service Config Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_config_digest",
+          "harness",
+          "receipts"
+        ],
+        "title": "SimulationHarnessExecution",
+        "type": "object"
+      },
+      "SimulationHarnessSelection": {
+        "description": "The text harness the loaded configuration selects for the request's model family.",
+        "properties": {
+          "harness": {
+            "description": "The text provider family the request's rounds were routed for.",
+            "title": "Harness",
+            "type": "string"
+          },
+          "kind": {
+            "const": "text",
+            "title": "Kind",
+            "type": "string"
+          },
+          "release": {
+            "description": "The selected release's tag, or `in-tree`.",
+            "title": "Release",
+            "type": "string"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The selected release wheel's sha256. Null for `in-tree`.",
+            "title": "Sha256"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessSource"
+              },
+              {
+                "const": "unresolved",
+                "type": "string"
+              }
+            ],
+            "description": "Where the selection came from. `unresolved`: the configuration has no entry for the family.",
+            "title": "Source"
+          }
+        },
+        "required": [
+          "kind",
+          "harness",
+          "release",
+          "source",
+          "sha256"
+        ],
+        "title": "SimulationHarnessSelection",
+        "type": "object"
+      },
       "SimulationIntelligenceResponse": {
         "properties": {
           "intelligence": {
@@ -43551,6 +43684,17 @@
             "title": "Greeting",
             "type": "string"
           },
+          "harness_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationHarnessExecution"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the greeting ran on. Null when the agent runtime reported none."
+          },
           "is_terminal": {
             "title": "Is Terminal",
             "type": "boolean"
@@ -43771,6 +43915,17 @@
       },
       "SimulationStepResponse": {
         "properties": {
+          "harness_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationHarnessExecution"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the turn ran on. Null when the agent runtime reported none."
+          },
           "observation": {
             "$ref": "#/components/schemas/SimulationObservation"
           },
@@ -88128,7 +88283,7 @@
     },
     "/v1/{workspace_id}/services/{service_id}/version-sets/{name}": {
       "put": {
-        "description": "Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.",
+        "description": "Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission; only Amigo administrators change a system service's version sets (403 otherwise, as for a service update).",
         "operationId": "upsert-service-version-set",
         "parameters": [
           {
@@ -90728,6 +90883,16 @@
             },
             "description": "Run or simulation configuration not found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "`simulation_config_mismatch`: the service's configuration is not the digest the session is locked to"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -90756,7 +90921,7 @@
                 }
               }
             },
-            "description": "Voice agent not reachable"
+            "description": "Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run"
           }
         },
         "summary": "Create Simulation Session",
@@ -91210,6 +91375,16 @@
             },
             "description": "Simulation session or configuration not found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "`simulation_config_mismatch`: the service's configuration is not the digest the session is locked to"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -91238,7 +91413,7 @@
                 }
               }
             },
-            "description": "Voice agent not reachable"
+            "description": "Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run"
           }
         },
         "summary": "Create Test Conversation",
@@ -91377,6 +91552,16 @@
             },
             "description": "Simulation session or configuration not found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "`simulation_config_mismatch`: the service's configuration is not the digest the session is locked to"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -91405,7 +91590,7 @@
                 }
               }
             },
-            "description": "Voice agent not reachable"
+            "description": "Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run"
           }
         },
         "summary": "Test Conversation Step",
@@ -91968,6 +92153,16 @@
             },
             "description": "Simulation session or configuration not found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationProxyErrorResponse"
+                }
+              }
+            },
+            "description": "`simulation_config_mismatch`: the service's configuration is not the digest the session is locked to"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -91996,7 +92191,7 @@
                 }
               }
             },
-            "description": "Voice agent not reachable"
+            "description": "Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run"
           }
         },
         "summary": "Simulation Step",

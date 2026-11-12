@@ -5714,7 +5714,7 @@ export interface paths {
         get?: never;
         /**
          * Upsert a service version set
-         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.
+         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission; only Amigo administrators change a system service's version sets (403 otherwise, as for a service update).
          */
         put: operations["upsert-service-version-set"];
         post?: never;
@@ -13136,6 +13136,11 @@ export interface components {
              */
             entity_id?: string | null;
             /**
+             * Expected Service Config Digest
+             * @description The candidate the session must run: the `service_config_digest` the service's `configuration-identity` answers for its default version set. Every turn of the session, and of its forks, runs only on a configuration with this digest. One that has since changed fails the create or the step with HTTP 409 `simulation_config_mismatch`, and a fork branch with that `error`. Omitted, the session runs whatever configuration the service has at each turn.
+             */
+            expected_service_config_digest?: string | null;
+            /**
              * Service Id
              * Format: uuid
              */
@@ -17649,6 +17654,8 @@ export interface components {
              * @description Why the branch failed. Null when it stepped.
              */
             error?: string | null;
+            /** @description What the branch's turn ran on. Null for a failed branch and when the agent runtime reported none. */
+            harness_execution?: components["schemas"]["SimulationHarnessExecution"] | null;
             /** @description The branch's first turn. Null when the branch failed. */
             observation?: components["schemas"]["ForkObservation"] | null;
             /** Session Id */
@@ -18274,6 +18281,8 @@ export interface components {
              */
             tag: string | null;
         };
+        /** @enum {string} */
+        HarnessSource: "pin" | "workspace_default" | "harness_default";
         /** HealFieldRequest */
         HealFieldRequest: {
             /** Context */
@@ -26567,6 +26576,58 @@ export interface components {
              */
             service_id: string;
         };
+        /**
+         * SimulationHarnessExecution
+         * @description What one simulation request ran on, as the agent runtime reported it. Nothing here is derived by this API.
+         */
+        SimulationHarnessExecution: {
+            /** @description Null when the request resolved no text harness: a voice service's simulation, or a voice note. */
+            harness: components["schemas"]["SimulationHarnessSelection"] | null;
+            /**
+             * Receipts
+             * @description One receipt per round a release answered, each naming this digest and the selected release's wheel. Empty
+             *     when no round ran on a release, whatever is selected: a selection alone is not proof of execution.
+             */
+            receipts: {
+                [key: string]: string | null;
+            }[];
+            /**
+             * Service Config Digest
+             * @description The digest of the configuration the request's engine loaded.
+             */
+            service_config_digest: string;
+        };
+        /**
+         * SimulationHarnessSelection
+         * @description The text harness the loaded configuration selects for the request's model family.
+         */
+        SimulationHarnessSelection: {
+            /**
+             * Harness
+             * @description The text provider family the request's rounds were routed for.
+             */
+            harness: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "text";
+            /**
+             * Release
+             * @description The selected release's tag, or `in-tree`.
+             */
+            release: string;
+            /**
+             * Sha256
+             * @description The selected release wheel's sha256. Null for `in-tree`.
+             */
+            sha256: string | null;
+            /**
+             * Source
+             * @description Where the selection came from. `unresolved`: the configuration has no entry for the family.
+             */
+            source: components["schemas"]["HarnessSource"] | "unresolved";
+        };
         /** SimulationIntelligenceResponse */
         SimulationIntelligenceResponse: {
             /** Intelligence */
@@ -26837,6 +26898,8 @@ export interface components {
         SimulationSessionResponse: {
             /** Greeting */
             greeting: string;
+            /** @description What the greeting ran on. Null when the agent runtime reported none. */
+            harness_execution?: components["schemas"]["SimulationHarnessExecution"] | null;
             /** Is Terminal */
             is_terminal: boolean;
             /** Session Id */
@@ -26969,6 +27032,8 @@ export interface components {
         };
         /** SimulationStepResponse */
         SimulationStepResponse: {
+            /** @description What the turn ran on. Null when the agent runtime reported none. */
+            harness_execution?: components["schemas"]["SimulationHarnessExecution"] | null;
             observation: components["schemas"]["SimulationObservation"];
             snapshot: components["schemas"]["SimulationSnapshotResponse"];
         };
@@ -51844,6 +51909,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description `simulation_config_mismatch`: the service's configuration is not the digest the session is locked to */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Request validation or simulation configuration error */
             422: {
                 headers: {
@@ -51862,7 +51936,7 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
-            /** @description Voice agent not reachable */
+            /** @description Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -52079,6 +52153,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description `simulation_config_mismatch`: the service's configuration is not the digest the session is locked to */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Request validation or simulation configuration error */
             422: {
                 headers: {
@@ -52097,7 +52180,7 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
-            /** @description Voice agent not reachable */
+            /** @description Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -52203,6 +52286,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description `simulation_config_mismatch`: the service's configuration is not the digest the session is locked to */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Request validation or simulation configuration error */
             422: {
                 headers: {
@@ -52221,7 +52313,7 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
-            /** @description Voice agent not reachable */
+            /** @description Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -52612,6 +52704,15 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
+            /** @description `simulation_config_mismatch`: the service's configuration is not the digest the session is locked to */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationProxyErrorResponse"];
+                };
+            };
             /** @description Request validation or simulation configuration error */
             422: {
                 headers: {
@@ -52630,7 +52731,7 @@ export interface operations {
                     "application/json": components["schemas"]["SimulationProxyErrorResponse"];
                 };
             };
-            /** @description Voice agent not reachable */
+            /** @description Voice agent not reachable, or `harness_release_rejected`: the service's pinned harness release cannot run */
             503: {
                 headers: {
                     [name: string]: unknown;
