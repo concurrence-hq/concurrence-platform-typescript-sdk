@@ -2189,7 +2189,7 @@ export interface paths {
         put?: never;
         /**
          * Create a dynamic behavior set
-         * @description Create a set with its version 1, together. The name is unique among the workspace's sets that aren't archived, whatever the case. `id` is optional, and setting it needs the `platform:admin` scope: an import that derives it from the source's id gets a 409 instead of a second set when it creates the set again. A replace-mode first version needs the `platform:admin` scope too. Requires `DynamicBehaviorSet.create` permission.
+         * @description Create a set with its version 1, together. The name is unique among the workspace's sets that aren't archived, whatever the case. `id` is optional, and setting it needs the `platform:admin` scope: an import that derives it from the source's id gets a 409 instead of a second set when it creates the set again. Requires `DynamicBehaviorSet.create` permission, for a first version in add or replace mode alike.
          */
         post: operations["create-dynamic-behavior-set"];
         delete?: never;
@@ -2257,7 +2257,7 @@ export interface paths {
         put?: never;
         /**
          * Create a dynamic behavior set version
-         * @description Write the set's next version. `expected_latest_version` is the latest version the write was made from; when the set has moved on, or another write took the next number first, nothing is stored and the response is a 409. A version never changes, and no service runs it until its version set pins it. A replace-mode version needs the `platform:admin` scope. Requires `DynamicBehaviorSet.update` permission.
+         * @description Write the set's next version. `expected_latest_version` is the latest version the write was made from; when the set has moved on, or another write took the next number first, nothing is stored and the response is a 409. A version never changes, and no service runs it until its version set pins it. Requires `DynamicBehaviorSet.update` permission, for a version in add or replace mode alike.
          */
         post: operations["create-dynamic-behavior-set-version"];
         delete?: never;
@@ -5714,7 +5714,7 @@ export interface paths {
         get?: never;
         /**
          * Upsert a service version set
-         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. Pinning a replace-mode version, or changing its pin, needs `platform:admin`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.
+         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.
          */
         put: operations["upsert-service-version-set"];
         post?: never;
@@ -12777,7 +12777,7 @@ export interface components {
             /**
              * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
              *     guidelines, while boundary constraints, guardrails and safety rules stay. A replace-mode version needs an
-             *     instruction, and writing one needs ``platform:admin``.
+             *     instruction.
              * @default add
              */
             mode?: components["schemas"]["DynamicBehaviorMode"];
@@ -14666,8 +14666,7 @@ export interface components {
             instruction?: string | null;
             /**
              * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
-             *     guidelines, while boundary constraints, guardrails and safety rules stay. Adding a replace-mode behavior, or
-             *     changing one, needs ``platform:admin``; disabling or removing one doesn't.
+             *     guidelines, while boundary constraints, guardrails and safety rules stay.
              * @default add
              */
             mode?: components["schemas"]["DynamicBehaviorMode"];
@@ -14826,7 +14825,7 @@ export interface components {
             /**
              * @description ``add``: the guidance yields to every action guideline. ``replace``: it stands in for the reply's action
              *     guidelines, while boundary constraints, guardrails and safety rules stay. A replace-mode version needs an
-             *     instruction, and writing one needs ``platform:admin``.
+             *     instruction.
              * @default add
              */
             mode?: components["schemas"]["DynamicBehaviorMode"];
@@ -32790,7 +32789,6 @@ export interface components {
             /**
              * Version
              * @description The version of the set the service runs. A later version of the set changes nothing until the pin moves.
-             *     Pinning a replace-mode version needs ``platform:admin``.
              */
             version: number;
         };
@@ -49227,7 +49225,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions, or a replace-mode dynamic behavior pinned without platform:admin. */
+            /** @description Insufficient permissions. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -49389,7 +49387,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions, or a replace-mode dynamic behavior pinned without platform:admin. */
+            /** @description Insufficient permissions. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -50171,7 +50169,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Insufficient permissions, or a replace-mode dynamic behavior pinned without platform:admin. */
+            /** @description Insufficient permissions. */
             403: {
                 headers: {
                     [name: string]: unknown;
