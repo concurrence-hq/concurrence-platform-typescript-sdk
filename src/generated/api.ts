@@ -5465,6 +5465,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/services/{service_id}/configuration-identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the identity of a service's effective configuration
+         * @description The `service_config_digest` of the configuration a session of `version_set` loads, the digest a run records, and the service's `updated_at`. The configuration itself is not returned. The digest covers the service, the agent version, context graph version and dynamic behaviors the version set pins, and each harness's release and resolved settings. `updated_at` is the revision of the service's row the config was read from: pass it as `expected_updated_at` on a settings, harness pins or version set write. It guards that row only. An agent, a context graph, a workspace default or a harness default can change the digest without changing it, so a run is bound by comparing the digest. Requires `Service.view` permission.
+         */
+        get: operations["get-service-configuration-identity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/services/{service_id}/harness-pins": {
         parameters: {
             query?: never;
@@ -5475,7 +5495,7 @@ export interface paths {
         get?: never;
         /**
          * Set a service's harness pins
-         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. Requires `Service.update` permission.
+         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the pins are checked and even when they already match, so a stale review stores and drops nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. Requires `Service.update` permission.
          */
         put: operations["set-service-harness-pins"];
         post?: never;
@@ -5614,7 +5634,7 @@ export interface paths {
         get: operations["get-service-settings"];
         /**
          * Set a service's harness settings
-         * @description Replace the service's setting values. A key applies to every harness of the service that declares it, and its value has to satisfy each declaring spec's type, bounds and choices. A key left out runs the harness default. A PUT of the values the service already stores writes nothing. Only Amigo administrators set a system service's settings. Every change is audited as `service.settings.update`. Requires `Service.update` permission.
+         * @description Replace the service's setting values. A key applies to every harness of the service that declares it, and its value has to satisfy each declaring spec's type, bounds and choices. A key left out runs the harness default. A PUT of the values the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the values are checked and even when they already match. Only Amigo administrators set a system service's settings. Every change is audited as `service.settings.update`. Requires `Service.update` permission.
          */
         put: operations["set-service-settings"];
         post?: never;
@@ -24525,6 +24545,39 @@ export interface components {
             service_id: string;
         };
         /**
+         * ServiceConfigurationIdentityResponse
+         * @description Which configuration a session of one version set of the service loads, without the configuration.
+         */
+        ServiceConfigurationIdentityResponse: {
+            /**
+             * Service Config Digest
+             * @description `sha256:` over the canonical JSON of the whole config a session of `version_set` loads: the service, the
+             *     agent version, context graph version and dynamic behaviors the set pins, and each harness's release and resolved
+             *     settings. It is the `service_config_digest` a run records.
+             */
+            service_config_digest: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The service's `updated_at`: the `expected_updated_at` of a conditional settings, harness pins or version set
+             *     write. It is the revision of the service's row only. An agent, a context graph, a harness default or a workspace
+             *     default can change the digest without changing it.
+             */
+            updated_at: string;
+            /** Version Set */
+            version_set: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /**
          * ServiceCost
          * @description Cost attributed to one service.
          */
@@ -25566,6 +25619,13 @@ export interface components {
              */
             drop_orphaned?: boolean;
             /**
+             * Expected Updated At
+             * @description The service's `updated_at` these pins were reviewed against, exactly as the service returned it. When the
+             *     service has changed since, the write is refused with 409 and nothing is stored or dropped, even when the pins
+             *     already match. Left out, the write is not compared to what the caller last read.
+             */
+            expected_updated_at?: string | null;
+            /**
              * Pins
              * @description The service's pins, replacing the ones it has. At most one per harness. A harness left out follows its
              *     default, and `[]` clears every pin.
@@ -25574,6 +25634,13 @@ export interface components {
         };
         /** SetServiceSettingsRequest */
         SetServiceSettingsRequest: {
+            /**
+             * Expected Updated At
+             * @description The service's `updated_at` these values were reviewed against, exactly as the service returned it. When the
+             *     service has changed since, the write is refused with 409 and nothing is stored, even when the values already
+             *     match. Left out, the write is not compared to what the caller last read.
+             */
+            expected_updated_at?: string | null;
             /**
              * Settings
              * @description The service's values, replacing the ones it has. A key left out runs the harness default, and `{}` clears
@@ -49410,6 +49477,61 @@ export interface operations {
             };
         };
     };
+    "get-service-configuration-identity": {
+        parameters: {
+            query: {
+                version_set: string;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceConfigurationIdentityResponse"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found or inactive, no such version set on it, or a version the set pins is gone. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "set-service-harness-pins": {
         parameters: {
             query?: never;
@@ -49456,7 +49578,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The service changed while the pins were checked, or its version sets pin an archived dynamic behavior set. */
+            /** @description The service changed since `expected_updated_at` or while the pins were checked, or its version sets pin an archived dynamic behavior set. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -49831,7 +49953,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The service changed while the settings were checked. */
+            /** @description The service changed since `expected_updated_at`, or while the settings were checked. */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -192,6 +192,7 @@ exports[`Generated type snapshots > keeps operation IDs stable 1`] = `
   "get-sensorium-connector-health",
   "get-sensorium-loop-latency",
   "get-service",
+  "get-service-configuration-identity",
   "get-service-harnesses",
   "get-service-readiness",
   "get-service-safety",
