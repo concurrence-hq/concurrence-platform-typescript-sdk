@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.144.0] - 2026-11-12
+
+### Features
+
+- expose configuration identity (ALL-2632) (#535)
+
 ## [0.143.0] - 2026-11-11
 
 ### Features
