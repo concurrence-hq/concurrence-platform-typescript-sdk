@@ -6196,6 +6196,16 @@
             "minLength": 1,
             "title": "Message",
             "type": "string"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsightSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -11101,6 +11111,34 @@
         "title": "CreateOutboundCallResponse",
         "type": "object"
       },
+      "CreatePinRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "presentation_id": {
+            "format": "uuid",
+            "title": "Presentation Id",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 16000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "presentation_id",
+          "question"
+        ],
+        "title": "CreatePinRequest",
+        "type": "object"
+      },
       "CreateProductionEvalDefinitionRequest": {
         "properties": {
           "active": {
@@ -14246,6 +14284,345 @@
           "channel_address"
         ],
         "title": "DeliverSurfaceResponse",
+        "type": "object"
+      },
+      "DemoDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "population": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Population",
+            "type": "string"
+          },
+          "time_basis": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Time Basis",
+            "type": "string"
+          },
+          "units": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Units",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "population",
+          "time_basis",
+          "units"
+        ],
+        "title": "DemoDefinition",
+        "type": "object"
+      },
+      "DemoHomeAgent": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/FactId"
+          },
+          "name": {
+            "$ref": "#/components/schemas/FactLabel"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DemoHomeAgent",
+        "type": "object"
+      },
+      "DemoHomeCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "check_key": {
+            "$ref": "#/components/schemas/FactLabel"
+          },
+          "conversation_id": {
+            "$ref": "#/components/schemas/FactId"
+          },
+          "definition_id": {
+            "$ref": "#/components/schemas/FactId"
+          },
+          "id": {
+            "$ref": "#/components/schemas/FactId"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "conversation_id",
+          "check_key",
+          "passed",
+          "definition_id"
+        ],
+        "title": "DemoHomeCheck",
+        "type": "object"
+      },
+      "DemoHomeConversation": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/FactId"
+          },
+          "is_production": {
+            "title": "Is Production",
+            "type": "boolean"
+          },
+          "safety_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "agent_id",
+          "started_at",
+          "channel_kind",
+          "is_production",
+          "safety_status"
+        ],
+        "title": "DemoHomeConversation",
+        "type": "object"
+      },
+      "DemoHomeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/DemoHomeAgent"
+            },
+            "maxItems": 5000,
+            "title": "Agents",
+            "type": "array"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/DemoHomeCheck"
+            },
+            "maxItems": 5000,
+            "title": "Checks",
+            "type": "array"
+          },
+          "conversations": {
+            "items": {
+              "$ref": "#/components/schemas/DemoHomeConversation"
+            },
+            "maxItems": 5000,
+            "title": "Conversations",
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/DemoSource"
+          }
+        },
+        "required": [
+          "source",
+          "agents",
+          "conversations",
+          "checks"
+        ],
+        "title": "DemoHomeResponse",
+        "type": "object"
+      },
+      "DemoSource": {
+        "additionalProperties": false,
+        "description": "Captured provenance, safe to expose with authorized selected evidence.",
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "content_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "data_through": {
+            "format": "date",
+            "title": "Data Through",
+            "type": "string"
+          },
+          "dataset_version": {
+            "pattern": "^r[12]_[0-9]{8}_[a-f0-9]{64}$",
+            "title": "Dataset Version",
+            "type": "string"
+          },
+          "definition_records": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DemoDefinition"
+            },
+            "title": "Definition Records",
+            "type": "array"
+          },
+          "definitions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Definitions",
+            "type": "object"
+          },
+          "event_window_end": {
+            "format": "date-time",
+            "title": "Event Window End",
+            "type": "string"
+          },
+          "event_window_scope": {
+            "anyOf": [
+              {
+                "const": "conversations",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Window Scope"
+          },
+          "event_window_start": {
+            "format": "date-time",
+            "title": "Event Window Start",
+            "type": "string"
+          },
+          "kind": {
+            "const": "published_demo",
+            "default": "published_demo",
+            "title": "Kind",
+            "type": "string"
+          },
+          "logical_table": {
+            "title": "Logical Table",
+            "type": "string"
+          },
+          "observed_before": {
+            "format": "date-time",
+            "title": "Observed Before",
+            "type": "string"
+          },
+          "recipe_version": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Recipe Version",
+            "type": "string"
+          },
+          "snapshot_table": {
+            "title": "Snapshot Table",
+            "type": "string"
+          },
+          "synthetic": {
+            "const": true,
+            "default": true,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "table_map": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DemoTable"
+            },
+            "title": "Table Map",
+            "type": "object"
+          }
+        },
+        "required": [
+          "dataset_version",
+          "as_of_date",
+          "data_through",
+          "event_window_start",
+          "event_window_end",
+          "observed_before",
+          "recipe_version",
+          "content_sha256",
+          "logical_table",
+          "snapshot_table",
+          "definitions"
+        ],
+        "title": "DemoSource",
+        "type": "object"
+      },
+      "DemoTable": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/SqlColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 2048,
+            "title": "Description",
+            "type": "string"
+          },
+          "physical_table": {
+            "title": "Physical Table",
+            "type": "string"
+          },
+          "row_count": {
+            "maximum": 5000,
+            "minimum": 0,
+            "title": "Row Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "physical_table",
+          "columns",
+          "row_count",
+          "description"
+        ],
+        "title": "DemoTable",
         "type": "object"
       },
       "DescriptionString": {
@@ -18621,6 +18998,29 @@
         "title": "EventTypeSummary",
         "type": "object"
       },
+      "EvidenceColumn": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "name",
+          "type"
+        ],
+        "title": "EvidenceColumn",
+        "type": "object"
+      },
       "ExecutePanelRequest": {
         "properties": {
           "filter_values": {
@@ -19664,6 +20064,16 @@
         ],
         "title": "ExternalWriteProposalListResponse",
         "type": "object"
+      },
+      "FactId": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "FactLabel": {
+        "maxLength": 256,
+        "minLength": 1,
+        "type": "string"
       },
       "FailureClass": {
         "description": "Why a tool result is a failure — produced by the executor at RUN time.\n\nUnlike ``ResultDelivery`` (a fixed config-time axis), this is a runtime\nclassification the executor knows at the moment of failure. It flavors the\nagent-facing failure wording and the world-event / status-tool observability,\nand it is ALSO an optional routing key: a state x tool binding may set\n``ToolCallSpec.failure_delivery_by_class`` to deliver differently per class\n(e.g. interrupt on timeout, queue on a generic error). With no per-class map\n(the default), failed results route by the ``failure_delivery`` floor,\nunchanged. Add a member only in the same change that wires a producer for it —\nadding one also widens the per-class routing surface, so it must be a\ndeliberate, produced class.",
@@ -24395,6 +24805,128 @@
           "call_sid"
         ],
         "title": "InjectResponse",
+        "type": "object"
+      },
+      "InsightResultResponse": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "logical_sql": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logical Sql"
+          },
+          "queried_at": {
+            "format": "date-time",
+            "title": "Queried At",
+            "type": "string"
+          },
+          "result_id": {
+            "format": "uuid",
+            "title": "Result Id",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DemoSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sql": {
+            "title": "Sql",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "result_id",
+          "queried_at",
+          "truncated",
+          "sql",
+          "columns",
+          "rows"
+        ],
+        "title": "InsightResultResponse",
+        "type": "object"
+      },
+      "InsightSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "presentation_id": {
+            "format": "uuid",
+            "title": "Presentation Id",
+            "type": "string"
+          },
+          "row_index": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Index"
+          },
+          "series_index": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Index"
+          },
+          "source_session_id": {
+            "format": "uuid",
+            "title": "Source Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_session_id",
+          "presentation_id"
+        ],
+        "title": "InsightSelection",
         "type": "object"
       },
       "InstrumentationScope": {
@@ -32056,6 +32588,103 @@
           }
         },
         "title": "PhonicVadConfig",
+        "type": "object"
+      },
+      "PinEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/SqlColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "dataset_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DemoSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queried_at": {
+            "format": "date-time",
+            "title": "Queried At",
+            "type": "string"
+          },
+          "result_id": {
+            "format": "uuid",
+            "title": "Result Id",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_id",
+          "queried_at",
+          "columns",
+          "rows"
+        ],
+        "title": "PinEvidence",
+        "type": "object"
+      },
+      "PinListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SharedPin"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more",
+          "continuation_token"
+        ],
+        "title": "PinListResponse",
+        "type": "object"
+      },
+      "PinRevisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "PinRevisionRequest",
         "type": "object"
       },
       "PinningService": {
@@ -40664,6 +41293,16 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DemoSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -41064,6 +41703,109 @@
       },
       "Sha256": {
         "type": "string"
+      },
+      "SharedPin": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "additionalProperties": true,
+            "title": "Block",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "refresh_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Error"
+          },
+          "refreshed_at": {
+            "format": "date-time",
+            "title": "Refreshed At",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PinEvidence"
+          },
+          "undo_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo Until"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "format": "uuid",
+            "title": "Updated By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "question",
+          "block",
+          "source",
+          "created_at",
+          "updated_at",
+          "refreshed_at",
+          "created_by",
+          "updated_by",
+          "refresh_error",
+          "deleted_at",
+          "undo_until"
+        ],
+        "title": "SharedPin",
+        "type": "object"
       },
       "SignalResponseAlignment": {
         "description": "Whether the agent's response aligned with a salient signal in the call.",
@@ -45448,6 +46190,29 @@
           "muted"
         ],
         "title": "SpeakerMutedEvent",
+        "type": "object"
+      },
+      "SqlColumn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type_name": {
+            "title": "Type Name",
+            "type": "string"
+          },
+          "type_text": {
+            "title": "Type Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type_name",
+          "type_text"
+        ],
+        "title": "SqlColumn",
         "type": "object"
       },
       "SqlQueryRequest": {
@@ -76943,6 +77708,40 @@
         ]
       }
     },
+    "/v1/{workspace_id}/insights/demo-home": {
+      "get": {
+        "description": "Complete fixed Home facts from one approved r2 synthetic publication. IDs are synthetic.",
+        "operationId": "get_demo_home_facts_v1__workspace_id__insights_demo_home_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoHomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Demo Home Facts",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
     "/v1/{workspace_id}/insights/digest": {
       "get": {
         "description": "Proactive workspace health digest. Cached 5 minutes.",
@@ -76974,6 +77773,360 @@
           }
         },
         "summary": "Get Digest",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins": {
+      "get": {
+        "operationId": "list_pins_v1__workspace_id__insights_pins_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pins",
+        "tags": [
+          "Insights"
+        ]
+      },
+      "post": {
+        "operationId": "create_pin_v1__workspace_id__insights_pins_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Pin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins/{pin_id}": {
+      "delete": {
+        "operationId": "unpin_v1__workspace_id__insights_pins__pin_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unpin",
+        "tags": [
+          "Insights"
+        ]
+      },
+      "get": {
+        "operationId": "get_pin_v1__workspace_id__insights_pins__pin_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins/{pin_id}/refresh": {
+      "post": {
+        "operationId": "refresh_pin_v1__workspace_id__insights_pins__pin_id__refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Pin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins/{pin_id}/undo": {
+      "post": {
+        "operationId": "undo_unpin_v1__workspace_id__insights_pins__pin_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Unpin",
         "tags": [
           "Insights"
         ]
@@ -77164,6 +78317,70 @@
           }
         },
         "summary": "Chat",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/sessions/{session_id}/results/{result_id}": {
+      "get": {
+        "description": "Read retained query evidence owned by the current conversation caller.",
+        "operationId": "get_result_v1__workspace_id__insights_sessions__session_id__results__result_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Result Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Result",
         "tags": [
           "Insights"
         ]
@@ -88128,7 +89345,7 @@
     },
     "/v1/{workspace_id}/services/{service_id}/version-sets/{name}": {
       "put": {
-        "description": "Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.",
+        "description": "Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission; only Amigo administrators change a system service's version sets (403 otherwise, as for a service update).",
         "operationId": "upsert-service-version-set",
         "parameters": [
           {

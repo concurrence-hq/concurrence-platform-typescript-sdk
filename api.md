@@ -598,12 +598,21 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `insights`
 
 - `getDigest`
+- `getDemoHome`
 - `getSchema`
 - `getSuggestions`
 - `runSql`
 - `sessions.create`
 - `sessions.get`
 - `sessions.chat`
+- `sessions.getResult`
+- `pins.list`
+- `pins.listAutoPaging`
+- `pins.get`
+- `pins.create`
+- `pins.refresh`
+- `pins.delete`
+- `pins.undo`
 
 ### `commandCenter`
 

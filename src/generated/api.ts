@@ -3075,6 +3075,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/insights/demo-home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Demo Home Facts
+         * @description Complete fixed Home facts from one approved r2 synthetic publication. IDs are synthetic.
+         */
+        get: operations["get_demo_home_facts_v1__workspace_id__insights_demo_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/insights/digest": {
         parameters: {
             query?: never;
@@ -3089,6 +3109,76 @@ export interface paths {
         get: operations["get_digest_v1__workspace_id__insights_digest_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pins */
+        get: operations["list_pins_v1__workspace_id__insights_pins_get"];
+        put?: never;
+        /** Create Pin */
+        post: operations["create_pin_v1__workspace_id__insights_pins_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins/{pin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pin */
+        get: operations["get_pin_v1__workspace_id__insights_pins__pin_id__get"];
+        put?: never;
+        post?: never;
+        /** Unpin */
+        delete: operations["unpin_v1__workspace_id__insights_pins__pin_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins/{pin_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Pin */
+        post: operations["refresh_pin_v1__workspace_id__insights_pins__pin_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins/{pin_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Unpin */
+        post: operations["undo_unpin_v1__workspace_id__insights_pins__pin_id__undo_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3169,6 +3259,26 @@ export interface paths {
          * @description Chat with the insights agent. Returns SSE stream of visual blocks.
          */
         post: operations["chat_v1__workspace_id__insights_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/sessions/{session_id}/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Result
+         * @description Read retained query evidence owned by the current conversation caller.
+         */
+        get: operations["get_result_v1__workspace_id__insights_sessions__session_id__results__result_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5714,7 +5824,7 @@ export interface paths {
         get?: never;
         /**
          * Upsert a service version set
-         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission.
+         * @description Replace or create a named version set on a service. The name and pinned agent and context graph versions are validated. `dynamic_behavior_sets` pins library behavior sets at a version, in the order the selector chooses between them: each has to exist in the workspace and not be archived, every `states` entry has to be an action or data collection state of the graph version the version set runs, and the enabled pins' conditions and examples have to fit 160,000 characters together. A pin on an add- or replace-mode version needs only `Service.update`. Left out, `dynamic_behavior_sets` keeps the pins the stored version set has, and `[]` clears them. `expected_updated_at` refuses the write with 409 when the service has changed since the caller read it. Without it, the write still lands only on the row the request itself read, so a change by another writer in between is a 409 too. Requires `Service.update` permission; only Amigo administrators change a system service's version sets (403 otherwise, as for a service update).
          */
         put: operations["upsert-service-version-set"];
         post?: never;
@@ -10960,6 +11070,7 @@ export interface components {
              * @description Insights chat user message.
              */
             message: string;
+            selection?: components["schemas"]["InsightSelection"] | null;
         };
         /** CheckerLabelCheck */
         CheckerLabelCheck: {
@@ -12946,6 +13057,21 @@ export interface components {
              */
             status: string;
         };
+        /** CreatePinRequest */
+        CreatePinRequest: {
+            /**
+             * Presentation Id
+             * Format: uuid
+             */
+            presentation_id: string;
+            /** Question */
+            question: string;
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+        };
         /** CreateProductionEvalDefinitionRequest */
         CreateProductionEvalDefinitionRequest: {
             /**
@@ -14440,6 +14566,136 @@ export interface components {
             surface_id: string;
             /** Url */
             url?: string | null;
+        };
+        /** DemoDefinition */
+        DemoDefinition: {
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            /** Population */
+            population: string;
+            /** Time Basis */
+            time_basis: string;
+            /** Units */
+            units: string;
+        };
+        /** DemoHomeAgent */
+        DemoHomeAgent: {
+            id: components["schemas"]["FactId"];
+            name: components["schemas"]["FactLabel"];
+        };
+        /** DemoHomeCheck */
+        DemoHomeCheck: {
+            check_key: components["schemas"]["FactLabel"];
+            conversation_id: components["schemas"]["FactId"];
+            definition_id: components["schemas"]["FactId"];
+            id: components["schemas"]["FactId"];
+            /** Passed */
+            passed: boolean;
+        };
+        /** DemoHomeConversation */
+        DemoHomeConversation: {
+            agent_id: components["schemas"]["FactId"] | null;
+            channel_kind: components["schemas"]["FactLabel"] | null;
+            id: components["schemas"]["FactId"];
+            /** Is Production */
+            is_production: boolean;
+            safety_status: components["schemas"]["FactLabel"] | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+        };
+        /** DemoHomeResponse */
+        DemoHomeResponse: {
+            /** Agents */
+            agents: components["schemas"]["DemoHomeAgent"][];
+            /** Checks */
+            checks: components["schemas"]["DemoHomeCheck"][];
+            /** Conversations */
+            conversations: components["schemas"]["DemoHomeConversation"][];
+            source: components["schemas"]["DemoSource"];
+        };
+        /**
+         * DemoSource
+         * @description Captured provenance, safe to expose with authorized selected evidence.
+         */
+        DemoSource: {
+            /**
+             * As Of Date
+             * Format: date
+             */
+            as_of_date: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Data Through
+             * Format: date
+             */
+            data_through: string;
+            /** Dataset Version */
+            dataset_version: string;
+            /**
+             * Definition Records
+             * @default []
+             */
+            definition_records?: components["schemas"]["DemoDefinition"][];
+            /** Definitions */
+            definitions: {
+                [key: string]: string;
+            };
+            /**
+             * Event Window End
+             * Format: date-time
+             */
+            event_window_end: string;
+            /** Event Window Scope */
+            event_window_scope?: "conversations" | null;
+            /**
+             * Event Window Start
+             * Format: date-time
+             */
+            event_window_start: string;
+            /**
+             * Kind
+             * @default published_demo
+             * @constant
+             */
+            kind?: "published_demo";
+            /** Logical Table */
+            logical_table: string;
+            /**
+             * Observed Before
+             * Format: date-time
+             */
+            observed_before: string;
+            /** Recipe Version */
+            recipe_version: string;
+            /** Snapshot Table */
+            snapshot_table: string;
+            /**
+             * Synthetic
+             * @default true
+             * @constant
+             */
+            synthetic?: true;
+            /** Table Map */
+            table_map?: {
+                [key: string]: components["schemas"]["DemoTable"];
+            };
+        };
+        /** DemoTable */
+        DemoTable: {
+            /** Columns */
+            columns: components["schemas"]["SqlColumn"][];
+            /** Description */
+            description: string;
+            /** Physical Table */
+            physical_table: string;
+            /** Row Count */
+            row_count: number;
         };
         DescriptionString: string;
         /**
@@ -16368,6 +16624,15 @@ export interface components {
             /** Sources */
             sources: string[];
         };
+        /** EvidenceColumn */
+        EvidenceColumn: {
+            /** Index */
+            index: number;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+        };
         /** ExecutePanelRequest */
         ExecutePanelRequest: {
             /**
@@ -16800,6 +17065,8 @@ export interface components {
             /** Items */
             items: components["schemas"]["ExternalWriteProposal"][];
         };
+        FactId: string;
+        FactLabel: string;
         /**
          * FailureClass
          * @description Why a tool result is a failure — produced by the executor at RUN time.
@@ -18538,6 +18805,47 @@ export interface components {
              * @enum {string}
              */
             status: "delivered" | "queued_no_subscriber";
+        };
+        /** InsightResultResponse */
+        InsightResultResponse: {
+            /** Columns */
+            columns: components["schemas"]["EvidenceColumn"][];
+            /** Logical Sql */
+            logical_sql?: string | null;
+            /**
+             * Queried At
+             * Format: date-time
+             */
+            queried_at: string;
+            /**
+             * Result Id
+             * Format: uuid
+             */
+            result_id: string;
+            /** Rows */
+            rows: (string | null)[][];
+            source?: components["schemas"]["DemoSource"] | null;
+            /** Sql */
+            sql: string;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** InsightSelection */
+        InsightSelection: {
+            /**
+             * Presentation Id
+             * Format: uuid
+             */
+            presentation_id: string;
+            /** Row Index */
+            row_index?: number | null;
+            /** Series Index */
+            series_index?: number | null;
+            /**
+             * Source Session Id
+             * Format: uuid
+             */
+            source_session_id: string;
         };
         /** InstrumentationScope */
         InstrumentationScope: {
@@ -21860,6 +22168,38 @@ export interface components {
             prebuffer_duration_ms?: number | null;
             /** Threshold */
             threshold?: number | null;
+        };
+        /** PinEvidence */
+        PinEvidence: {
+            /** Columns */
+            columns: components["schemas"]["SqlColumn"][];
+            dataset_source?: components["schemas"]["DemoSource"] | null;
+            /**
+             * Queried At
+             * Format: date-time
+             */
+            queried_at: string;
+            /**
+             * Result Id
+             * Format: uuid
+             */
+            result_id: string;
+            /** Rows */
+            rows: (string | null)[][];
+        };
+        /** PinListResponse */
+        PinListResponse: {
+            /** Continuation Token */
+            continuation_token: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["SharedPin"][];
+        };
+        /** PinRevisionRequest */
+        PinRevisionRequest: {
+            /** Revision */
+            revision: number;
         };
         /** PinningService */
         PinningService: {
@@ -25543,6 +25883,7 @@ export interface components {
             created_at?: string | null;
             /** Id */
             id: string;
+            source?: components["schemas"]["DemoSource"] | null;
         };
         /** SessionStartEvent */
         SessionStartEvent: {
@@ -25683,6 +26024,54 @@ export interface components {
         SettingUnit: "ms" | "s" | "tokens" | "count" | "percent";
         SettingValue: boolean | number | string | string[];
         Sha256: string;
+        /** SharedPin */
+        SharedPin: {
+            /** Block */
+            block: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Deleted At */
+            deleted_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Question */
+            question: string;
+            /** Refresh Error */
+            refresh_error: string | null;
+            /**
+             * Refreshed At
+             * Format: date-time
+             */
+            refreshed_at: string;
+            /** Revision */
+            revision: number;
+            source: components["schemas"]["PinEvidence"];
+            /** Undo Until */
+            undo_until: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Updated By
+             * Format: uuid
+             */
+            updated_by: string;
+        };
         /**
          * SignalResponseAlignment
          * @description Whether the agent's response aligned with a salient signal in the call.
@@ -27687,6 +28076,15 @@ export interface components {
              * @enum {string}
              */
             type: "speaker_muted";
+        };
+        /** SqlColumn */
+        SqlColumn: {
+            /** Name */
+            name: string;
+            /** Type Name */
+            type_name: string;
+            /** Type Text */
+            type_text: string;
         };
         /** SqlQueryRequest */
         SqlQueryRequest: {
@@ -43602,6 +44000,28 @@ export interface operations {
             };
         };
     };
+    get_demo_home_facts_v1__workspace_id__insights_demo_home_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoHomeResponse"];
+                };
+            };
+        };
+    };
     get_digest_v1__workspace_id__insights_digest_get: {
         parameters: {
             query?: never;
@@ -43622,6 +44042,213 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    list_pins_v1__workspace_id__insights_pins_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PinListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_pin_v1__workspace_id__insights_pins_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePinRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pin_v1__workspace_id__insights_pins__pin_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpin_v1__workspace_id__insights_pins__pin_id__delete: {
+        parameters: {
+            query: {
+                revision: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_pin_v1__workspace_id__insights_pins__pin_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_unpin_v1__workspace_id__insights_pins__pin_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -43729,6 +44356,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_result_v1__workspace_id__insights_sessions__session_id__results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                result_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightResultResponse"];
                 };
             };
             /** @description Validation Error */
