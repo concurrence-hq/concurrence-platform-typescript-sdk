@@ -27,7 +27,15 @@ const SERVICE_ID = '22222222-2222-4222-8222-222222222222'
 const CLIENT_CREDENTIAL = 'client.identity.jwt'
 const TOKEN = 'header.payload.signature'
 const AGENT_ORIGIN = 'https://agent.example.com'
-const ACTOR_HOST = 'gs-abc12.actors.example.com'
+// Approved actor ingress domains, from deployment/agent-engine-prod/deployment.tf.
+const REGIONAL_ACTOR_SUFFIXES = [
+  'actors-us.concurrence.com',
+  'actors-au.concurrence.com',
+  'actors-eu.concurrence.com',
+  'actors-ca.concurrence.com',
+] as const
+const ACTOR_SUFFIX = REGIONAL_ACTOR_SUFFIXES[0]
+const ACTOR_HOST = `gs-abc12.${ACTOR_SUFFIX}`
 const CONTEXT_REF = 'ctxref-do-not-log'
 
 class FakeWebSocket {
@@ -55,6 +63,10 @@ class FakeWebSocket {
   }
 
   send(): void {}
+
+  emit(type: string, event: unknown): void {
+    for (const listener of this.listeners.get(type) ?? []) listener(event as never)
+  }
 
   close(code?: number, reason?: string): void {
     this.closeArgs = [code, reason]
@@ -111,7 +123,14 @@ function createClient(
 }
 
 function startOptions(overrides: Partial<TestCallStartOptions> = {}): TestCallStartOptions {
-  return { serviceId: SERVICE_ID, token: TOKEN, onAudio: vi.fn(), webSocketFactory, ...overrides }
+  return {
+    serviceId: SERVICE_ID,
+    token: TOKEN,
+    actorHostSuffixes: [ACTOR_SUFFIX],
+    onAudio: vi.fn(),
+    webSocketFactory,
+    ...overrides,
+  }
 }
 
 function respondWith(body: unknown, status = 200, headers: Record<string, string> = {}): FetchMock {
@@ -155,7 +174,7 @@ describe('TestCallsResource.start (allocated test calls)', () => {
     expect(socket.protocols).toEqual(['auth', TOKEN])
     expect(socket.url).not.toContain(TOKEN)
     expect(socket.binaryType).toBe('arraybuffer')
-    expect(call.callSid).toBe('test-0123456789abcdef')
+    expect(call.allocationCallSid).toBe('test-0123456789abcdef')
     expect(call.readyState).toBe(0)
   })
 
@@ -289,6 +308,16 @@ describe('TestCallsResource.start (allocated test calls)', () => {
     ['an array context', { context: [] as unknown as Record<string, unknown> }],
     ['an empty actor host suffix', { actorHostSuffixes: [''] }],
     ['a top-level actor host suffix', { actorHostSuffixes: ['com'] }],
+    ['no actor host suffixes', { actorHostSuffixes: undefined as unknown as string[] }],
+    ['an empty actor host suffix list', { actorHostSuffixes: [] }],
+    ['a non-array actor host suffix', { actorHostSuffixes: ACTOR_SUFFIX as unknown as string[] }],
+    ['a wildcard actor host suffix', { actorHostSuffixes: ['*'] }],
+    ['a wildcard subdomain suffix', { actorHostSuffixes: ['*.concurrence.com'] }],
+    ['a suffix with a port', { actorHostSuffixes: ['actors-us.concurrence.com:8443'] }],
+    ['a partial IP address suffix', { actorHostSuffixes: ['0.1'] }],
+    ['a numeric suffix that is not an address', { actorHostSuffixes: ['10.0.0.256'] }],
+    ['a single-label host other than localhost', { actorHostSuffixes: ['actors'] }],
+    ['one bad entry beside a good one', { actorHostSuffixes: [ACTOR_SUFFIX, 'uk'] }],
   ])('rejects %s before allocating', async (_name, overrides) => {
     const fetchMock = respondWith(allocationBody())
     await expect(
@@ -320,13 +349,13 @@ describe('TestCallsResource.start (allocated test calls)', () => {
       {},
     ],
     [
-      'a host outside the agent engine domain',
+      'a host outside the approved actor suffixes',
       allocationBody(allocatedUrl({}, 'wss://gs-abc12.actors.attacker.net/agent/test-call')),
       {},
     ],
     [
       'a look-alike host suffix',
-      allocationBody(allocatedUrl({}, 'wss://gs.notexample.com/agent/test-call')),
+      allocationBody(allocatedUrl({}, 'wss://gs.notactors-us.concurrence.com/agent/test-call')),
       {},
     ],
     [
@@ -392,6 +421,168 @@ describe('TestCallsResource.start (allocated test calls)', () => {
     expect(rendered).not.toContain(CLIENT_CREDENTIAL)
     expect(rendered).not.toContain(CONTEXT_REF)
     expect(rendered).not.toContain('a1b2c3d4e5f60718293a4b5c6d7e8f90')
+  })
+
+  // Finding 1: the actor host allowlist is explicit. Nothing is derived from agentBaseUrl.
+  it.each([
+    ['a multi-tenant public suffix', 'https://agent.example.co.uk'],
+    ['a shared hosting domain', 'https://tenant-a.sharedhost.example.com'],
+    ['the production agent domain', 'https://agent-engine.api-us.concurrence.com'],
+    ['a loopback origin', 'http://localhost:8080'],
+  ])(
+    'requires actorHostSuffixes on %s and fails before allocating',
+    async (_name, agentBaseUrl) => {
+      const fetchMock = respondWith(allocationBody())
+      const withoutSuffixes: Partial<TestCallStartOptions> = startOptions()
+      delete withoutSuffixes.actorHostSuffixes
+      const error: unknown = await createClient(fetchMock, { agentBaseUrl })
+        .testCalls.start(withoutSuffixes as TestCallStartOptions)
+        .catch((cause: unknown) => cause)
+      expect(error).toBeInstanceOf(ConfigurationError)
+      expect(String(error)).toContain('actorHostSuffixes is required')
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(FakeWebSocket.instances).toHaveLength(0)
+    },
+  )
+
+  it.each([
+    [
+      'another tenant under the same public suffix',
+      'https://agent.example.co.uk',
+      ['actors.example.co.uk'],
+      'gs.actors.other-tenant.co.uk',
+    ],
+    [
+      'another tenant of the same hosting domain',
+      'https://tenant-a.sharedhost.example.com',
+      ['actors.tenant-a.sharedhost.example.com'],
+      'actors.tenant-b.sharedhost.example.com',
+    ],
+    [
+      'a sibling of the actor domain under the agent parent domain',
+      'https://agent-engine.api-us.concurrence.com',
+      [ACTOR_SUFFIX],
+      'gs-abc12.preview.concurrence.com',
+    ],
+    [
+      'the agent engine host itself',
+      'https://agent-engine.api-us.concurrence.com',
+      [ACTOR_SUFFIX],
+      'agent-engine.api-us.concurrence.com',
+    ],
+    [
+      'a region that was not approved',
+      'https://agent-engine.api-us.concurrence.com',
+      [ACTOR_SUFFIX],
+      'gs-abc12.actors-au.concurrence.com',
+    ],
+  ])('does not send the token to %s', async (_name, agentBaseUrl, actorHostSuffixes, actorHost) => {
+    const fetchMock = respondWith(
+      allocationBody(allocatedUrl({}, `wss://${actorHost}/agent/test-call`)),
+    )
+    await expect(
+      createClient(fetchMock, { agentBaseUrl }).testCalls.start(
+        startOptions({ actorHostSuffixes }),
+      ),
+    ).rejects.toBeInstanceOf(ParseError)
+    expect(FakeWebSocket.instances).toHaveLength(0)
+  })
+
+  it.each(REGIONAL_ACTOR_SUFFIXES)(
+    'accepts a runner under the approved regional suffix %s',
+    async (suffix) => {
+      const wsUrl = allocatedUrl({}, `wss://voice-fleet-x7k2p-9zq4d.${suffix}/agent/test-call`)
+      await createClient(respondWith(allocationBody(wsUrl))).testCalls.start(
+        startOptions({ actorHostSuffixes: [suffix] }),
+      )
+      expect(FakeWebSocket.instances[0]!.url).toBe(wsUrl)
+    },
+  )
+
+  it.each([
+    ['localhost', 'localhost', 'ws://localhost:9000/agent/test-call'],
+    ['an IPv4 literal', '127.0.0.1', 'ws://127.0.0.1:9000/agent/test-call'],
+    ['an IPv6 literal', '[::1]', 'ws://[::1]:9000/agent/test-call'],
+  ])('accepts %s as an exact local actor host', async (_name, entry, base) => {
+    const wsUrl = allocatedUrl({}, base)
+    await createClient(respondWith(allocationBody(wsUrl)), {
+      agentBaseUrl: 'http://localhost:8080',
+    }).testCalls.start(startOptions({ actorHostSuffixes: [entry] }))
+    expect(FakeWebSocket.instances[0]!.url).toBe(wsUrl)
+  })
+
+  it.each([
+    ['a subdomain of localhost', ['localhost'], 'ws://evil.localhost:9000/agent/test-call'],
+    ['another loopback name', ['127.0.0.1'], 'ws://localhost:9000/agent/test-call'],
+    ['another address', ['10.0.0.5'], 'wss://10.0.0.6/agent/test-call'],
+    [
+      'a domain ending in the address',
+      ['10.0.0.5'],
+      'wss://gs.10.0.0.5.example.com/agent/test-call',
+    ],
+  ])('treats local and IP entries as exact-only: refuses %s', async (_name, entries, base) => {
+    const fetchMock = respondWith(allocationBody(allocatedUrl({}, base)))
+    await expect(
+      createClient(fetchMock, { agentBaseUrl: 'http://localhost:8080' }).testCalls.start(
+        startOptions({ actorHostSuffixes: entries }),
+      ),
+    ).rejects.toBeInstanceOf(ParseError)
+    expect(FakeWebSocket.instances).toHaveLength(0)
+  })
+
+  // Finding 2: the allocation's call_sid (test-...) is not the live call id (direct-...).
+  it('exposes the allocation id as allocationCallSid and the live call id only through session_started', async () => {
+    const onEvent = vi.fn()
+    const call = await createClient(respondWith(allocationBody())).testCalls.start(
+      startOptions({ onEvent }),
+    )
+    expect(call.allocationCallSid).toBe('test-0123456789abcdef')
+    expect('callSid' in call).toBe(false)
+
+    FakeWebSocket.instances[0]!.emit('message', {
+      data: JSON.stringify({ type: 'session_started', call_sid: 'direct-0a1b2c3d4e5f' }),
+    })
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'session_started',
+      call_sid: 'direct-0a1b2c3d4e5f',
+    })
+    expect(call.allocationCallSid).toBe('test-0123456789abcdef')
+  })
+
+  // Finding 3: a credential-bearing query is refused, other server-issued fields survive.
+  it.each(['token', 'access_token', 'api_key', 'authorization', 'Token', 'API_KEY'])(
+    'refuses an actor URL carrying a %s query parameter before creating a socket',
+    async (name) => {
+      const fetchMock = respondWith(allocationBody(`${allocatedUrl()}&${name}=leaked-secret-value`))
+      const error: unknown = await createClient(fetchMock)
+        .testCalls.start(startOptions())
+        .catch((cause: unknown) => cause)
+      expect(error).toBeInstanceOf(ParseError)
+      expect(String(error)).toContain('credential query parameter')
+      expect(`${String(error)} ${JSON.stringify(error)}`).not.toContain('leaked-secret-value')
+      expect(FakeWebSocket.instances).toHaveLength(0)
+    },
+  )
+
+  it('refuses a credential query parameter even when its value is empty', async () => {
+    const fetchMock = respondWith(allocationBody(`${allocatedUrl()}&token=`))
+    await expect(createClient(fetchMock).testCalls.start(startOptions())).rejects.toBeInstanceOf(
+      ParseError,
+    )
+    expect(FakeWebSocket.instances).toHaveLength(0)
+  })
+
+  it('keeps allocation_id, context_ref and unrecognized server-issued fields as issued', async () => {
+    const wsUrl = `${allocatedUrl({ context_ref: CONTEXT_REF })}&fleet=voice-fleet&token_type=none`
+    await createClient(respondWith(allocationBody(wsUrl))).testCalls.start(
+      startOptions({ context: { member_id: 'm-1' } }),
+    )
+    const socket = FakeWebSocket.instances[0]!
+    expect(socket.url).toBe(wsUrl)
+    const issued = new URL(socket.url).searchParams
+    expect(issued.get('allocation_id')).toBe('a1b2c3d4e5f60718293a4b5c6d7e8f90')
+    expect(issued.get('context_ref')).toBe(CONTEXT_REF)
+    expect(issued.get('fleet')).toBe('voice-fleet')
   })
 
   it('accepts actor hosts under an explicitly configured suffix', async () => {

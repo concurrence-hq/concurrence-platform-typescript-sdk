@@ -14,6 +14,10 @@ const TEST_CALL_SAMPLE_RATE = '8000'
 const MAX_AUTH_TOKEN_CHARS = 4096
 const WEB_SOCKET_PROTOCOL_TOKEN_RE = /^[!#$%&'*+\-.^_`|~A-Za-z0-9]+$/
 const TEST_CALL_AUDIO_ENCODING = 'mulaw'
+const CREDENTIAL_QUERY_NAMES = new Set(['token', 'access_token', 'api_key', 'authorization'])
+const HOST_LABEL = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
+const ACTOR_DOMAIN_RE = new RegExp(`^(?:${HOST_LABEL}\\.)+(?=[a-z0-9-]*[a-z])${HOST_LABEL}$`)
+const IPV4_RE = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/
 const WEB_SOCKET_OPEN = 1
 
 /**
@@ -201,15 +205,25 @@ export interface TestCallStartOptions extends TestCallSocketOptions {
    */
   context?: Record<string, unknown>
   /**
-   * Host names the server-issued actor URL may use: a host is accepted when it
-   * equals an entry or is a subdomain of one. Each entry needs at least two
-   * labels, for example ``actors-us.example.com``.
+   * Required. The actor ingress domains this application approves for the
+   * server-issued actor URL; the token is sent only to a host on this list.
+   * There is no default: the SDK does not derive actor hosts from
+   * ``agentBaseUrl``, guess a parent domain, or accept wildcards, and
+   * ``start()`` fails before allocating when the list is missing or empty.
    *
-   * Defaults to the last two labels of the ``agentBaseUrl`` host, so the actor
-   * must share the agent engine's parent domain. Set this when the actor
-   * ingress lives under another domain, or to narrow the default.
+   * - A domain entry (two or more labels) accepts that host and its
+   *   subdomains. Name the actor ingress domain itself, never a shared parent
+   *   such as a registrable or hosting domain. Amigo production regions use
+   *   ``actors-us.concurrence.com``, ``actors-au.concurrence.com``,
+   *   ``actors-eu.concurrence.com`` and ``actors-ca.concurrence.com``; list
+   *   only the region(s) your ``agentBaseUrl`` belongs to.
+   * - ``localhost`` and IP literals (``127.0.0.1``, ``[::1]``) are exact-only:
+   *   they accept that one host and nothing under or beside it.
+   *
+   * A custom or local agent engine issues actor URLs under its own configured
+   * actor ingress suffix; pass that approved suffix here.
    */
-  actorHostSuffixes?: readonly string[]
+  actorHostSuffixes: readonly string[]
   /**
    * Aborts the allocation request and, once the call is open, closes its
    * socket. An allocation the engine already made is not released by the SDK;
@@ -248,8 +262,15 @@ export interface TestCallHandle {
 
 /** A test call running on a voice runner the agent engine allocated for it. */
 export interface TestCallSession extends TestCallHandle {
-  /** Call identifier issued with the allocation. */
-  readonly callSid: string
+  /**
+   * Identifier the agent engine assigned to the allocation request
+   * (``test-...``). It correlates the allocation in engine logs only and is
+   * not the live call id: the allocated runner assigns that when the socket
+   * attaches and reports it in the ``session_started`` event. Use
+   * ``session_started.call_sid`` from ``onEvent`` for observer subscriptions
+   * and call lookups.
+   */
+  readonly allocationCallSid: string
 }
 
 /**
@@ -302,6 +323,12 @@ export class TestCallsResource extends WorkspaceScopedResource {
    *   the engine binds the allocation and its context to the credential that
    *   requested it. In a browser, use one short-lived identity access token
    *   for both and keep workspace API keys on a trusted server.
+   * - ``actorHostSuffixes`` is required and checked before the allocation is
+   *   requested. A returned URL whose query carries a credential-named
+   *   parameter (``token``, ``access_token``, ``api_key``, ``authorization``)
+   *   is refused; other server-issued parameters are kept as issued.
+   * - The live call id arrives in the ``session_started`` event, not on the
+   *   returned handle; ``allocationCallSid`` only names the allocation.
    */
   async start(options: TestCallStartOptions): Promise<TestCallSession> {
     testCallAuthProtocols(options.token)
@@ -314,7 +341,7 @@ export class TestCallsResource extends WorkspaceScopedResource {
     }
     const callerId = options.callerId?.trim() || undefined
     const origin = parseAllocationOrigin(this.agentBaseUrl)
-    const actorHostSuffixes = resolveActorHostSuffixes(origin, options.actorHostSuffixes)
+    const actorHostSuffixes = resolveActorHostSuffixes(options.actorHostSuffixes)
     const signal = options.signal
     if (signal?.aborted) throw abortReason(signal)
 
@@ -357,8 +384,8 @@ export class TestCallsResource extends WorkspaceScopedResource {
       hasContext: options.context !== undefined,
     })
     const handle = openTestCall(allocation.url, options)
-    return Object.defineProperty(handle, 'callSid', {
-      value: allocation.callSid,
+    return Object.defineProperty(handle, 'allocationCallSid', {
+      value: allocation.allocationCallSid,
       enumerable: true,
     }) as TestCallSession
   }
@@ -601,34 +628,42 @@ function parseAllocationOrigin(agentBaseUrl: string | undefined): URL {
   return url
 }
 
-function resolveActorHostSuffixes(
-  origin: URL,
-  configured: readonly string[] | undefined,
-): readonly string[] {
-  if (configured === undefined) {
-    const hostname = origin.hostname
-    const labels = hostname.split('.')
-    const isAddress = hostname.startsWith('[') || /^\d+(\.\d+){3}$/.test(hostname)
-    if (isLoopbackHost(hostname) || isAddress || labels.length < 2) return [hostname]
-    return [labels.slice(-2).join('.')]
+interface ActorHostRule {
+  host: string
+  /** ``localhost`` and IP literals match one host; domains also match subdomains. */
+  exact: boolean
+}
+
+function isIpv6Literal(value: string): boolean {
+  if (!/^\[[0-9a-f:.]+\]$/.test(value)) return false
+  try {
+    return new URL(`ws://${value}/`).hostname === value
+  } catch {
+    return false
   }
+}
+
+function resolveActorHostSuffixes(configured: unknown): readonly ActorHostRule[] {
   if (!Array.isArray(configured) || configured.length === 0) {
-    throw new ConfigurationError('actorHostSuffixes must list at least one host name')
+    throw new ConfigurationError(
+      'actorHostSuffixes is required to start an allocated test call: list the approved actor ingress domain(s), for example actors-us.concurrence.com. The SDK does not derive actor hosts from agentBaseUrl',
+    )
   }
-  return configured.map((entry: unknown) => {
-    const suffix = typeof entry === 'string' ? entry.trim().toLowerCase().replace(/^\.+/, '') : ''
-    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(suffix)) {
-      throw new ConfigurationError(
-        'actorHostSuffixes entries must be host names with at least two labels',
-      )
+  return configured.map((entry: unknown): ActorHostRule => {
+    const host = typeof entry === 'string' ? entry.trim().toLowerCase().replace(/^\./, '') : ''
+    if (host === 'localhost' || IPV4_RE.test(host) || isIpv6Literal(host)) {
+      return { host, exact: true }
     }
-    return suffix
+    if (host.length <= 253 && ACTOR_DOMAIN_RE.test(host)) return { host, exact: false }
+    throw new ConfigurationError(
+      'actorHostSuffixes entries must be a domain with at least two labels, localhost, or an IP literal; wildcards, ports and top-level names are not accepted',
+    )
   })
 }
 
 interface AllocationExpectation {
   origin: URL
-  actorHostSuffixes: readonly string[]
+  actorHostSuffixes: readonly ActorHostRule[]
   workspaceId: string
   serviceId: string
   callerId: string | undefined
@@ -643,14 +678,16 @@ interface AllocationExpectation {
 function parseAllocation(
   data: unknown,
   expected: AllocationExpectation,
-): { url: string; callSid: string } {
+): { url: string; allocationCallSid: string } {
   const reject = (reason: string): never => {
     throw new ParseError(`Test-call allocation was refused: ${reason}`)
   }
   if (!isRecord(data)) return reject('the response is not an object')
-  const { ws_url: wsUrl, call_sid: callSid, actor_token: actorToken } = data
+  const { ws_url: wsUrl, call_sid: allocationCallSid, actor_token: actorToken } = data
   if (typeof wsUrl !== 'string' || !wsUrl) return reject('ws_url is missing')
-  if (typeof callSid !== 'string' || !callSid) return reject('call_sid is missing')
+  if (typeof allocationCallSid !== 'string' || !allocationCallSid) {
+    return reject('call_sid is missing')
+  }
   if (actorToken !== '') return reject('it carries an actor token this SDK cannot present')
 
   let url: URL
@@ -667,7 +704,7 @@ function parseAllocation(
   const hostname = url.hostname.toLowerCase()
   if (
     !expected.actorHostSuffixes.some(
-      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
+      (rule) => hostname === rule.host || (!rule.exact && hostname.endsWith(`.${rule.host}`)),
     )
   ) {
     return reject('ws_url host is not an accepted actor host; see actorHostSuffixes')
@@ -676,6 +713,11 @@ function parseAllocation(
   if (url.hash || wsUrl.includes('#')) return reject('ws_url has a fragment')
 
   const query = url.searchParams
+  for (const name of query.keys()) {
+    if (CREDENTIAL_QUERY_NAMES.has(name.toLowerCase())) {
+      return reject('ws_url carries a credential query parameter')
+    }
+  }
   const single = (name: string): string | undefined => {
     const values = query.getAll(name)
     return values.length === 1 ? values[0] : undefined
@@ -697,7 +739,7 @@ function parseAllocation(
   if (expected.hasContext ? !single('context_ref') : query.getAll('context_ref').length) {
     return reject('ws_url context_ref does not match the request')
   }
-  return { url: url.href, callSid }
+  return { url: url.href, allocationCallSid }
 }
 
 function deriveFromBase(baseUrl: string): URL {

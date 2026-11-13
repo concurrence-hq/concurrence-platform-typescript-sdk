@@ -953,16 +953,21 @@ const client = new AmigoClient({
   agentBaseUrl, // the documented agent-engine origin for your region
 })
 
+let liveCallSid: string | undefined
+
 const call = await client.testCalls.start({
   serviceId: 'service-id',
   token: accessToken,
+  // Required: the approved actor ingress domain for that region.
+  actorHostSuffixes: ['actors-us.concurrence.com'],
   callerId: '+15555550123', // optional simulated caller context
   context: { member_id: 'm-123' }, // optional, validated by the service
   // Raw mu-law, 8 kHz, mono. Decode before playing.
   onAudio: (mulaw) => playback.enqueue(mulaw),
   onEvent: (event) => {
     if (event.type === 'session_started') {
-      console.log('call started:', event.call_sid)
+      // The live call id. Use it for observers and call lookups.
+      liveCallSid = event.call_sid
     } else if (event.type === 'ready') {
       // 'mulaw' at 8000 on this socket
       playback.start(event.output_encoding, event.output_sample_rate)
@@ -989,13 +994,38 @@ test-call limit and `ServiceUnavailableError` (503) means no runner was
 available; let the user try again. Pass `signal` to cancel the allocation or
 end the call.
 
+`actorHostSuffixes` is required and has no default. It lists the actor ingress
+domains your application approves, and the token is sent only to a host on
+that list. The SDK never derives actor hosts from `agentBaseUrl`, guesses a
+parent domain, or accepts wildcards; without the list, `start()` throws a
+`ConfigurationError` before anything is allocated. Amigo production regions
+issue actor URLs under these domains, so list the one for your region:
+
+| Region | Actor ingress domain        |
+| ------ | --------------------------- |
+| US     | `actors-us.concurrence.com` |
+| AU     | `actors-au.concurrence.com` |
+| EU     | `actors-eu.concurrence.com` |
+| CA     | `actors-ca.concurrence.com` |
+
+A domain entry accepts that host and its subdomains, so name the actor ingress
+domain itself and never a shared parent such as `concurrence.com`. A custom or
+self-hosted agent engine issues actor URLs under its own configured actor
+ingress suffix; pass that approved suffix. For a local engine, `localhost` and
+IP literals such as `127.0.0.1` are accepted as exact hosts only.
+
 Before the token is sent anywhere, the SDK checks the returned actor URL: it
-must be a `wss` `/agent/test-call` URL for this workspace and service, mu-law
-at 8 kHz, with an allocation, on a host under the same parent domain as
-`agentBaseUrl`. If your actor ingress uses another domain, name it with
-`actorHostSuffixes: ['actors.example.com']`. A URL that fails any check is
-refused with a `ParseError` and no socket is opened. The URL is then used
-exactly as issued, so do not rebuild it.
+must be a `wss` `/agent/test-call` URL on an approved actor host, for this
+workspace and service, mu-law at 8 kHz, with an allocation, and without a
+credential-named query parameter (`token`, `access_token`, `api_key`,
+`authorization`). A URL that fails any check is refused with a `ParseError`
+and no socket is opened. The URL is then used exactly as issued, including
+any other parameters the engine added, so do not rebuild it.
+
+The live call id is the `call_sid` in the `session_started` event, which the
+allocated runner assigns when the socket attaches. Use that value for
+`client.observers.subscribe()` and call lookups. `call.allocationCallSid` only
+names the allocation request in agent-engine logs and is not a call id.
 
 Test calls intentionally do not reconnect: losing the duplex media socket
 terminates the allocated voice session. Live control helpers include

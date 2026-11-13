@@ -19,7 +19,25 @@ const engineRoot = resolve(
 const dispatcherRoutes = resolve(engineRoot, 'routes', '__init__.py')
 const startRoute = resolve(engineRoot, 'routes', 'test_call_start.py')
 const runnerApp = resolve(engineRoot, 'persistent_voice_runner', 'fastapi_app.py')
-const available = [dispatcherRoutes, startRoute, runnerApp].every((path) => existsSync(path))
+const runnerSocket = resolve(engineRoot, 'voice', 'test_call.py')
+const socketTransport = resolve(engineRoot, 'transport', 'websocket.py')
+const prodDeployment = resolve(
+  engineRoot,
+  '..',
+  '..',
+  '..',
+  'deployment',
+  'agent-engine-prod',
+  'deployment.tf',
+)
+const available = [
+  dispatcherRoutes,
+  startRoute,
+  runnerApp,
+  runnerSocket,
+  socketTransport,
+  prodDeployment,
+].every((path) => existsSync(path))
 
 function listBody(source: string, name: string): string {
   const start = source.indexOf(`\n${name} = [`)
@@ -70,9 +88,71 @@ describe.skipIf(!available)('agent engine source: test-call ingress', () => {
     ]) {
       expect(source).toContain(declared)
     }
+    // No credential travels in the actor URL: the declared query is exactly this set.
+    const query = source.slice(
+      source.indexOf('query = urlencode('),
+      source.indexOf('ws_url = f"wss://'),
+    )
+    expect([...query.matchAll(/"([a-z_]+)":/g)].map((match) => match[1])).toEqual([
+      'workspace_id',
+      'service_id',
+      'encoding',
+      'sample_rate',
+      'allocation_id',
+      'caller_id',
+      'context_ref',
+    ])
     // Non-idempotent: each request claims a slot and allocates a new GameServer.
     expect(source).toContain('allocation_id = uuid.uuid4().hex')
     expect(source).toContain('HTTPStatus.TOO_MANY_REQUESTS')
     expect(source).toContain('HTTPStatus.SERVICE_UNAVAILABLE')
+  })
+
+  it('declares the regional actor ingress domains the SDK documents as approved suffixes', () => {
+    const source = readFileSync(prodDeployment, 'utf8')
+    const start = source.indexOf('actor_ingress_domain = {')
+    const block = source.slice(start, source.indexOf('}', start))
+    expect(start).toBeGreaterThan(-1)
+    expect([...block.matchAll(/"[a-z0-9-]+"\s*=\s*"([^"]+)"/g)].map((match) => match[1])).toEqual(
+      ['actors-us.concurrence.com', 'actors-au.concurrence.com', 'eu', 'ca'].map((entry) =>
+        entry.includes('.') ? entry : `actors-${entry}.concurrence.com`,
+      ),
+    )
+    // The actor host is built from that suffix alone, not from the request's origin.
+    const route = readFileSync(startRoute, 'utf8')
+    expect(route).toContain(
+      'actor_host = f"{endpoint.gameserver_name}.{app.actor_contour_ingress_suffix}"',
+    )
+    expect(route).not.toMatch(/request\.(url|base_url|headers)/)
+  })
+
+  it('issues an allocation call_sid that the runner never adopts as the live call id', () => {
+    const route = readFileSync(startRoute, 'utf8')
+    expect(route).toContain('call_sid = f"test-{uuid.uuid4().hex}"')
+    // The allocation call_sid is logged and returned, never sent to the actor.
+    const query = route.slice(
+      route.indexOf('query = urlencode('),
+      route.indexOf('ws_url = f"wss://'),
+    )
+    expect(query).not.toContain('call_sid')
+    expect(route).not.toMatch(/allocate\([^)]*call_sid/)
+
+    // The runner mints its own id in the transport handshake...
+    const transport = readFileSync(socketTransport, 'utf8')
+    expect(transport).toContain('call_sid = f"direct-{uuid.uuid4().hex[:12]}"')
+    expect(transport).toContain('session_id=call_sid,')
+
+    // ...and that id, not a query parameter, is what it registers and announces.
+    const socket = readFileSync(runnerSocket, 'utf8')
+    expect(socket).toContain('transport, metadata = await WebSocketTransport.handshake(')
+    expect(socket).toContain('call_sid = metadata.session_id')
+    expect(socket).toContain(
+      'await websocket.send_json({"type": "session_started", "call_sid": call_sid})',
+    )
+    expect(socket).toContain('app.active_calls[call_sid] = call_info')
+    expect(socket).not.toMatch(/call_sid: [^=\n]*Query\(/)
+    expect(socket).not.toContain('query_params.get("call_sid")')
+    // The slot is keyed by allocation_id, which is why the URL must keep it.
+    expect(socket).toContain('await release_test_call_slot(resolved_workspace, allocation_id)')
   })
 })
