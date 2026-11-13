@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.148.0] - 2026-11-13
+
+### Features
+
+- a service that binds no context graph (ALL-2682) (#544)
+- generate direct and workflow program types (ALL-2682) (#543)
+
 ## [0.147.0] - 2026-11-13
 
 ### Features
