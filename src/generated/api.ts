@@ -9049,6 +9049,8 @@ export interface components {
             /** Items */
             items: components["schemas"]["AgentResponse"][];
         };
+        "AgentProgram-Input": components["schemas"]["WorkflowProgram"] | components["schemas"]["DirectProgram-Input"];
+        "AgentProgram-Output": components["schemas"]["WorkflowProgram"] | components["schemas"]["DirectProgram-Output"];
         /** AgentResponse */
         AgentResponse: {
             /**
@@ -9159,6 +9161,7 @@ export interface components {
             initials?: string | null;
             /** Name */
             name?: string | null;
+            program?: components["schemas"]["AgentProgram-Output"];
             /** Updated At */
             updated_at?: string | null;
             /** Version */
@@ -9202,6 +9205,8 @@ export interface components {
             initials: string;
             /** Name */
             name: string;
+            /** @description What the version runs: ``workflow``, its service's context graph, or ``direct``, its own prompt and tools. */
+            program: components["schemas"]["AgentProgram-Output"];
             /**
              * Updated At
              * Format: date-time
@@ -12663,6 +12668,11 @@ export interface components {
              */
             initials?: string;
             name: components["schemas"]["NameString"];
+            /**
+             * @description What the version runs. Omitted: its service's context graph. A direct program is the version's own
+             *     authored prompt and tool grants, and a service that pins the version runs it without loading a graph.
+             */
+            program?: components["schemas"]["AgentProgram-Input"];
             voice_config?: components["schemas"]["VoiceConfig"] | null;
         };
         /** CreateApiKeyRequest */
@@ -14753,6 +14763,44 @@ export interface components {
              * @description Passes the use case's current dial gate when this line is selected.
              */
             will_dial: boolean;
+        };
+        /**
+         * DirectProgram
+         * @description The agent runs on one authored prompt and a fixed set of tools, with no context graph.
+         *
+         *     ``tools`` are the same ``ToolCallSpec`` a workflow state lists, so a tool is granted, bound and held to its
+         *     policies exactly as in a workflow. A direct program has no state to navigate, so a spec that asks for
+         *     navigation is refused here instead of being ignored when it runs.
+         */
+        "DirectProgram-Input": {
+            /** Instructions */
+            instructions: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "direct";
+            /** Tools */
+            tools?: components["schemas"]["ToolCallSpec"][];
+        };
+        /**
+         * DirectProgram
+         * @description The agent runs on one authored prompt and a fixed set of tools, with no context graph.
+         *
+         *     ``tools`` are the same ``ToolCallSpec`` a workflow state lists, so a tool is granted, bound and held to its
+         *     policies exactly as in a workflow. A direct program has no state to navigate, so a spec that asks for
+         *     navigation is refused here instead of being ignored when it runs.
+         */
+        "DirectProgram-Output": {
+            /** Instructions */
+            instructions: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "direct";
+            /** Tools */
+            tools?: components["schemas"]["ToolCallSpec"][];
         };
         /**
          * DirectionCalls
@@ -19096,6 +19144,29 @@ export interface components {
              * @description How well speakers managed turn-taking - interruptions, overlaps, pacing
              */
             turn_taking_quality?: string | null;
+        };
+        /**
+         * InternalDirectServiceConfigResponse
+         * @description Composite response matching DirectServiceConfig shape for voice-agent consumption.
+         */
+        InternalDirectServiceConfigResponse: {
+            agent_version: components["schemas"]["AgentVersion"];
+            /**
+             * Dynamic Behaviors
+             * @description As ``ResolvedServiceConfig.dynamic_behaviors``. None is scoped to graph states: a direct program has none.
+             */
+            dynamic_behaviors: components["schemas"]["DynamicBehavior"][];
+            /**
+             * Effective Harnesses
+             * @description As ``InternalServiceConfigResponse.effective_harnesses``.
+             */
+            effective_harnesses: components["schemas"]["EffectiveHarness"][];
+            /**
+             * Harness Settings
+             * @description As ``InternalServiceConfigResponse.harness_settings``.
+             */
+            harness_settings: components["schemas"]["HarnessSettings"][];
+            service: components["schemas"]["Service"];
         };
         /**
          * InternalServiceConfigResponse
@@ -24115,7 +24186,8 @@ export interface components {
             context_graph_id?: string | null;
             /**
              * Context Graph Version
-             * @description The context graph version number the session loaded.
+             * @description The context graph version number the session loaded. Null, with ``context_graph_id``, on a run of a direct
+             *     program, which loads no graph.
              */
             context_graph_version?: number | null;
             /**
@@ -24162,6 +24234,17 @@ export interface components {
              *     behaviors, each pinned set's id and version: one value per config generation.
              */
             platform_config_fingerprint?: components["schemas"]["NameString"] | null;
+            /**
+             * @description ``sha256:`` over the canonical JSON of the direct program the session ran: its authored prompt as saved and
+             *     its tool specs. Null on a workflow run, which its graph version identifies.
+             */
+            program_digest?: components["schemas"]["NameString"] | null;
+            /**
+             * Program Kind
+             * @description What the session ran: ``workflow``, its service's context graph, or ``direct``, its agent version's own
+             *     prompt and tools. Null on a run recorded before programs and on one whose engine failed to load.
+             */
+            program_kind?: ("workflow" | "direct") | null;
             /** @description Model identifier submitted with these instructions; aliases are not resolved snapshots. */
             prompt_model?: components["schemas"]["NameString"] | null;
             /** @description Renderer that produced the recorded instructions. */
@@ -28361,6 +28444,11 @@ export interface components {
              */
             initials?: string;
             name: components["schemas"]["NameString"];
+            /**
+             * @description What the version runs. Omitted: its service's context graph. A direct program is the version's own
+             *     authored prompt and tool grants, and a service that pins the version runs it without loading a graph.
+             */
+            program?: components["schemas"]["AgentProgram-Output"];
             voice_config?: components["schemas"]["VoiceConfig"] | null;
         };
         /** StagingCloneApplyRequest */
@@ -33821,6 +33909,17 @@ export interface components {
             listing: "static" | "vendor";
             /** Path */
             path: string;
+        };
+        /**
+         * WorkflowProgram
+         * @description The agent runs the context graph its service binds. Every agent version saved without a program is this.
+         */
+        WorkflowProgram: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "workflow";
         };
         /**
          * WorkspaceBenchmarks

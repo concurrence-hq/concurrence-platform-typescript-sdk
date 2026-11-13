@@ -1219,6 +1219,40 @@
         "title": "AgentListResponse",
         "type": "object"
       },
+      "AgentProgram-Input": {
+        "discriminator": {
+          "mapping": {
+            "direct": "#/components/schemas/DirectProgram-Input",
+            "workflow": "#/components/schemas/WorkflowProgram"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WorkflowProgram"
+          },
+          {
+            "$ref": "#/components/schemas/DirectProgram-Input"
+          }
+        ]
+      },
+      "AgentProgram-Output": {
+        "discriminator": {
+          "mapping": {
+            "direct": "#/components/schemas/DirectProgram-Output",
+            "workflow": "#/components/schemas/WorkflowProgram"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WorkflowProgram"
+          },
+          {
+            "$ref": "#/components/schemas/DirectProgram-Output"
+          }
+        ]
+      },
       "AgentResponse": {
         "properties": {
           "created_at": {
@@ -1444,6 +1478,9 @@
             ],
             "title": "Name"
           },
+          "program": {
+            "$ref": "#/components/schemas/AgentProgram-Output"
+          },
           "updated_at": {
             "anyOf": [
               {
@@ -1553,6 +1590,10 @@
             "title": "Name",
             "type": "string"
           },
+          "program": {
+            "$ref": "#/components/schemas/AgentProgram-Output",
+            "description": "What the version runs: ``workflow``, its service's context graph, or ``direct``, its own prompt and tools."
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -1590,6 +1631,7 @@
           "background",
           "behaviors",
           "communication_patterns",
+          "program",
           "created_at",
           "updated_at"
         ],
@@ -10113,6 +10155,10 @@
           "name": {
             "$ref": "#/components/schemas/NameString"
           },
+          "program": {
+            "$ref": "#/components/schemas/AgentProgram-Input",
+            "description": "What the version runs. Omitted: its service's context graph. A direct program is the version's own\nauthored prompt and tool grants, and a service that pins the version runs it without loading a graph."
+          },
           "voice_config": {
             "anyOf": [
               {
@@ -14727,6 +14773,68 @@
           "reason"
         ],
         "title": "Dialability",
+        "type": "object"
+      },
+      "DirectProgram-Input": {
+        "additionalProperties": false,
+        "description": "The agent runs on one authored prompt and a fixed set of tools, with no context graph.\n\n``tools`` are the same ``ToolCallSpec`` a workflow state lists, so a tool is granted, bound and held to its\npolicies exactly as in a workflow. A direct program has no state to navigate, so a spec that asks for\nnavigation is refused here instead of being ignored when it runs.",
+        "properties": {
+          "instructions": {
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Instructions",
+            "type": "string"
+          },
+          "kind": {
+            "const": "direct",
+            "title": "Kind",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallSpec"
+            },
+            "maxItems": 100,
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "instructions"
+        ],
+        "title": "DirectProgram",
+        "type": "object"
+      },
+      "DirectProgram-Output": {
+        "additionalProperties": false,
+        "description": "The agent runs on one authored prompt and a fixed set of tools, with no context graph.\n\n``tools`` are the same ``ToolCallSpec`` a workflow state lists, so a tool is granted, bound and held to its\npolicies exactly as in a workflow. A direct program has no state to navigate, so a spec that asks for\nnavigation is refused here instead of being ignored when it runs.",
+        "properties": {
+          "instructions": {
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Instructions",
+            "type": "string"
+          },
+          "kind": {
+            "const": "direct",
+            "title": "Kind",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallSpec"
+            },
+            "maxItems": 100,
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "instructions"
+        ],
+        "title": "DirectProgram",
         "type": "object"
       },
       "DirectionCalls": {
@@ -25410,6 +25518,50 @@
           }
         },
         "title": "InteractionDynamics",
+        "type": "object"
+      },
+      "InternalDirectServiceConfigResponse": {
+        "description": "Composite response matching DirectServiceConfig shape for voice-agent consumption.",
+        "properties": {
+          "agent_version": {
+            "$ref": "#/components/schemas/AgentVersion"
+          },
+          "dynamic_behaviors": {
+            "description": "As ``ResolvedServiceConfig.dynamic_behaviors``. None is scoped to graph states: a direct program has none.",
+            "items": {
+              "$ref": "#/components/schemas/DynamicBehavior"
+            },
+            "title": "Dynamic Behaviors",
+            "type": "array"
+          },
+          "effective_harnesses": {
+            "description": "As ``InternalServiceConfigResponse.effective_harnesses``.",
+            "items": {
+              "$ref": "#/components/schemas/EffectiveHarness"
+            },
+            "title": "Effective Harnesses",
+            "type": "array"
+          },
+          "harness_settings": {
+            "description": "As ``InternalServiceConfigResponse.harness_settings``.",
+            "items": {
+              "$ref": "#/components/schemas/HarnessSettings"
+            },
+            "title": "Harness Settings",
+            "type": "array"
+          },
+          "service": {
+            "$ref": "#/components/schemas/Service"
+          }
+        },
+        "required": [
+          "service",
+          "agent_version",
+          "dynamic_behaviors",
+          "effective_harnesses",
+          "harness_settings"
+        ],
+        "title": "InternalDirectServiceConfigResponse",
         "type": "object"
       },
       "InternalServiceConfigResponse": {
@@ -37156,7 +37308,7 @@
                 "type": "null"
               }
             ],
-            "description": "The context graph version number the session loaded.",
+            "description": "The context graph version number the session loaded. Null, with ``context_graph_id``, on a run of a direct\nprogram, which loads no graph.",
             "title": "Context Graph Version"
           },
           "cooperative_stop": {
@@ -37282,6 +37434,33 @@
               }
             ],
             "description": "``sha256:`` over the agent and graph version ids, the LLM model and, when the service pins dynamic\nbehaviors, each pinned set's id and version: one value per config generation."
+          },
+          "program_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NameString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "``sha256:`` over the canonical JSON of the direct program the session ran: its authored prompt as saved and\nits tool specs. Null on a workflow run, which its graph version identifies."
+          },
+          "program_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "workflow",
+                  "direct"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the session ran: ``workflow``, its service's context graph, or ``direct``, its agent version's own\nprompt and tools. Null on a run recorded before programs and on one whose engine failed to load.",
+            "title": "Program Kind"
           },
           "prompt_model": {
             "anyOf": [
@@ -46731,6 +46910,10 @@
           },
           "name": {
             "$ref": "#/components/schemas/NameString"
+          },
+          "program": {
+            "$ref": "#/components/schemas/AgentProgram-Output",
+            "description": "What the version runs. Omitted: its service's context graph. A direct program is the version's own\nauthored prompt and tool grants, and a service that pins the version runs it without loading a graph."
           },
           "voice_config": {
             "anyOf": [
@@ -59836,6 +60019,20 @@
           "path"
         ],
         "title": "Voices",
+        "type": "object"
+      },
+      "WorkflowProgram": {
+        "additionalProperties": false,
+        "description": "The agent runs the context graph its service binds. Every agent version saved without a program is this.",
+        "properties": {
+          "kind": {
+            "const": "workflow",
+            "default": "workflow",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "WorkflowProgram",
         "type": "object"
       },
       "WorkspaceBenchmarks": {
