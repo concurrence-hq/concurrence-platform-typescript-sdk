@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.144.1] - 2026-11-12
+
+### Documentation
+
+- replace mode needs workspace permissions, not platform:admin (ALL-2639) (#536)
+
 ## [0.144.0] - 2026-11-12
 
 ### Features
