@@ -14,6 +14,9 @@ export type GetServiceConfigurationIdentityParams = NonNullable<
 >
 export type ServiceConfigurationIdentityResponse =
   components['schemas']['ServiceConfigurationIdentityResponse']
+export type PromoteServiceConfigurationRequest =
+  components['schemas']['PromoteServiceConfigurationRequest']
+export type ServicePromotionReceipt = components['schemas']['ServicePromotionReceipt']
 
 export type ListVoiceJudgeResultsParams = NonNullable<
   operations['list-voice-judge-recent']['parameters']['query']
@@ -95,6 +98,51 @@ export class ServicesResource extends WorkspaceScopedResource {
           path: { workspace_id: this.workspaceId, service_id: serviceId },
           query: params,
         },
+      }),
+    )
+  }
+
+  /**
+   * Promote a reviewed configuration: store `version_set` as `target_version_set`, with the
+   * service's harness pins and settings when the request names them, in one write. The write
+   * lands only while the service is at `expected_updated_at` and every `reviewed_base` entry
+   * still has the digest `getConfigurationIdentity` returned at review. Keep `updated_at` as
+   * the string the API returned.
+   *
+   * Resolves to the receipt for both a first promotion (201) and a repeat of a promotion that
+   * already landed (200, nothing written); `lastResponse.statusCode` on the result tells them
+   * apart. The receipt is historical configuration evidence: its `service_config_digest` is
+   * what a session of the target loaded from the configuration that promotion committed. It
+   * is not proof of what the service stores now, nor of what any session loaded or ran.
+   *
+   * `request_id` is the caller's: generate one UUID per promotion and keep it with the request.
+   * The SDK never generates or changes it and does not resend a refused or failed promotion.
+   * To retry, send the same request unchanged with the same `request_id` from the same
+   * credential. The same id with a different request throws `ConflictError`
+   * (`promotion_request_mismatch`).
+   *
+   * Refusals keep the API's body on `errorBody.detail`:
+   * - `ConflictError` (409): `promotion_base_changed` with `changed`, or
+   *   `promotion_request_mismatch`, or an archived dynamic behavior pin. Nothing was stored.
+   * - `ValidationError` (422): `promotion_versions_not_explicit`, `promotion_base_incomplete`
+   *   with `version_sets`, or a version set, pin or setting a service write refuses.
+   * - `ServiceUnavailableError` (503): `promotion_lock_timeout` and `harness_bake_unconfirmed`
+   *   stored nothing. `promotion_transaction_timeout` carries `outcome`: `not_stored`, or
+   *   `unknown` when the deadline passed while the commit was being acknowledged, so the
+   *   promotion may have been stored.
+   *
+   * After an `unknown` outcome, a timeout or a lost response, the identical retry is how to
+   * learn the result: it resolves to the stored receipt, or runs as a new attempt. Needs the
+   * `Service.update` permission, on every call including a retry.
+   */
+  async promoteConfiguration(
+    serviceId: ServiceId | string,
+    body: PromoteServiceConfigurationRequest,
+  ) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/services/{service_id}/promotions', {
+        params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+        body,
       }),
     )
   }
@@ -241,8 +289,10 @@ export class ServicesResource extends WorkspaceScopedResource {
   }
 
   /**
-   * The service's own setting values, and each setting its harnesses declare with the value
-   * it runs on and where that value comes from: `service`, else `harness_default`.
+   * The service's own setting values, and each setting the API lists for the harnesses it
+   * runs, with the value it runs on and where that value comes from: `service`, else
+   * `harness_default`. That covers the settings a harness release declares and the
+   * platform's Core-owned settings, which stay available on a pin to an external release.
    */
   async getSettings(serviceId: ServiceId | string) {
     return extractData(
@@ -253,11 +303,11 @@ export class ServicesResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Replace the service's setting values. A key applies to every harness of the service that
-   * declares it, and its value has to satisfy each declaring spec's type, bounds and choices
-   * (`ValidationError` otherwise). A key left out runs the harness default, and a PUT of the
-   * values the service already stores writes nothing. Every change is audited. Needs the
-   * `Service.update` permission.
+   * Replace the service's setting values. A key applies to every harness of the service whose
+   * schema lists it, Core-owned settings included, and its value has to satisfy each listing
+   * spec's type, bounds and choices (`ValidationError` otherwise). A key left out runs the
+   * harness default, and a PUT of the values the service already stores writes nothing. Every
+   * change is audited. Needs the `Service.update` permission.
    *
    * Pass the service's `updated_at` string unchanged as `expected_updated_at` to refuse
    * a stale write with `ConflictError` (409), including a no-op. The SDK does not retry it.
@@ -273,9 +323,12 @@ export class ServicesResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Every setting each voice and text harness the service runs declares: its type, bounds,
-   * choices, default and description, with the harness, the release it runs and the schema's
-   * version. A setting exists only when the harness declares it.
+   * Every setting available for each voice and text harness the service runs: its type,
+   * bounds, choices, default and description, with the harness, the release it runs and the
+   * schema's version. The list holds the settings the harness release declares and the
+   * platform's Core-owned settings, which stay available when the service pins an external
+   * release. The response does not say which of the two a setting is, so treat this schema,
+   * not a release's own declaration, as the list of settings a service can store.
    */
   async getSettingsSchema(serviceId: ServiceId | string) {
     return extractData(

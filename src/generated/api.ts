@@ -3095,6 +3095,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/insights/pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pins */
+        get: operations["list_pins_v1__workspace_id__insights_pins_get"];
+        put?: never;
+        /** Create Pin */
+        post: operations["create_pin_v1__workspace_id__insights_pins_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins/{pin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pin */
+        get: operations["get_pin_v1__workspace_id__insights_pins__pin_id__get"];
+        put?: never;
+        post?: never;
+        /** Unpin */
+        delete: operations["unpin_v1__workspace_id__insights_pins__pin_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins/{pin_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Pin */
+        post: operations["refresh_pin_v1__workspace_id__insights_pins__pin_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/pins/{pin_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Unpin */
+        post: operations["undo_unpin_v1__workspace_id__insights_pins__pin_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/insights/schema": {
         parameters: {
             query?: never;
@@ -3169,6 +3239,26 @@ export interface paths {
          * @description Chat with the insights agent. Returns SSE stream of visual blocks.
          */
         post: operations["chat_v1__workspace_id__insights_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/insights/sessions/{session_id}/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Result
+         * @description Read retained query evidence owned by the current conversation caller.
+         */
+        get: operations["get_result_v1__workspace_id__insights_sessions__session_id__results__result_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5539,6 +5629,26 @@ export interface paths {
          * @description Plan `PUT /v1/{workspace_id}/services/{service_id}` with the body it takes, under its permission (`Service.update`) and scope. A permission the update would need for a field it sets (`platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.
          */
         post: operations["plan-service-update"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/{workspace_id}/services/{service_id}/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Promote a reviewed configuration of a service
+         * @description Store a candidate version set as `target_version_set`, with the service's harness pins and settings when the request names them, in one write of the service. The write lands only while the service is at `expected_updated_at` and every version set in `reviewed_base` still has the `service_config_digest` the caller reviewed (`GET .../configuration-identity`): a change to the service, a workspace default, an agent, a context graph, a dynamic behavior set or a harness default since the review refuses it with 409, and nothing is stored. `reviewed_base` names the target when the service has it, and every version set of the service when the request names `harness_pins` or `settings`, which change what a session of each of them loads. A target the service does not have is created and is not named in `reviewed_base`. The candidate names its agent version and context graph version, and gets every check a version set, harness pin or settings write of the service gets. The answer is the promotion's receipt, stored with the write, whose `service_config_digest` is the digest a session of `target_version_set` loaded from the configuration the promotion committed. It records that configuration, not what a session ran since. The same request with the same `request_id` from the same credential is answered that receipt again with 200 and writes nothing, whatever the service stores by then, while the workspace is active and that credential may still promote the service. After a timeout or a lost response, that retry is how a caller learns whether the promotion was stored. Only Amigo administrators promote a system service. Requires `Service.update` permission.
+         */
+        post: operations["promote-service-configuration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10960,6 +11070,7 @@ export interface components {
              * @description Insights chat user message.
              */
             message: string;
+            selection?: components["schemas"]["InsightSelection"] | null;
         };
         /** CheckerLabelCheck */
         CheckerLabelCheck: {
@@ -12945,6 +13056,21 @@ export interface components {
              * @description Initial call status (typically 'queued')
              */
             status: string;
+        };
+        /** CreatePinRequest */
+        CreatePinRequest: {
+            /**
+             * Presentation Id
+             * Format: uuid
+             */
+            presentation_id: string;
+            /** Question */
+            question: string;
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
         };
         /** CreateProductionEvalDefinitionRequest */
         CreateProductionEvalDefinitionRequest: {
@@ -16373,6 +16499,15 @@ export interface components {
             /** Sources */
             sources: string[];
         };
+        /** EvidenceColumn */
+        EvidenceColumn: {
+            /** Index */
+            index: number;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+        };
         /** ExecutePanelRequest */
         ExecutePanelRequest: {
             /**
@@ -18547,6 +18682,44 @@ export interface components {
              * @enum {string}
              */
             status: "delivered" | "queued_no_subscriber";
+        };
+        /** InsightResultResponse */
+        InsightResultResponse: {
+            /** Columns */
+            columns: components["schemas"]["EvidenceColumn"][];
+            /**
+             * Queried At
+             * Format: date-time
+             */
+            queried_at: string;
+            /**
+             * Result Id
+             * Format: uuid
+             */
+            result_id: string;
+            /** Rows */
+            rows: (string | null)[][];
+            /** Sql */
+            sql: string;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** InsightSelection */
+        InsightSelection: {
+            /**
+             * Presentation Id
+             * Format: uuid
+             */
+            presentation_id: string;
+            /** Row Index */
+            row_index?: number | null;
+            /** Series Index */
+            series_index?: number | null;
+            /**
+             * Source Session Id
+             * Format: uuid
+             */
+            source_session_id: string;
         };
         /** InstrumentationScope */
         InstrumentationScope: {
@@ -21870,6 +22043,37 @@ export interface components {
             /** Threshold */
             threshold?: number | null;
         };
+        /** PinEvidence */
+        PinEvidence: {
+            /** Columns */
+            columns: components["schemas"]["SqlColumn"][];
+            /**
+             * Queried At
+             * Format: date-time
+             */
+            queried_at: string;
+            /**
+             * Result Id
+             * Format: uuid
+             */
+            result_id: string;
+            /** Rows */
+            rows: (string | null)[][];
+        };
+        /** PinListResponse */
+        PinListResponse: {
+            /** Continuation Token */
+            continuation_token: unknown;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["SharedPin"][];
+        };
+        /** PinRevisionRequest */
+        PinRevisionRequest: {
+            /** Revision */
+            revision: number;
+        };
         /** PinningService */
         PinningService: {
             /**
@@ -22244,6 +22448,49 @@ export interface components {
             progress_class?: ("lookup" | "write" | "external_call" | "compute" | "multi_step") | null;
             /** Trigger Delay Ms */
             trigger_delay_ms?: number | null;
+        };
+        /** PromoteServiceConfigurationRequest */
+        PromoteServiceConfigurationRequest: {
+            /**
+             * Expected Updated At
+             * Format: date-time
+             * @description The service's `updated_at` the review was made at, exactly as the service returned it.
+             */
+            expected_updated_at: string;
+            /**
+             * Harness Pins
+             * @description The service's harness pins, replacing the ones it has. Left out, the pins stay as they are.
+             */
+            harness_pins?: components["schemas"]["HarnessPin"][] | null;
+            /**
+             * Request Id
+             * Format: uuid
+             * @description The caller's own id for this promotion. A retry sends the same id with the same request.
+             */
+            request_id: string;
+            /**
+             * Reviewed Base
+             * @description Every version set the review covered. Each has to be a set the service has, and each digest has to be the one
+             *     a session of the set would load when the promotion commits.
+             */
+            reviewed_base: components["schemas"]["ReviewedVersionSet"][];
+            /**
+             * Settings
+             * @description The service's harness settings, replacing the ones it has. Left out, the settings stay as they are.
+             */
+            settings?: {
+                [key: string]: components["schemas"]["SettingValue"];
+            } | null;
+            /**
+             * Target Version Set
+             * @description The version set the candidate is stored as, `release` for the set sessions run by default.
+             */
+            target_version_set: string;
+            /**
+             * @description The candidate. It names its agent version and its context graph version: a set that follows the latest
+             *     version of either is refused.
+             */
+            version_set: components["schemas"]["VersionSet-Input"];
         };
         /**
          * PromoteSessionResponse
@@ -23332,6 +23579,19 @@ export interface components {
              * @default null
              */
             item_id?: string | null;
+        };
+        /**
+         * ReviewedVersionSet
+         * @description One version set the caller reviewed, by the digest of the configuration a session of it loaded.
+         */
+        ReviewedVersionSet: {
+            /**
+             * Service Config Digest
+             * @description The `service_config_digest` `GET .../configuration-identity` answered for the set, which a run of it records.
+             */
+            service_config_digest: string;
+            /** Version Set */
+            version_set: string;
         };
         /**
          * RiskSummary
@@ -24989,6 +25249,67 @@ export interface components {
              */
             readiness_unavailable: components["schemas"]["Unavailable"] | null;
         };
+        /**
+         * ServicePromotionReceipt
+         * @description What one promotion stored, as recorded in the transaction that stored it.
+         */
+        ServicePromotionReceipt: {
+            /**
+             * Base Updated At
+             * Format: date-time
+             * @description The service's `updated_at` the promotion replaced.
+             */
+            base_updated_at: string;
+            /**
+             * Promoted At
+             * Format: date-time
+             */
+            promoted_at: string;
+            /**
+             * Promotion Id
+             * Format: uuid
+             */
+            promotion_id: string;
+            /**
+             * Request Fingerprint
+             * @description `sha256:` over the canonical request. The same `request_id` with another request is refused.
+             */
+            request_fingerprint: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Reviewed Base
+             * @description The digests the promotion held to, each recomputed in its transaction.
+             */
+            reviewed_base: components["schemas"]["ReviewedVersionSet"][];
+            /**
+             * Service Config Digest
+             * @description The `service_config_digest` a session of `target_version_set` loads from the promoted configuration. A run
+             *     belongs to this promotion when it records this digest.
+             */
+            service_config_digest: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Target Version Set */
+            target_version_set: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The service's `updated_at` after the promotion: the `expected_updated_at` of the next conditional write.
+             */
+            updated_at: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
         /** ServiceReadinessResponse */
         ServiceReadinessResponse: {
             /** Families */
@@ -25692,6 +26013,54 @@ export interface components {
         SettingUnit: "ms" | "s" | "tokens" | "count" | "percent";
         SettingValue: boolean | number | string | string[];
         Sha256: string;
+        /** SharedPin */
+        SharedPin: {
+            /** Block */
+            block: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Deleted At */
+            deleted_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Question */
+            question: string;
+            /** Refresh Error */
+            refresh_error: string | null;
+            /**
+             * Refreshed At
+             * Format: date-time
+             */
+            refreshed_at: string;
+            /** Revision */
+            revision: number;
+            source: components["schemas"]["PinEvidence"];
+            /** Undo Until */
+            undo_until: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Updated By
+             * Format: uuid
+             */
+            updated_by: string;
+        };
         /**
          * SignalResponseAlignment
          * @description Whether the agent's response aligned with a salient signal in the call.
@@ -27752,6 +28121,15 @@ export interface components {
              * @enum {string}
              */
             type: "speaker_muted";
+        };
+        /** SqlColumn */
+        SqlColumn: {
+            /** Name */
+            name: string;
+            /** Type Name */
+            type_name: string;
+            /** Type Text */
+            type_text: string;
         };
         /** SqlQueryRequest */
         SqlQueryRequest: {
@@ -43691,6 +44069,213 @@ export interface operations {
             };
         };
     };
+    list_pins_v1__workspace_id__insights_pins_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                continuation_token?: unknown;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PinListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_pin_v1__workspace_id__insights_pins_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePinRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pin_v1__workspace_id__insights_pins__pin_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpin_v1__workspace_id__insights_pins__pin_id__delete: {
+        parameters: {
+            query: {
+                revision: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_pin_v1__workspace_id__insights_pins__pin_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_unpin_v1__workspace_id__insights_pins__pin_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedPin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     describe_schema_v1__workspace_id__insights_schema_get: {
         parameters: {
             query?: never;
@@ -43794,6 +44379,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_result_v1__workspace_id__insights_sessions__session_id__results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                result_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightResultResponse"];
                 };
             };
             /** @description Validation Error */
@@ -49765,6 +50383,84 @@ export interface operations {
             };
             /** @description A body the save itself would not parse. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "promote-service-configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoteServiceConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description A retry of a promotion that already landed: its receipt, and nothing written. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePromotionReceipt"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePromotionReceipt"];
+                };
+            };
+            /** @description Missing or invalid API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions, or a system service and a caller who is not an Amigo administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The reviewed base changed (`detail.code` `promotion_base_changed`), or the `request_id` was used with another request (`promotion_request_mismatch`), or the candidate pins an archived dynamic behavior set. Nothing was stored. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A candidate that follows the latest agent or context graph version (`promotion_versions_not_explicit`), a `reviewed_base` that does not name every version set the promotion replaces (`promotion_base_incomplete`), or a version set, pin or setting a write of the service refuses. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another write held the configuration longer than the promotion waits (`promotion_lock_timeout`), the promotion ran past its time bound (`promotion_transaction_timeout`), or agent-engine could not confirm the releases its image carries (`harness_bake_unconfirmed`). Nothing was stored, except that a `promotion_transaction_timeout` whose `detail.outcome` is `unknown` passed its bound while the commit was being acknowledged and may have been stored. Retry with the same `request_id`: a stored promotion is answered its receipt. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -6196,6 +6196,16 @@
             "minLength": 1,
             "title": "Message",
             "type": "string"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsightSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -11099,6 +11109,34 @@
           "status"
         ],
         "title": "CreateOutboundCallResponse",
+        "type": "object"
+      },
+      "CreatePinRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "presentation_id": {
+            "format": "uuid",
+            "title": "Presentation Id",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 16000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "presentation_id",
+          "question"
+        ],
+        "title": "CreatePinRequest",
         "type": "object"
       },
       "CreateProductionEvalDefinitionRequest": {
@@ -18635,6 +18673,29 @@
         "title": "EventTypeSummary",
         "type": "object"
       },
+      "EvidenceColumn": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "name",
+          "type"
+        ],
+        "title": "EvidenceColumn",
+        "type": "object"
+      },
       "ExecutePanelRequest": {
         "properties": {
           "filter_values": {
@@ -24428,6 +24489,107 @@
           "call_sid"
         ],
         "title": "InjectResponse",
+        "type": "object"
+      },
+      "InsightResultResponse": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "queried_at": {
+            "format": "date-time",
+            "title": "Queried At",
+            "type": "string"
+          },
+          "result_id": {
+            "format": "uuid",
+            "title": "Result Id",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "sql": {
+            "title": "Sql",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "result_id",
+          "queried_at",
+          "truncated",
+          "sql",
+          "columns",
+          "rows"
+        ],
+        "title": "InsightResultResponse",
+        "type": "object"
+      },
+      "InsightSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "presentation_id": {
+            "format": "uuid",
+            "title": "Presentation Id",
+            "type": "string"
+          },
+          "row_index": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Index"
+          },
+          "series_index": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Index"
+          },
+          "source_session_id": {
+            "format": "uuid",
+            "title": "Source Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_session_id",
+          "presentation_id"
+        ],
+        "title": "InsightSelection",
         "type": "object"
       },
       "InstrumentationScope": {
@@ -32091,6 +32253,93 @@
         "title": "PhonicVadConfig",
         "type": "object"
       },
+      "PinEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/SqlColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "queried_at": {
+            "format": "date-time",
+            "title": "Queried At",
+            "type": "string"
+          },
+          "result_id": {
+            "format": "uuid",
+            "title": "Result Id",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_id",
+          "queried_at",
+          "columns",
+          "rows"
+        ],
+        "title": "PinEvidence",
+        "type": "object"
+      },
+      "PinListResponse": {
+        "properties": {
+          "continuation_token": {
+            "title": "Continuation Token"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SharedPin"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more",
+          "continuation_token"
+        ],
+        "title": "PinListResponse",
+        "type": "object"
+      },
+      "PinRevisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "PinRevisionRequest",
+        "type": "object"
+      },
       "PinningService": {
         "properties": {
           "id": {
@@ -32921,6 +33170,88 @@
           }
         },
         "title": "ProgressHint",
+        "type": "object"
+      },
+      "PromoteServiceConfigurationRequest": {
+        "properties": {
+          "expected_updated_at": {
+            "description": "The service's `updated_at` the review was made at, exactly as the service returned it.",
+            "format": "date-time",
+            "title": "Expected Updated At",
+            "type": "string"
+          },
+          "harness_pins": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HarnessPin"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The service's harness pins, replacing the ones it has. Left out, the pins stay as they are.",
+            "title": "Harness Pins"
+          },
+          "request_id": {
+            "description": "The caller's own id for this promotion. A retry sends the same id with the same request.",
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "reviewed_base": {
+            "description": "Every version set the review covered. Each has to be a set the service has, and each digest has to be the one\na session of the set would load when the promotion commits.",
+            "items": {
+              "$ref": "#/components/schemas/ReviewedVersionSet"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Reviewed Base",
+            "type": "array"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/SettingValue"
+                },
+                "maxProperties": 200,
+                "propertyNames": {
+                  "maxLength": 100,
+                  "minLength": 1
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The service's harness settings, replacing the ones it has. Left out, the settings stay as they are.",
+            "title": "Settings"
+          },
+          "target_version_set": {
+            "description": "The version set the candidate is stored as, `release` for the set sessions run by default.",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Target Version Set",
+            "type": "string"
+          },
+          "version_set": {
+            "$ref": "#/components/schemas/VersionSet-Input",
+            "description": "The candidate. It names its agent version and its context graph version: a set that follows the latest\nversion of either is refused."
+          }
+        },
+        "required": [
+          "request_id",
+          "expected_updated_at",
+          "reviewed_base",
+          "target_version_set",
+          "version_set"
+        ],
+        "title": "PromoteServiceConfigurationRequest",
         "type": "object"
       },
       "PromoteSessionResponse": {
@@ -35625,6 +35956,30 @@
           "action"
         ],
         "title": "ReviewSubmittedEvent",
+        "type": "object"
+      },
+      "ReviewedVersionSet": {
+        "description": "One version set the caller reviewed, by the digest of the configuration a session of it loaded.",
+        "properties": {
+          "service_config_digest": {
+            "description": "The `service_config_digest` `GET .../configuration-identity` answered for the set, which a run of it records.",
+            "maxLength": 71,
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Service Config Digest",
+            "type": "string"
+          },
+          "version_set": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Version Set",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_set",
+          "service_config_digest"
+        ],
+        "title": "ReviewedVersionSet",
         "type": "object"
       },
       "RiskSummary": {
@@ -39175,6 +39530,85 @@
         "title": "ServicePlanResponse",
         "type": "object"
       },
+      "ServicePromotionReceipt": {
+        "description": "What one promotion stored, as recorded in the transaction that stored it.",
+        "properties": {
+          "base_updated_at": {
+            "description": "The service's `updated_at` the promotion replaced.",
+            "format": "date-time",
+            "title": "Base Updated At",
+            "type": "string"
+          },
+          "promoted_at": {
+            "format": "date-time",
+            "title": "Promoted At",
+            "type": "string"
+          },
+          "promotion_id": {
+            "format": "uuid",
+            "title": "Promotion Id",
+            "type": "string"
+          },
+          "request_fingerprint": {
+            "description": "`sha256:` over the canonical request. The same `request_id` with another request is refused.",
+            "title": "Request Fingerprint",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "reviewed_base": {
+            "description": "The digests the promotion held to, each recomputed in its transaction.",
+            "items": {
+              "$ref": "#/components/schemas/ReviewedVersionSet"
+            },
+            "title": "Reviewed Base",
+            "type": "array"
+          },
+          "service_config_digest": {
+            "description": "The `service_config_digest` a session of `target_version_set` loads from the promoted configuration. A run\nbelongs to this promotion when it records this digest.",
+            "title": "Service Config Digest",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "target_version_set": {
+            "title": "Target Version Set",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "The service's `updated_at` after the promotion: the `expected_updated_at` of the next conditional write.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "promotion_id",
+          "request_id",
+          "workspace_id",
+          "service_id",
+          "target_version_set",
+          "request_fingerprint",
+          "reviewed_base",
+          "base_updated_at",
+          "service_config_digest",
+          "updated_at",
+          "promoted_at"
+        ],
+        "title": "ServicePromotionReceipt",
+        "type": "object"
+      },
       "ServiceReadinessResponse": {
         "properties": {
           "families": {
@@ -41097,6 +41531,109 @@
       },
       "Sha256": {
         "type": "string"
+      },
+      "SharedPin": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "additionalProperties": true,
+            "title": "Block",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "refresh_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Error"
+          },
+          "refreshed_at": {
+            "format": "date-time",
+            "title": "Refreshed At",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PinEvidence"
+          },
+          "undo_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo Until"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "format": "uuid",
+            "title": "Updated By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "question",
+          "block",
+          "source",
+          "created_at",
+          "updated_at",
+          "refreshed_at",
+          "created_by",
+          "updated_by",
+          "refresh_error",
+          "deleted_at",
+          "undo_until"
+        ],
+        "title": "SharedPin",
+        "type": "object"
       },
       "SignalResponseAlignment": {
         "description": "Whether the agent's response aligned with a salient signal in the call.",
@@ -45603,6 +46140,29 @@
           "muted"
         ],
         "title": "SpeakerMutedEvent",
+        "type": "object"
+      },
+      "SqlColumn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type_name": {
+            "title": "Type Name",
+            "type": "string"
+          },
+          "type_text": {
+            "title": "Type Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type_name",
+          "type_text"
+        ],
+        "title": "SqlColumn",
         "type": "object"
       },
       "SqlQueryRequest": {
@@ -77134,6 +77694,360 @@
         ]
       }
     },
+    "/v1/{workspace_id}/insights/pins": {
+      "get": {
+        "operationId": "list_pins_v1__workspace_id__insights_pins_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pins",
+        "tags": [
+          "Insights"
+        ]
+      },
+      "post": {
+        "operationId": "create_pin_v1__workspace_id__insights_pins_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Pin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins/{pin_id}": {
+      "delete": {
+        "operationId": "unpin_v1__workspace_id__insights_pins__pin_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unpin",
+        "tags": [
+          "Insights"
+        ]
+      },
+      "get": {
+        "operationId": "get_pin_v1__workspace_id__insights_pins__pin_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins/{pin_id}/refresh": {
+      "post": {
+        "operationId": "refresh_pin_v1__workspace_id__insights_pins__pin_id__refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Pin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/pins/{pin_id}/undo": {
+      "post": {
+        "operationId": "undo_unpin_v1__workspace_id__insights_pins__pin_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pin_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pin Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedPin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Unpin",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
     "/v1/{workspace_id}/insights/schema": {
       "get": {
         "description": "List available tables, columns, and functions.",
@@ -77319,6 +78233,70 @@
           }
         },
         "summary": "Chat",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/insights/sessions/{session_id}/results/{result_id}": {
+      "get": {
+        "description": "Read retained query evidence owned by the current conversation caller.",
+        "operationId": "get_result_v1__workspace_id__insights_sessions__session_id__results__result_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Result Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Result",
         "tags": [
           "Insights"
         ]
@@ -87727,6 +88705,88 @@
           }
         },
         "summary": "Plan a service update",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/v1/{workspace_id}/services/{service_id}/promotions": {
+      "post": {
+        "description": "Store a candidate version set as `target_version_set`, with the service's harness pins and settings when the request names them, in one write of the service. The write lands only while the service is at `expected_updated_at` and every version set in `reviewed_base` still has the `service_config_digest` the caller reviewed (`GET .../configuration-identity`): a change to the service, a workspace default, an agent, a context graph, a dynamic behavior set or a harness default since the review refuses it with 409, and nothing is stored. `reviewed_base` names the target when the service has it, and every version set of the service when the request names `harness_pins` or `settings`, which change what a session of each of them loads. A target the service does not have is created and is not named in `reviewed_base`. The candidate names its agent version and context graph version, and gets every check a version set, harness pin or settings write of the service gets. The answer is the promotion's receipt, stored with the write, whose `service_config_digest` is the digest a session of `target_version_set` loaded from the configuration the promotion committed. It records that configuration, not what a session ran since. The same request with the same `request_id` from the same credential is answered that receipt again with 200 and writes nothing, whatever the service stores by then, while the workspace is active and that credential may still promote the service. After a timeout or a lost response, that retry is how a caller learns whether the promotion was stored. Only Amigo administrators promote a system service. Requires `Service.update` permission.",
+        "operationId": "promote-service-configuration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteServiceConfigurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePromotionReceipt"
+                }
+              }
+            },
+            "description": "A retry of a promotion that already landed: its receipt, and nothing written."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePromotionReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or invalid API key."
+          },
+          "403": {
+            "description": "Insufficient permissions, or a system service and a caller who is not an Amigo administrator."
+          },
+          "404": {
+            "description": "Service not found."
+          },
+          "409": {
+            "description": "The reviewed base changed (`detail.code` `promotion_base_changed`), or the `request_id` was used with another request (`promotion_request_mismatch`), or the candidate pins an archived dynamic behavior set. Nothing was stored."
+          },
+          "422": {
+            "description": "A candidate that follows the latest agent or context graph version (`promotion_versions_not_explicit`), a `reviewed_base` that does not name every version set the promotion replaces (`promotion_base_incomplete`), or a version set, pin or setting a write of the service refuses."
+          },
+          "503": {
+            "description": "Another write held the configuration longer than the promotion waits (`promotion_lock_timeout`), the promotion ran past its time bound (`promotion_transaction_timeout`), or agent-engine could not confirm the releases its image carries (`harness_bake_unconfirmed`). Nothing was stored, except that a `promotion_transaction_timeout` whose `detail.outcome` is `unknown` passed its bound while the commit was being acknowledged and may have been stored. Retry with the same `request_id`: a stored promotion is answered its receipt."
+          }
+        },
+        "summary": "Promote a reviewed configuration of a service",
         "tags": [
           "Services"
         ]

@@ -256,6 +256,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listAutoPaging`
 - `get`
 - `getConfigurationIdentity`
+- `promoteConfiguration`
 - `getSafety`
 - `update`
 - `planCreate`

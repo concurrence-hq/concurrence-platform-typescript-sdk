@@ -685,8 +685,11 @@ await client.services.update(service.id, { platform_caller_verification: false }
 
 #### Harness settings, pins and releases
 
-Each harness a service runs declares its settings. Read the schema, then replace the service's values.
-A key left out runs the harness default.
+The settings schema lists every setting available for each harness a service runs. That is the
+settings the harness release declares and the platform's Core-owned settings, which stay available
+when the service pins an external release. The schema does not say which of the two a setting is,
+so read it, not a release's own declaration, for what a service can store. Then replace the
+service's values. A key left out runs the harness default.
 
 ```typescript
 const schema = await client.services.getSettingsSchema(service.id)
@@ -704,6 +707,74 @@ const { items: releases } = await client.harnesses.listReleases({ kind: 'voice' 
 const defaults = await client.harnesses.listDefaults()
 await client.harnesses.setDefault('voice', 'concurrence', { tag: 'in-tree' })
 ```
+
+#### Promote a reviewed configuration
+
+`promoteConfiguration` stores a reviewed candidate version set, with the service's harness pins
+and settings when the request names them, in one write. The flow is review, promotion, receipt,
+and an exact retry when the outcome is not known.
+
+```typescript
+import { randomUUID } from 'node:crypto'
+import {
+  ConflictError,
+  ServiceUnavailableError,
+  type PromoteServiceConfigurationRequest,
+} from '@amigo-ai/platform-sdk'
+
+// 1. Review: read the identity of each version set the promotion replaces. Keep `updated_at`
+//    as the string the API returned.
+const reviewed = await client.services.getConfigurationIdentity(service.id, {
+  version_set: 'release',
+})
+
+// 2. Build the request once and keep it. `request_id` is yours: one UUID per promotion.
+const request: PromoteServiceConfigurationRequest = {
+  request_id: randomUUID(),
+  expected_updated_at: reviewed.updated_at,
+  reviewed_base: [
+    { version_set: 'release', service_config_digest: reviewed.service_config_digest },
+  ],
+  target_version_set: 'release',
+  version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+}
+
+// 3. Promote. The receipt comes back for a first promotion (201) and for a repeat (200).
+try {
+  const receipt = await client.services.promoteConfiguration(service.id, request)
+  console.log(receipt.promotion_id, receipt.service_config_digest, receipt.lastResponse.statusCode)
+} catch (error) {
+  if (error instanceof ConflictError) {
+    // Nothing was stored. `errorBody.detail.code` is `promotion_base_changed` (with `changed`)
+    // or `promotion_request_mismatch`. Review again and send a new request with a new id.
+  } else if (error instanceof ServiceUnavailableError) {
+    // `errorBody.detail.code` and, for `promotion_transaction_timeout`, `detail.outcome`:
+    // `not_stored`, or `unknown` when the deadline passed during the commit.
+    // 4. Resolve it by sending `request` again, unchanged.
+  } else {
+    throw error
+  }
+}
+```
+
+- **Reviewed base.** `reviewed_base` names the target version set when the service has it, and
+  every version set of the service when the request names `harness_pins` or `settings`. Leaving
+  `harness_pins` or `settings` out keeps what the service has; `[]` and `{}` clear them. The
+  candidate names its agent version and its context graph version.
+- **Receipt.** The receipt is historical configuration evidence. Its `service_config_digest` is
+  the digest a session of the target loaded from the configuration that promotion committed. It
+  is not proof of what the service stores now, and it is not proof that any session loaded or
+  ran that configuration. A simulation's `harness_execution` or a run's own receipt is the
+  evidence of what ran.
+- **Exact retry.** The SDK does not resend a promotion and never creates or changes
+  `request_id`. After a `promotion_transaction_timeout` with `outcome: 'unknown'`, a client
+  timeout or a lost response, the promotion may have been stored. Send the same request object
+  again with the same credential: a stored promotion answers its receipt with 200 and writes
+  nothing, and one that was not stored runs as a new attempt. The same `request_id` with a
+  different request is refused with `promotion_request_mismatch`, so do not rebuild the request
+  from a new read before retrying.
+- **Refusals.** 409, 422 and 503 keep the API's `detail` on `errorBody`. Apart from the
+  `unknown` outcome above, a refusal stored nothing.
 
 ### Runs
 
