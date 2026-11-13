@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.146.0] - 2026-11-13
+
+### Features
+
+- add mu-law browser voice test calls (#439)
+
+### Maintenance
+
+- sync final Core settings API contract (#541)
+
 ## [Unreleased]
 
 ### Features
