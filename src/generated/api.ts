@@ -9823,9 +9823,11 @@ export interface components {
             confidence?: number | null;
             /**
              * Context Graph Version
-             * @description The context graph version the conversation ran when the decision was made.
+             * @description The context graph version the conversation ran when the decision was made. Null on a direct program's
+             *     decision, which ran no context graph: ``program_digest`` names what it ran.
+             * @default null
              */
-            context_graph_version: number;
+            context_graph_version?: number | null;
             /**
              * Keep Confidence
              * @description The confidence of the answer to whether the active behavior stays, when that was asked.
@@ -9845,11 +9847,23 @@ export interface components {
             latency_ms?: number | null;
             outcome: components["schemas"]["DynamicBehaviorOutcome"];
             /**
+             * @description The direct program the conversation ran when the decision was made, by the digest its run records
+             *     (``RunManifest.program_digest``). Null on a context graph's decision.
+             * @default null
+             */
+            program_digest?: components["schemas"]["NameString"] | null;
+            /**
              * Reason
              * @description Why a decision failed or was skipped, or why a held behavior was held.
              * @default null
              */
             reason?: components["schemas"]["FailureReason"] | components["schemas"]["DynamicBehaviorSkip"] | null;
+            /**
+             * @description What a direct program's decision rendered its request from. Null on a context graph's decision, whose run
+             *     records it (``RunManifest.dynamic_behavior_prompt_template_hash``).
+             * @default null
+             */
+            selector_prompt_hash?: components["schemas"]["NameString"] | null;
         };
         /** BindingUpsertRequest */
         BindingUpsertRequest: {
