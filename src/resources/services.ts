@@ -112,12 +112,13 @@ export class ServicesResource extends WorkspaceScopedResource {
    * Resolves to the receipt for both a first promotion (201) and a repeat of a promotion that
    * already landed (200, nothing written); `lastResponse.statusCode` on the result tells them
    * apart. The receipt is historical configuration evidence: its `service_config_digest` is
-   * what a session of the target loaded from the configuration that promotion committed. It
+   * the digest of the target configuration that promotion committed. It
    * is not proof of what the service stores now, nor of what any session loaded or ran.
    *
    * `request_id` is the caller's: generate one UUID per promotion and keep it with the request.
-   * The SDK never generates or changes it and does not resend a refused or failed promotion.
-   * To retry, send the same request unchanged with the same `request_id` from the same
+   * The SDK never generates or changes it. The normal POST retry policy still applies to
+   * 429 with `Retry-After`; 409, 422 and 503 are not retried automatically.
+   * To retry an unknown outcome, send the same request unchanged with the same `request_id` from the same
    * credential. The same id with a different request throws `ConflictError`
    * (`promotion_request_mismatch`).
    *

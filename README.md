@@ -762,12 +762,13 @@ try {
   `harness_pins` or `settings` out keeps what the service has; `[]` and `{}` clear them. The
   candidate names its agent version and its context graph version.
 - **Receipt.** The receipt is historical configuration evidence. Its `service_config_digest` is
-  the digest a session of the target loaded from the configuration that promotion committed. It
+  the digest of the target configuration that promotion committed. It
   is not proof of what the service stores now, and it is not proof that any session loaded or
   ran that configuration. A simulation's `harness_execution` or a run's own receipt is the
   evidence of what ran.
-- **Exact retry.** The SDK does not resend a promotion and never creates or changes
-  `request_id`. After a `promotion_transaction_timeout` with `outcome: 'unknown'`, a client
+- **Exact retry.** The SDK never creates or changes `request_id`. Its normal POST retry policy
+  still applies to 429 with `Retry-After`; it does not automatically retry 409, 422 or 503.
+  After a `promotion_transaction_timeout` with `outcome: 'unknown'`, a client
   timeout or a lost response, the promotion may have been stored. Send the same request object
   again with the same credential: a stored promotion answers its receipt with 200 and writes
   nothing, and one that was not stored runs as a new attempt. The same `request_id` with a
