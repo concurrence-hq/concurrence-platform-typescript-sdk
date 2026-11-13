@@ -1,9 +1,16 @@
-import { ConfigurationError } from '../core/errors.js'
-import type { PlatformFetch } from '../core/openapi-client.js'
+import { ConfigurationError, ParseError } from '../core/errors.js'
+import { applyPlatformRequestOptions, type PlatformFetch } from '../core/openapi-client.js'
 import type { WebSocketFactory } from '../core/reconnecting-websocket.js'
-import type { ScopedRequestOptions } from '../core/request-options.js'
-import { scopePlatformClient, WorkspaceScopedResource } from './base.js'
+import { mergeRequestOptions, type ScopedRequestOptions } from '../core/request-options.js'
+import {
+  resolveScopedPlatformClient,
+  scopePlatformClient,
+  WorkspaceScopedResource,
+} from './base.js'
 
+const TEST_CALL_START_PATH = '/agent/test-call/start'
+const TEST_CALL_SOCKET_PATH = '/agent/test-call'
+const TEST_CALL_SAMPLE_RATE = '8000'
 const MAX_AUTH_TOKEN_CHARS = 4096
 const WEB_SOCKET_PROTOCOL_TOKEN_RE = /^[!#$%&'*+\-.^_`|~A-Za-z0-9]+$/
 const TEST_CALL_AUDIO_ENCODING = 'mulaw'
@@ -33,9 +40,13 @@ export interface TestCallUrlParams {
    */
   systemPrompt?: string
   /**
-   * Absolute endpoint URL override for preview or custom agent-engine ingress.
-   * Its path is used verbatim; it must not contain a query or fragment because
-   * the SDK appends every supported test-call query parameter.
+   * Absolute endpoint URL override for a dedicated voice runner or a custom
+   * ingress that serves the test-call socket itself. Its path is used verbatim;
+   * it must not contain a query or fragment because the SDK appends every
+   * supported test-call query parameter.
+   *
+   * It cannot carry a server-issued actor URL, whose query holds the
+   * allocation. Use {@link TestCallsResource.start} for allocated calls.
    */
   testCallUrl?: string
 }
@@ -155,7 +166,8 @@ export interface TestCallCloseEvent {
   readonly wasClean: boolean
 }
 
-export interface TestCallConnectOptions extends TestCallUrlParams {
+/** Socket credentials and callbacks shared by direct and allocated test calls. */
+export interface TestCallSocketOptions {
   /** Bearer token sent as ``Sec-WebSocket-Protocol: auth, <token>``. */
   token: string
   /**
@@ -171,6 +183,39 @@ export interface TestCallConnectOptions extends TestCallUrlParams {
   signal?: AbortSignal
   /** Custom WebSocket factory, primarily for runtimes without a global or for tests. */
   webSocketFactory?: WebSocketFactory
+}
+
+/** Options for {@link TestCallsResource.connect}, the direct-connect path. */
+export interface TestCallConnectOptions extends TestCallUrlParams, TestCallSocketOptions {}
+
+/** Options for {@link TestCallsResource.start}, the allocated path. */
+export interface TestCallStartOptions extends TestCallSocketOptions {
+  serviceId: string
+  /** Optional caller phone number (E.164) used to resolve simulated caller context. */
+  callerId?: string
+  /**
+   * Optional start-time context: a JSON object keyed by context name. The agent
+   * engine validates it against the service's accepted context and hands it to
+   * the allocated runner by reference; it travels in the request body, never in
+   * a URL.
+   */
+  context?: Record<string, unknown>
+  /**
+   * Host names the server-issued actor URL may use: a host is accepted when it
+   * equals an entry or is a subdomain of one. Each entry needs at least two
+   * labels, for example ``actors-us.example.com``.
+   *
+   * Defaults to the last two labels of the ``agentBaseUrl`` host, so the actor
+   * must share the agent engine's parent domain. Set this when the actor
+   * ingress lives under another domain, or to narrow the default.
+   */
+  actorHostSuffixes?: readonly string[]
+  /**
+   * Aborts the allocation request and, once the call is open, closes its
+   * socket. An allocation the engine already made is not released by the SDK;
+   * the engine reclaims a runner that no media attaches to.
+   */
+  signal?: AbortSignal
 }
 
 /** Handle for one non-reconnecting browser voice test call. */
@@ -201,7 +246,21 @@ export interface TestCallHandle {
   close(code?: number, reason?: string): void
 }
 
-/** Browser voice test calls over ``WS /agent/test-call``. */
+/** A test call running on a voice runner the agent engine allocated for it. */
+export interface TestCallSession extends TestCallHandle {
+  /** Call identifier issued with the allocation. */
+  readonly callSid: string
+}
+
+/**
+ * Browser voice test calls.
+ *
+ * {@link TestCallsResource.start} is the path for deployed environments: it
+ * asks the agent engine to allocate a voice runner, then connects to the actor
+ * URL the engine issues. {@link TestCallsResource.connect} opens
+ * ``WS /agent/test-call`` on the configured origin directly, which only works
+ * where that origin is itself a voice runner.
+ */
 export class TestCallsResource extends WorkspaceScopedResource {
   private readonly agentBaseUrl: string | undefined
 
@@ -218,7 +277,98 @@ export class TestCallsResource extends WorkspaceScopedResource {
     ) as this
   }
 
-  /** Build the voice test-call WebSocket URL without placing credentials in it. */
+  /**
+   * Allocate a voice runner for a test call and connect to it.
+   *
+   * Sends one ``POST /agent/test-call/start`` to the configured
+   * ``agentBaseUrl`` with the client's credential, then opens the actor URL the
+   * engine returns, unchanged, authenticating with ``token``. Audio is G.711
+   * mu-law, 8 kHz, mono in both directions, exactly as with
+   * {@link TestCallsResource.connect}.
+   *
+   * - The allocation is never retried: each request reserves a new runner, so
+   *   ``429`` (workspace at its concurrent test-call limit) and ``503`` (no
+   *   capacity) reject once with the usual typed errors. Retry from the
+   *   application when the user asks again.
+   * - ``agentBaseUrl`` is required and must be an ``https`` (or ``wss``) origin;
+   *   plain ``http`` is accepted for loopback hosts only. The request is never
+   *   sent to the platform API origin.
+   * - The returned URL is refused, and no socket is opened, unless it is a
+   *   ``wss`` ``/agent/test-call`` URL on an accepted actor host (see
+   *   ``actorHostSuffixes``) that names this workspace and service, mu-law at
+   *   8 kHz, an allocation, and a context reference exactly when ``context``
+   *   was sent. The token is only ever sent as a WebSocket subprotocol.
+   * - The client's credential and ``token`` must identify the same principal;
+   *   the engine binds the allocation and its context to the credential that
+   *   requested it. In a browser, use one short-lived identity access token
+   *   for both and keep workspace API keys on a trusted server.
+   */
+  async start(options: TestCallStartOptions): Promise<TestCallSession> {
+    testCallAuthProtocols(options.token)
+    resolveWebSocketFactory(options.webSocketFactory)
+    const serviceId = options.serviceId.trim()
+    if (!this.workspaceId.trim()) throw new ConfigurationError('workspaceId is required')
+    if (!serviceId) throw new ConfigurationError('serviceId is required')
+    if (options.context !== undefined && !isRecord(options.context)) {
+      throw new ConfigurationError('context must be a JSON object')
+    }
+    const callerId = options.callerId?.trim() || undefined
+    const origin = parseAllocationOrigin(this.agentBaseUrl)
+    const actorHostSuffixes = resolveActorHostSuffixes(origin, options.actorHostSuffixes)
+    const signal = options.signal
+    if (signal?.aborted) throw abortReason(signal)
+
+    const { baseClient, options: scopedOptions } = resolveScopedPlatformClient(this.client)
+    const init = applyPlatformRequestOptions(baseClient, {
+      ...mergeRequestOptions(scopedOptions, { signal }),
+      baseUrl: origin.origin,
+      body: {
+        workspace_id: this.workspaceId,
+        service_id: serviceId,
+        ...(callerId ? { caller_id: callerId } : {}),
+        ...(options.context !== undefined ? { context: options.context } : {}),
+      },
+      // Each request reserves a runner, so a retry could allocate twice.
+      maxRetries: 0,
+    } as never)
+
+    let data: unknown
+    try {
+      const post = baseClient.POST as unknown as (
+        path: string,
+        init: unknown,
+      ) => Promise<{ data?: unknown }>
+      data = (await post(TEST_CALL_START_PATH, init)).data
+    } catch (cause) {
+      if (signal?.aborted) throw abortReason(signal)
+      if (cause instanceof SyntaxError) {
+        throw new ParseError('Test-call allocation response was not valid JSON')
+      }
+      throw cause
+    }
+    if (signal?.aborted) throw abortReason(signal)
+
+    const allocation = parseAllocation(data, {
+      origin,
+      actorHostSuffixes,
+      workspaceId: this.workspaceId,
+      serviceId,
+      callerId,
+      hasContext: options.context !== undefined,
+    })
+    const handle = openTestCall(allocation.url, options)
+    return Object.defineProperty(handle, 'callSid', {
+      value: allocation.callSid,
+      enumerable: true,
+    }) as TestCallSession
+  }
+
+  /**
+   * Build the direct test-call WebSocket URL without placing credentials in it.
+   *
+   * Direct URLs carry no allocation; see {@link TestCallsResource.connect} for
+   * where they are served.
+   */
   url(params: TestCallUrlParams): string {
     return buildTestCallUrl({
       baseUrl: this.agentBaseUrl ?? this.platformBaseUrl,
@@ -228,95 +378,104 @@ export class TestCallsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Open a duplex voice test call carrying G.711 mu-law, 8 kHz, mono audio in
-   * both directions.
+   * Open a duplex voice test call directly on the configured origin, carrying
+   * G.711 mu-law, 8 kHz, mono audio in both directions.
+   *
+   * Dedicated-runner scope only: this connects straight to
+   * ``WS /agent/test-call`` on ``agentBaseUrl`` (or ``testCallUrl``) without an
+   * allocation. Only a voice runner serves that route, so use it against a
+   * dedicated runner or a local engine. The standard deployed agent ingress
+   * routes to the dispatcher, which does not serve it and refuses the socket;
+   * use {@link TestCallsResource.start} there.
    *
    * The SDK owns URL construction, authentication, and metadata parsing. The
    * consumer remains responsible for microphone capture, mu-law encoding and
    * decoding, and audio playback.
    * Test calls are intentionally not reconnected because a dropped media
-   * socket terminates its allocated voice session.
+   * socket terminates its voice session.
    */
   connect(options: TestCallConnectOptions): TestCallHandle {
-    const factory = resolveWebSocketFactory(options.webSocketFactory)
-    const socket = factory(this.url(options), [...testCallAuthProtocols(options.token)])
-    socket.binaryType = 'arraybuffer'
+    return openTestCall(this.url(options), options)
+  }
+}
 
-    let resolveDone!: () => void
-    let settled = false
-    const done = new Promise<void>((resolve) => {
-      resolveDone = resolve
-    })
+function openTestCall(url: string, options: TestCallSocketOptions): TestCallHandle {
+  const factory = resolveWebSocketFactory(options.webSocketFactory)
+  const socket = factory(url, [...testCallAuthProtocols(options.token)])
+  socket.binaryType = 'arraybuffer'
 
-    const settle = (): void => {
-      if (settled) return
-      settled = true
-      options.signal?.removeEventListener('abort', abort)
-      resolveDone()
+  let resolveDone!: () => void
+  let settled = false
+  const done = new Promise<void>((resolve) => {
+    resolveDone = resolve
+  })
+
+  const settle = (): void => {
+    if (settled) return
+    settled = true
+    options.signal?.removeEventListener('abort', abort)
+    resolveDone()
+  }
+  const abort = (): void => socket.close(1000, 'Aborted')
+
+  socket.addEventListener('open', () => options.onOpen?.())
+  socket.addEventListener('message', (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      options.onAudio(event.data)
+      return
     }
-    const abort = (): void => socket.close(1000, 'Aborted')
+    if (typeof event.data !== 'string') return
+    const parsed = parseTestCallEvent(event.data)
+    if (parsed) options.onEvent?.(parsed)
+  })
+  socket.addEventListener('error', (event) => options.onError?.(event))
+  socket.addEventListener('close', (event) => {
+    settle()
+    options.onClose?.(event)
+  })
 
-    socket.addEventListener('open', () => options.onOpen?.())
-    socket.addEventListener('message', (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        options.onAudio(event.data)
-        return
+  if (options.signal?.aborted) abort()
+  else options.signal?.addEventListener('abort', abort, { once: true })
+
+  return {
+    done,
+    get readyState() {
+      return socket.readyState
+    },
+    sendAudio(audio) {
+      ensureOpen(socket)
+      socket.send(audio)
+    },
+    sendControl(message) {
+      sendControl(socket, message)
+    },
+    injectEvent(message, sender) {
+      sendControl(socket, {
+        type: 'inject_event',
+        message: requireMessage(message),
+        ...(sender ? { sender } : {}),
+      })
+    },
+    injectGuidance(message, sender) {
+      sendControl(socket, {
+        type: 'inject_guidance',
+        message: requireMessage(message),
+        ...(sender ? { sender } : {}),
+      })
+    },
+    refreshContext() {
+      sendControl(socket, { type: 'refresh_context' })
+    },
+    stop(reason) {
+      if (socket.readyState === WEB_SOCKET_OPEN) {
+        const message: TestCallControlMessage = reason ? { type: 'stop', reason } : { type: 'stop' }
+        socket.send(JSON.stringify(message))
       }
-      if (typeof event.data !== 'string') return
-      const parsed = parseTestCallEvent(event.data)
-      if (parsed) options.onEvent?.(parsed)
-    })
-    socket.addEventListener('error', (event) => options.onError?.(event))
-    socket.addEventListener('close', (event) => {
-      settle()
-      options.onClose?.(event)
-    })
-
-    if (options.signal?.aborted) abort()
-    else options.signal?.addEventListener('abort', abort, { once: true })
-
-    return {
-      done,
-      get readyState() {
-        return socket.readyState
-      },
-      sendAudio(audio) {
-        ensureOpen(socket)
-        socket.send(audio)
-      },
-      sendControl(message) {
-        sendControl(socket, message)
-      },
-      injectEvent(message, sender) {
-        sendControl(socket, {
-          type: 'inject_event',
-          message: requireMessage(message),
-          ...(sender ? { sender } : {}),
-        })
-      },
-      injectGuidance(message, sender) {
-        sendControl(socket, {
-          type: 'inject_guidance',
-          message: requireMessage(message),
-          ...(sender ? { sender } : {}),
-        })
-      },
-      refreshContext() {
-        sendControl(socket, { type: 'refresh_context' })
-      },
-      stop(reason) {
-        if (socket.readyState === WEB_SOCKET_OPEN) {
-          const message: TestCallControlMessage = reason
-            ? { type: 'stop', reason }
-            : { type: 'stop' }
-          socket.send(JSON.stringify(message))
-        }
-        socket.close(1000, reason ?? 'User ended test call')
-      },
-      close(code, reason) {
-        socket.close(code, reason)
-      },
-    }
+      socket.close(1000, reason ?? 'User ended test call')
+    },
+    close(code, reason) {
+      socket.close(code, reason)
+    },
   }
 }
 
@@ -392,6 +551,153 @@ function parseTestCallUrlOverride(value: string): URL {
     )
   }
   return url
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('This operation was aborted', 'AbortError')
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]'
+  )
+}
+
+function parseAllocationOrigin(agentBaseUrl: string | undefined): URL {
+  if (!agentBaseUrl?.trim()) {
+    throw new ConfigurationError(
+      'agentBaseUrl is required to start an allocated test call; the allocation is never sent to the platform API origin',
+    )
+  }
+  let url: URL
+  try {
+    url = new URL(agentBaseUrl)
+  } catch {
+    throw new ConfigurationError(
+      'agentBaseUrl must be an absolute URL to start an allocated test call',
+    )
+  }
+  if (url.protocol === 'wss:') url.protocol = 'https:'
+  else if (url.protocol === 'ws:') url.protocol = 'http:'
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new ConfigurationError('agentBaseUrl must be an http, https, ws, or wss URL')
+  }
+  if (url.username || url.password) {
+    throw new ConfigurationError('agentBaseUrl must not embed credentials')
+  }
+  if (url.pathname !== '/' || url.search || url.hash) {
+    throw new ConfigurationError(
+      'agentBaseUrl must be an origin without a path, query, or fragment to start an allocated test call',
+    )
+  }
+  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
+    throw new ConfigurationError(
+      'agentBaseUrl must use https or wss to start an allocated test call, except on loopback hosts',
+    )
+  }
+  return url
+}
+
+function resolveActorHostSuffixes(
+  origin: URL,
+  configured: readonly string[] | undefined,
+): readonly string[] {
+  if (configured === undefined) {
+    const hostname = origin.hostname
+    const labels = hostname.split('.')
+    const isAddress = hostname.startsWith('[') || /^\d+(\.\d+){3}$/.test(hostname)
+    if (isLoopbackHost(hostname) || isAddress || labels.length < 2) return [hostname]
+    return [labels.slice(-2).join('.')]
+  }
+  if (!Array.isArray(configured) || configured.length === 0) {
+    throw new ConfigurationError('actorHostSuffixes must list at least one host name')
+  }
+  return configured.map((entry: unknown) => {
+    const suffix = typeof entry === 'string' ? entry.trim().toLowerCase().replace(/^\.+/, '') : ''
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(suffix)) {
+      throw new ConfigurationError(
+        'actorHostSuffixes entries must be host names with at least two labels',
+      )
+    }
+    return suffix
+  })
+}
+
+interface AllocationExpectation {
+  origin: URL
+  actorHostSuffixes: readonly string[]
+  workspaceId: string
+  serviceId: string
+  callerId: string | undefined
+  hasContext: boolean
+}
+
+/**
+ * Validate the allocation before any credential is sent to the URL it names.
+ * Rejections describe the failed rule only: the URL carries the allocation and
+ * context references and is never echoed into an error.
+ */
+function parseAllocation(
+  data: unknown,
+  expected: AllocationExpectation,
+): { url: string; callSid: string } {
+  const reject = (reason: string): never => {
+    throw new ParseError(`Test-call allocation was refused: ${reason}`)
+  }
+  if (!isRecord(data)) return reject('the response is not an object')
+  const { ws_url: wsUrl, call_sid: callSid, actor_token: actorToken } = data
+  if (typeof wsUrl !== 'string' || !wsUrl) return reject('ws_url is missing')
+  if (typeof callSid !== 'string' || !callSid) return reject('call_sid is missing')
+  if (actorToken !== '') return reject('it carries an actor token this SDK cannot present')
+
+  let url: URL
+  try {
+    url = new URL(wsUrl)
+  } catch {
+    return reject('ws_url is not an absolute URL')
+  }
+  const cleartextLoopback =
+    url.protocol === 'ws:' && expected.origin.protocol === 'http:' && isLoopbackHost(url.hostname)
+  if (url.protocol !== 'wss:' && !cleartextLoopback) return reject('ws_url is not a wss URL')
+  if (url.username || url.password) return reject('ws_url embeds credentials')
+  if (url.protocol === 'wss:' && url.port) return reject('ws_url names an explicit port')
+  const hostname = url.hostname.toLowerCase()
+  if (
+    !expected.actorHostSuffixes.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
+    )
+  ) {
+    return reject('ws_url host is not an accepted actor host; see actorHostSuffixes')
+  }
+  if (url.pathname !== TEST_CALL_SOCKET_PATH) return reject('ws_url path is not /agent/test-call')
+  if (url.hash || wsUrl.includes('#')) return reject('ws_url has a fragment')
+
+  const query = url.searchParams
+  const single = (name: string): string | undefined => {
+    const values = query.getAll(name)
+    return values.length === 1 ? values[0] : undefined
+  }
+  if (single('workspace_id')?.toLowerCase() !== expected.workspaceId.toLowerCase()) {
+    return reject('ws_url is for another workspace')
+  }
+  if (single('service_id')?.toLowerCase() !== expected.serviceId.toLowerCase()) {
+    return reject('ws_url is for another service')
+  }
+  if (single('encoding') !== TEST_CALL_AUDIO_ENCODING) return reject('ws_url is not mu-law')
+  if (single('sample_rate') !== TEST_CALL_SAMPLE_RATE) return reject('ws_url is not 8 kHz')
+  if (!single('allocation_id')) return reject('ws_url has no allocation_id')
+  if (
+    expected.callerId ? single('caller_id') !== expected.callerId : query.getAll('caller_id').length
+  ) {
+    return reject('ws_url caller_id does not match the request')
+  }
+  if (expected.hasContext ? !single('context_ref') : query.getAll('context_ref').length) {
+    return reject('ws_url context_ref does not match the request')
+  }
+  return { url: url.href, callSid }
 }
 
 function deriveFromBase(baseUrl: string): URL {

@@ -925,28 +925,39 @@ for await (const event of client.conversations.streamTurn(conversation.id, {
 
 ### Browser voice test calls
 
-Use `client.testCalls.connect()` to open a browser voice test call against the
-agent engine. The SDK builds `/agent/test-call`, authenticates through the
-WebSocket subprotocol, parses metadata frames, and carries audio in both
-directions.
+Use `client.testCalls.start()` to run a browser voice test call against a
+deployed agent engine. Every call runs on its own voice runner, so the SDK
+first asks the agent engine to allocate one (`POST /agent/test-call/start` on
+`agentBaseUrl`) and then opens the actor URL the engine returns. It
+authenticates the socket through the WebSocket subprotocol, parses metadata
+frames, and carries audio in both directions.
 
 Audio on this socket is raw G.711 mu-law, 8 kHz, mono (one byte per sample, no
 container) in both directions. That is the only format the agent engine
-accepts, so the SDK always connects with `encoding=mulaw` and there is no
-format or sample-rate option. The SDK passes audio bytes through unchanged and
-does not transcode: your application captures the microphone, converts it to
-8 kHz mu-law before `sendAudio()`, and decodes the mu-law frames it receives in
-`onAudio` for playback.
+accepts, and there is no format or sample-rate option. The SDK passes audio
+bytes through unchanged and does not transcode: your application captures the
+microphone, converts it to 8 kHz mu-law before `sendAudio()`, and decodes the
+mu-law frames it receives in `onAudio` for playback.
 
-Use a short-lived identity access token in the browser. Keep workspace API keys
-on a trusted server, and configure the client with the documented voice endpoint
-as `agentBaseUrl`.
+Do not put a workspace API key in the browser. Have your server mint a
+short-lived identity access token (for example with `client.tokens`), and use
+that one token both as the browser client's credential and as the call's
+`token`. The agent engine ties the allocation to the credential that requested
+it, so the two must match. `agentBaseUrl` is required: the allocation is sent
+only to that origin, over `https`, and never to the platform API origin.
 
 ```typescript
-const call = client.testCalls.connect({
+const client = new AmigoClient({
+  apiKey: accessToken, // short-lived identity access token from your server
+  workspaceId,
+  agentBaseUrl, // the documented agent-engine origin for your region
+})
+
+const call = await client.testCalls.start({
   serviceId: 'service-id',
   token: accessToken,
   callerId: '+15555550123', // optional simulated caller context
+  context: { member_id: 'm-123' }, // optional, validated by the service
   // Raw mu-law, 8 kHz, mono. Decode before playing.
   onAudio: (mulaw) => playback.enqueue(mulaw),
   onEvent: (event) => {
@@ -971,11 +982,34 @@ call.stop()
 await call.done
 ```
 
-Test calls intentionally do not reconnect: losing the duplex
-media socket terminates the allocated voice session. The URL builder also
-supports `inbound`, `outbound`, and `silent` scenarios, version-set selection,
-and freeform prompt overrides. Live control helpers include `injectEvent()`,
-`injectGuidance()`, and `refreshContext()`.
+Starting a call is not idempotent: each request reserves a runner. The SDK
+therefore sends it once and never retries it, whatever retry settings the
+client has. `RateLimitError` (429) means the workspace is at its concurrent
+test-call limit and `ServiceUnavailableError` (503) means no runner was
+available; let the user try again. Pass `signal` to cancel the allocation or
+end the call.
+
+Before the token is sent anywhere, the SDK checks the returned actor URL: it
+must be a `wss` `/agent/test-call` URL for this workspace and service, mu-law
+at 8 kHz, with an allocation, on a host under the same parent domain as
+`agentBaseUrl`. If your actor ingress uses another domain, name it with
+`actorHostSuffixes: ['actors.example.com']`. A URL that fails any check is
+refused with a `ParseError` and no socket is opened. The URL is then used
+exactly as issued, so do not rebuild it.
+
+Test calls intentionally do not reconnect: losing the duplex media socket
+terminates the allocated voice session. Live control helpers include
+`injectEvent()`, `injectGuidance()`, and `refreshContext()`.
+
+#### Direct connections to a dedicated runner
+
+`client.testCalls.connect()` skips allocation and opens `/agent/test-call`
+directly on `agentBaseUrl` (or `testCallUrl`). Only a voice runner serves that
+route, so this works against a dedicated runner or a local engine. It does not
+work against the standard deployed agent ingress, which routes to a dispatcher
+that refuses the socket; use `start()` there. `connect()` takes the same token
+and callbacks, plus `inbound`, `outbound`, and `silent` scenarios, version-set
+selection, and freeform prompt overrides.
 
 ### Real-time event streams
 

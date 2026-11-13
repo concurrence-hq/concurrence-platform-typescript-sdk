@@ -291,7 +291,11 @@ export class AmigoClient {
    * {@link ObserversResource}.
    */
   readonly observers!: ObserversResource
-  /** Browser voice test calls over the agent-engine duplex mu-law (8 kHz, mono) WebSocket. */
+  /**
+   * Browser voice test calls over the agent-engine duplex mu-law (8 kHz, mono) WebSocket.
+   * `start()` allocates a voice runner first and is the path for deployed environments;
+   * `connect()` reaches a dedicated runner directly.
+   */
   readonly testCalls!: TestCallsResource
   /** FHIR / EHR data interop — sync status, imports, resources, patient views */
   readonly fhir!: FhirResource
@@ -1110,7 +1114,10 @@ export type {
   TestCallLatencyEvent,
   TestCallProgressEvent,
   TestCallReadyEvent,
+  TestCallSession,
   TestCallSessionStartedEvent,
+  TestCallSocketOptions,
+  TestCallStartOptions,
   TestCallToolCallCompletedEvent,
   TestCallToolCallStartedEvent,
   TestCallUrlParams,

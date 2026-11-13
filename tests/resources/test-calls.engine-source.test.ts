@@ -22,9 +22,10 @@ const runnerApp = resolve(engineRoot, 'persistent_voice_runner', 'fastapi_app.py
 const available = [dispatcherRoutes, startRoute, runnerApp].every((path) => existsSync(path))
 
 function listBody(source: string, name: string): string {
-  const match = new RegExp(`^${name} = \\[\\n([\\s\\S]*?)^\\]`, 'm').exec(source)
-  if (!match) throw new Error(`${name} list not found in engine source`)
-  return match[1]!
+  const start = source.indexOf(`\n${name} = [`)
+  const end = source.indexOf(']', start)
+  if (start < 0 || end < 0) throw new Error(`${name} list not found in engine source`)
+  return source.slice(start, end)
 }
 
 describe.skipIf(!available)('agent engine source: test-call ingress', () => {
@@ -32,8 +33,8 @@ describe.skipIf(!available)('agent engine source: test-call ingress', () => {
     const source = readFileSync(dispatcherRoutes, 'utf8')
     expect(source).toContain('router = APIRouter(prefix="/agent")')
     const mounted = listBody(source, '_sub_routers')
-    expect(mounted).toMatch(/^\s*test_call_start_router,$/m)
-    expect(mounted).not.toMatch(/^\s*test_call_router,$/m)
+    expect(mounted).toMatch(/\btest_call_start_router\b/)
+    expect(mounted).not.toMatch(/\btest_call_router\b/)
     expect(source).not.toMatch(/import router as test_call_router/)
   })
 
