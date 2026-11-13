@@ -10,6 +10,7 @@ import type { Middleware } from 'openapi-fetch'
 import {
   applyPlatformRequestOptions,
   getPlatformClientBaseUrl,
+  getPlatformClientIdentityBaseUrl,
   type PlatformFetch,
 } from '../core/openapi-client.js'
 import {
@@ -33,6 +34,11 @@ export abstract class WorkspaceScopedResource {
   protected get platformBaseUrl(): string {
     const { baseClient } = resolveScopedPlatformClient(this.client)
     return getPlatformClientBaseUrl(baseClient)
+  }
+
+  protected get identityBaseUrl(): string {
+    const { baseClient } = resolveScopedPlatformClient(this.client)
+    return getPlatformClientIdentityBaseUrl(baseClient)
   }
 
   withOptions(options: ScopedRequestOptions): this {
@@ -204,22 +210,6 @@ export function resolveScopedPlatformClient(client: PlatformFetch): {
     baseClient: existing?.baseClient ?? client,
     options: existing?.options,
   }
-}
-
-export interface UntypedOpenApiResult<T> {
-  data?: T
-  error?: unknown
-  response?: Response
-}
-
-export interface UntypedOpenApiClient {
-  GET<T>(path: string, init: object): Promise<UntypedOpenApiResult<T>>
-  POST<T>(path: string, init: object): Promise<UntypedOpenApiResult<T>>
-  DELETE<T>(path: string, init: object): Promise<UntypedOpenApiResult<T>>
-}
-
-export function untypedClient(client: PlatformFetch): UntypedOpenApiClient {
-  return client as unknown as UntypedOpenApiClient
 }
 
 export { extractData }

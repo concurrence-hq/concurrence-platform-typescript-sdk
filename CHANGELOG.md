@@ -1,5 +1,408 @@
 # Changelog
 
+## [0.144.1] - 2026-11-12
+
+### Documentation
+
+- replace mode needs workspace permissions, not platform:admin (ALL-2639) (#536)
+
+## [0.144.0] - 2026-11-12
+
+### Features
+
+- expose configuration identity (ALL-2632) (#535)
+
+## [0.143.0] - 2026-11-11
+
+### Features
+
+- expose live Playground tool execution (ALL-2621) (#534)
+
+### Maintenance
+
+- avoid duplicate package verification during publish (ALL-2622) (#533)
+
+## [0.142.0] - 2026-11-11
+
+### Maintenance
+
+- sync API types from platform (72d0169e)
+
+## [0.141.0] - 2026-11-08
+
+### Maintenance
+
+- sync API types from platform (033f48a7) (#531)
+
+## [0.140.0] - 2026-11-07
+
+### Maintenance
+
+- sync API types from platform (27d4cc8b) (#530)
+
+## [0.139.0] - 2026-11-07
+
+### Maintenance
+
+- sync API types from platform (b87d6bee) (#529)
+- sync API types from platform (6345fc95) (#528)
+
+## [0.138.0] - 2026-11-06
+
+### Features
+
+- turn idempotency keys, createIdempotencyKey and acknowledgeTurnDelivery (#520)
+
+### Maintenance
+
+- sync API types from platform (18dc18cb) (#527)
+
+## [0.137.0] - 2026-11-04
+
+### Features
+
+- add typed wrappers for every public API route (#521)
+
+### Security
+
+- clear critical and high Dependabot alerts (#518)
+
+### Bug Fixes
+
+- remove dead textStreamUrl and point observers.subscribe at /agent/observe (ALL-1300) (#524)
+- follow the caller's abort signal so aborts survive GC on Node 24 (ALL-2100) (#523)
+- page operators.list and getEscalations by continuation_token (ALL-2084) (#522)
+
+### Maintenance
+
+- sync API types from platform (b32fb594) (#525)
+- sync API types from platform (7f73981c) (#517)
+
+## [0.136.0] - 2026-11-03
+
+### Improvements
+
+- fix(data-sources)!: type dataSources.list params from the generated spec (ALL-1088) (#515)
+
+### Documentation
+
+- drop the emotion engine from the README architecture diagram (#513)
+
+### Maintenance
+
+- sync API types from platform (2518565b) (#516)
+
+## [Unreleased]
+
+### Maintenance
+
+- sync API types from platform (2518565b)
+
+### Features
+
+- `services.planCreate` and `services.planUpdate` plan a service save without writing it
+- `VOICE_SESSION_PROVIDERS` lists `gemini_live` and `phonic`
+
+### Breaking Changes
+
+- removed `analytics.getEmotionTrends` (the `/analytics/emotion-trends` route is gone from the spec)
+- removed emotion and valence fields from the generated types (`emotion` and `valence` on simulation step requests, `emotional_summary` on call detail responses, and the related emotion schemas)
+
+## [0.135.0] - 2026-11-02
+
+### Maintenance
+
+- sync API types from platform (dfe12602) (#512)
+
+## [0.134.0] - 2026-11-02
+
+### Maintenance
+
+- sync API types from platform (fb642632) (#511)
+
+## [0.133.0] - 2026-11-01
+
+### Features
+
+- add registered operation grant client (ALL-2471) (#510)
+
+## [0.132.0] - 2026-10-31
+
+### Bug Fixes
+
+- represent absent expiry in reporting responses (#508)
+
+## [0.131.0] - 2026-10-29
+
+### Features
+
+- discover mapping-bound group grants (ALL-2353) (#506)
+
+## [0.130.0] - 2026-10-29
+
+### Features
+
+- add mapping-bound independent conversion SDK (ALL-2344) (#505)
+- listResults lists one eval's verdicts across calls, with a date range (ALL-1456) (#504)
+
+## [0.129.0] - 2026-10-29
+
+### Maintenance
+
+- sync API types from platform (6bbf7a97) (#503)
+
+## [0.128.0] - 2026-10-28
+
+### Features
+
+- add typed group lifecycle bindings (ALL-2141) (#502)
+
+### Documentation
+
+- createOutbound names which statuses are safe to retry (ALL-765) (#501)
+
+## [0.127.0] - 2026-10-27
+
+### Maintenance
+
+- sync API types from platform (5f5b0eb3) (#500)
+
+## [0.126.0] - 2026-10-26
+
+### Features
+
+- a dynamicBehaviorSets resource and a one-pin helper on a service version set (ALL-2048) (#497)
+
+### Documentation
+
+- sync API descriptions from platform 4da0ac54 (ALL-2043) (#498)
+
+### Maintenance
+
+- sync API types from platform (ALL-2022)
+
+## [0.125.0] - 2026-10-26
+
+### Documentation
+
+- execute throws ValidationError for SQL outside the allowlist (ALL-2043) (#495)
+
+### Maintenance
+
+- sync API types from platform (ba861ff2) (#496)
+
+## [0.124.0] - 2026-10-26
+
+### Features
+
+- add generic credential expiry administration (ALL-2017) (#494)
+
+## [0.123.0] - 2026-10-25
+
+### Features
+
+- TokenManager.signOut requests revocation and clears credentials (ALL-1912) (#482)
+
+### Maintenance
+
+- a staging host in a README, doc comment, example or generated type fails the build (ALL-2006) (#493)
+
+## [0.122.1] - 2026-10-25
+
+### Documentation
+
+- the baseUrl docs no longer name a staging host (ALL-2006) (#490)
+
+## [0.122.0] - 2026-10-25
+
+### Maintenance
+
+- sync API types from platform (32222915) (#492)
+
+## [0.121.1] - 2026-10-25
+
+### Bug Fixes
+
+- preserve opaque list cursors in request types (#491)
+
+## [0.121.0] - 2026-10-25
+
+### Features
+
+- expose lifecycle status and scheduling bindings (ALL-2015) (#489)
+
+## [0.120.0] - 2026-10-25
+
+### Features
+
+- add workspace SSO administration resources (ALL-2012) (#488)
+
+## [0.119.0] - 2026-10-25
+
+### Features
+
+- add typed staging clone resources (ALL-1951) (#487)
+
+## [0.118.0] - 2026-10-24
+
+### Maintenance
+
+- sync API types from platform (73bf5263) (#485)
+
+## [0.117.0] - 2026-10-24
+
+### Maintenance
+
+- sync API types from platform (1502142a) (#484)
+
+## [0.116.0] - 2026-10-23
+
+### Features
+
+- add authorTurn for staging a non-voice operator reply (#480)
+
+### Maintenance
+
+- sync API types from platform (606d2230) (#481)
+
+## [0.115.0] - 2026-10-18
+
+### Documentation
+
+- fix the data sources example for the 0.112.0 API (#473)
+
+### Maintenance
+
+- sync API types from platform (0425d7e7) (#476)
+
+## [0.114.1] - 2026-10-14
+
+### Bug Fixes
+
+- yield artifact, state_transition and state events from streamTurn (#465)
+
+## [0.114.0] - 2026-10-14
+
+### Maintenance
+
+- sync API types from platform (7f971c28) (#474)
+
+## [0.113.1] - 2026-10-14
+
+### Bug Fixes
+
+- default to the concurrence hosts; api.platform.amigo.ai no longer resolves (#475)
+
+## [0.113.0] - 2026-10-13
+
+### Features
+
+- wrap cases, suites, suite runs, benchmarks and the path step (#469)
+
+## [0.112.0] - 2026-10-13
+
+### Features
+
+- wrap intake, dashboards and the other routes the console calls raw (#471)
+
+### Improvements
+
+- fix!: remove SDK wrappers for routes platform-api no longer serves (#470)
+
+### Bug Fixes
+
+- listLatest takes filters; wrap production evals, eval quality and voice judge (#468)
+- take run filter values from the generated spec (#467)
+
+## [0.111.0] - 2026-10-12
+
+### Improvements
+
+- fix!: sync SDK types to platform main (b126798e) (#466)
+
+## [0.110.0] - 2026-10-03
+
+### Features
+
+- expose service filters in the SDK (#463)
+
+### Maintenance
+
+- add ccrowley96 as SDK code owner (#464)
+
+## [0.109.1] - 2026-09-30
+
+### Bug Fixes
+
+- align npm repository metadata with renamed SDK repository (#462)
+
+## [0.109.0] - 2026-09-30
+
+### Improvements
+
+- fix!: sync SDK types to platform main + remove post-call accuracy fields (#458)
+- fix!: sync SDK types to platform main (bbfd1e26) (#456)
+
+## [0.108.1] - 2026-09-08
+
+### Security
+
+- refresh secure tooling and public contributor setup (#455)
+
+### Maintenance
+
+- recover tagged releases through trusted publishing (#453)
+
+## [0.108.0] - 2026-09-08
+
+### Improvements
+
+- fix!: sync SDK types to platform main (f04e5c7b7) (#450)
+
+### Bug Fixes
+
+- match fleet status to the supported voice-only contract (#451)
+
+### Maintenance
+
+- remove the automated PR reviewer (#449)
+
+## [0.107.0] - 2026-08-11
+
+### Improvements
+
+- fix!: sync SDK types to platform main (b765cecc) (#448)
+
+## [0.106.0] - 2026-08-07
+
+### Improvements
+
+- fix!: sync SDK types to platform main (290a81fc) (#446)
+- Update CODEOWNERS (#447)
+
+### Bug Fixes
+
+- drop SDK wrappers for retired intake-link and environment-settings endpoints (#445)
+
+## [0.105.0] - 2026-08-04
+
+### Improvements
+
+- fix!: unbreak SDK type sync — retire the billing resource (#444)
+
+## [0.104.0] - 2026-07-28
+
+### Bug Fixes
+
+- unbreak SDK type sync (JsonValue codegen, retire use-cases, reconcile audit + external-integrations) (#443)
+
+## [0.103.0] - 2026-07-19
+
+### Maintenance
+
+- sync SDK to post-consolidation openapi (drop gpt_live/openai_realtime/turn_runtime) (#441)
+- move CI reviewers to Claude Fable 5 (#440)
+
 ## [0.102.1] - 2026-07-15
 
 ### Improvements

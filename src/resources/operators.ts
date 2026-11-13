@@ -5,8 +5,18 @@ export type EscalationStatsParams = NonNullable<
   operations['escalation-stats']['parameters']['query']
 >
 
+export type ListOperatorsParams = NonNullable<operations['list-operators']['parameters']['query']>
+
+export type ListEscalationsParams = NonNullable<
+  operations['list-escalations']['parameters']['query']
+>
+
+export type OperatorAuditLogParams = NonNullable<
+  operations['list-audit-log']['parameters']['query']
+>
+
 export class OperatorsResource extends WorkspaceScopedResource {
-  async list(params?: { status?: string; limit?: number; offset?: number }) {
+  async list(params?: ListOperatorsParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/operators', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -14,12 +24,8 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  listAutoPaging(params?: { status?: string; limit?: number; offset?: number }) {
-    return this.iterateOffsetPaginatedList(
-      (pageParams) => this.list(pageParams),
-      (page) => page.items,
-      params,
-    )
+  listAutoPaging(params?: ListOperatorsParams) {
+    return this.iteratePaginatedList((pageParams) => this.list(pageParams), params)
   }
 
   async create(body: components['schemas']['CreateOperatorRequest']) {
@@ -65,7 +71,7 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  async getEscalations(params?: { status?: string; limit?: number; offset?: number }) {
+  async getEscalations(params?: ListEscalationsParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/operators/escalations', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -73,12 +79,8 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  getEscalationsAutoPaging(params?: { status?: string; limit?: number; offset?: number }) {
-    return this.iterateOffsetPaginatedList(
-      (pageParams) => this.getEscalations(pageParams),
-      (page) => page.items,
-      params,
-    )
+  getEscalationsAutoPaging(params?: ListEscalationsParams) {
+    return this.iteratePaginatedList((pageParams) => this.getEscalations(pageParams), params)
   }
 
   async getActiveEscalations() {
@@ -107,15 +109,6 @@ export class OperatorsResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/operators/performance', {
         params: { path: { workspace_id: this.workspaceId }, query: params as never },
-      }),
-    )
-  }
-
-  async getAccessToken(operatorId: string, body: components['schemas']['AccessTokenRequest']) {
-    return extractData(
-      await this.client.POST('/v1/{workspace_id}/operators/{operator_id}/access-token', {
-        params: { path: { workspace_id: this.workspaceId, operator_id: operatorId } },
-        body,
       }),
     )
   }
@@ -182,7 +175,13 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  async getAuditLog(params?: { limit?: number; offset?: number }) {
+  /**
+   * List the operator actions recorded in the workspace's audit ledger, newest
+   * first. Filter by one `operator_id` or `action`, and page with
+   * `continuation_token`. The ledger refreshes about every 15 minutes, so an
+   * action appears after that delay. Returns 503 when the ledger cannot be read.
+   */
+  async getAuditLog(params?: OperatorAuditLogParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/operators/audit-log', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -190,11 +189,7 @@ export class OperatorsResource extends WorkspaceScopedResource {
     )
   }
 
-  getAuditLogAutoPaging(params?: { limit?: number; offset?: number }) {
-    return this.iterateOffsetPaginatedList(
-      (pageParams) => this.getAuditLog(pageParams),
-      (page) => page.items,
-      params,
-    )
+  getAuditLogAutoPaging(params?: OperatorAuditLogParams) {
+    return this.iteratePaginatedList((pageParams) => this.getAuditLog(pageParams), params)
   }
 }

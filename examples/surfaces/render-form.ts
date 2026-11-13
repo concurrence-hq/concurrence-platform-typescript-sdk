@@ -30,7 +30,7 @@ interface SurfaceSpec {
 // Public token routes require no API key -- the token is the credential.
 // Use openapi-fetch directly with the SDK's path types.
 const publicApi = createClient<paths>({
-  baseUrl: process.env.AMIGO_BASE_URL || 'https://api.platform.amigo.ai',
+  baseUrl: process.env.AMIGO_BASE_URL || 'https://platform.api-us.concurrence.com',
 })
 
 const token = requireEnv('AMIGO_SURFACE_TOKEN')

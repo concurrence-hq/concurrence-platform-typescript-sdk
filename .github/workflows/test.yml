@@ -49,6 +49,9 @@ jobs:
       - name: Check generated API docs
         run: npm run docs:check
 
+      - name: Check no staging host in public surfaces
+        run: node scripts/check-no-staging.mjs
+
       - name: Build
         run: npm run build
 
@@ -70,9 +73,6 @@ jobs:
 
       - name: Run tarball smoke tests
         run: npm run test:tarball
-
-      - name: Run reviewer orchestration tests
-        run: npm run test:reviewer
 
       - name: Upload coverage to Codecov
         if: ${{ !inputs.skip_codecov && matrix.node-version == 22 }}

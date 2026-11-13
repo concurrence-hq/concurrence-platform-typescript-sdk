@@ -1,4 +1,4 @@
-import type { operations } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export type SurfaceCompletionRatesParams = NonNullable<
@@ -13,6 +13,18 @@ export type SurfaceFieldAbandonmentParams = NonNullable<
 export type EntitySurfaceHistoryParams = NonNullable<
   operations['get-entity-surface-history']['parameters']['query']
 >
+export type EvalQualityParams = NonNullable<
+  operations['get-eval-quality-analytics']['parameters']['query']
+>
+export type EvalQualityResponse = components['schemas']['EvalQualityResponse']
+export type AdvancedCallStatsParams = NonNullable<
+  operations['get-advanced-call-stats']['parameters']['query']
+>
+export type AdvancedCallStatsResponse = components['schemas']['AdvancedCallStatsResponse']
+export type ToolPerformanceParams = NonNullable<
+  operations['get-tool-performance']['parameters']['query']
+>
+export type ToolPerformanceResponse = components['schemas']['ToolPerformanceResponse']
 
 /**
  * Analytics — aggregate metrics about calls, agents, quality, and usage.
@@ -27,14 +39,8 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Call volume and duration metrics */
-  async getCalls(params?: {
-    days?: number
-    date_from?: string | null
-    date_to?: string | null
-    interval?: '1h' | '1d' | '1w'
-    service_id?: string | null
-  }) {
+  /** Call volume and duration metrics over the last `days` (default: 30) */
+  async getCalls(params?: { days?: number }) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/analytics/calls', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -42,8 +48,16 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Per-agent performance breakdown */
-  async getAgents(params?: { period?: string }) {
+  /**
+   * Per-agent performance breakdown over the last `days` (default: 30) or `date_from` to
+   * `date_to`. `period` is a label the response echoes back; it doesn't set the window.
+   */
+  async getAgents(params?: {
+    days?: number
+    date_from?: string | null
+    date_to?: string | null
+    period?: string | null
+  }) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/analytics/agents', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -66,21 +80,6 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Emotion trend data over time */
-  async getEmotionTrends(params?: {
-    days?: number
-    date_from?: string | null
-    date_to?: string | null
-    interval?: '1h' | '1d' | '1w'
-    service_id?: string | null
-  }) {
-    return extractData(
-      await this.client.GET('/v1/{workspace_id}/analytics/emotion-trends', {
-        params: { path: { workspace_id: this.workspaceId }, query: params },
-      }),
-    )
-  }
-
   /** Voice pipeline latency metrics (TTFB, response time) */
   async getLatency(params?: {
     days?: number
@@ -96,8 +95,12 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Tool call performance — success rates and latency per tool */
-  async getToolPerformance(params?: { days?: number }) {
+  /**
+   * Tool executions in the window, over the calls that carry a tool summary: totals and failure
+   * rates in `summary`, and a `trend`. Pass `group_by: 'service_id'` for every service's summary
+   * and trend in `groups`, in one request.
+   */
+  async getToolPerformance(params?: ToolPerformanceParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/analytics/tool-performance', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -114,15 +117,8 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Usage summary — API requests, call minutes, storage */
-  async getUsage(params?: {
-    days?: number
-    date_from?: string | null
-    date_to?: string | null
-    interval?: '1h' | '1d' | '1w'
-    service_id?: string | null
-    direction?: string | null
-  }) {
+  /** Usage summary over the last `days` (default: 30) */
+  async getUsage(params?: { days?: number }) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/analytics/usage', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
@@ -154,16 +150,27 @@ export class AnalyticsResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Advanced call statistics (abandonment, transfers, silence, hour-of-day) */
-  async getAdvancedCallStats(params?: {
-    days?: number
-    date_from?: string | null
-    date_to?: string | null
-    interval?: '1h' | '1d' | '1w'
-    service_id?: string | null
-  }) {
+  /**
+   * Call counts with duration and quality percentiles in `summary`, a `trend`, and calls per
+   * service (`by_service`) and per direction (`by_direction`). Pass `group_by: 'service_id'` for
+   * every service's summary and trend in `groups`, in one request.
+   */
+  async getAdvancedCallStats(params?: AdvancedCallStatsParams) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/analytics/calls/advanced', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  /**
+   * Production-eval pass rate and score: the workspace summary, one row per eval key, and a
+   * trend. Built from stored call verdicts, so every channel counts. Pass
+   * `group_by: 'service_id'` for every service's summary, eval keys and trend in `groups`.
+   */
+  async getEvalQuality(params?: EvalQualityParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/analytics/eval-quality', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
       }),
     )

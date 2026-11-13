@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
-import { NotFoundError } from '../../src/core/errors.js'
+import { ConflictError, NotFoundError } from '../../src/core/errors.js'
+import type { components } from '../../src/generated/api.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
@@ -27,22 +28,15 @@ const VERSION_FIXTURE = {
 }
 
 function mockFetch(
-  routes: Record<string, () => Response | Promise<Response>>,
+  routes: Record<string, (req: Request) => Response | Promise<Response>>,
 ): typeof globalThis.fetch {
   return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    let url: string
-    let method: string
-    if (input instanceof Request) {
-      url = input.url
-      method = input.method.toUpperCase()
-    } else {
-      url = typeof input === 'string' ? input : input.toString()
-      method = (init?.method ?? 'GET').toUpperCase()
-    }
-    const pathname = new URL(url).pathname
+    const req = input instanceof Request ? input : new Request(input, init)
+    const method = req.method.toUpperCase()
+    const pathname = new URL(req.url).pathname
     for (const [pattern, handler] of Object.entries(routes)) {
       const [pMethod, ...pPathParts] = pattern.split(' ')
-      if (pMethod === method && pPathParts.join(' ') === pathname) return handler()
+      if (pMethod === method && pPathParts.join(' ') === pathname) return handler(req)
     }
     return new Response(JSON.stringify({ detail: `No mock for ${method} ${pathname}` }), {
       status: 500,
@@ -125,6 +119,70 @@ describe('ContextGraphsResource', () => {
     const result = await client.contextGraphs.createVersion(GRAPH_ID, {} as never)
     expect(result.version).toBe(1)
     expect(result.context_graph_id).toBe(GRAPH_ID)
+  })
+
+  it('creates a version with dynamic behaviors, sending expected_latest_version only when asked', async () => {
+    const behavior = {
+      id: '00000000-0000-4000-8000-000000000101',
+      name: 'Medication change routing',
+      enabled: true,
+      condition: 'The client wants to start, stop, switch or re-dose a prescription.',
+      examples: ['Can I switch to a different medication?'],
+      instruction: 'Give no medication advice. A provider decides. Offer a follow-up video visit.',
+      mode: 'add',
+      states: ['answer_questions'],
+      sticky_turns: 2,
+      tags: ['routing'],
+    } satisfies components['schemas']['DynamicBehavior']
+    const body = {
+      states: [],
+      new_user_initial_state: 'answer_questions',
+      returning_user_initial_state: 'answer_questions',
+      terminal_state: 'end',
+      dynamic_behaviors: [behavior],
+    } satisfies components['schemas']['CreateContextGraphVersionRequest']
+    const requests: { url: URL; body: unknown }[] = []
+    const versioningClient = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/context-graphs/${GRAPH_ID}/versions`]: async (req) => {
+          const url = new URL(req.url)
+          requests.push({ url, body: await req.json() })
+          return url.searchParams.get('expected_latest_version') === '6'
+            ? Response.json(
+                {
+                  detail:
+                    'Context graph is at version 7; this write expected 6. Reload and apply the change to version 7.',
+                },
+                { status: 409 },
+              )
+            : Response.json(
+                { ...VERSION_FIXTURE, version: 8, dynamic_behaviors: [behavior] },
+                { status: 201 },
+              )
+        },
+      }),
+    })
+
+    const created = await versioningClient.contextGraphs.createVersion(GRAPH_ID, body, {
+      expectedLatestVersion: 7,
+    })
+    await versioningClient.contextGraphs.createVersion(GRAPH_ID, body, { expectedLatestVersion: 0 })
+    await versioningClient.contextGraphs.createVersion(GRAPH_ID, body)
+    await expect(
+      versioningClient.contextGraphs.createVersion(GRAPH_ID, body, { expectedLatestVersion: 6 }),
+    ).rejects.toBeInstanceOf(ConflictError)
+
+    expect(created.dynamic_behaviors).toEqual([behavior])
+    expect(requests.map(({ url }) => url.searchParams.get('expected_latest_version'))).toEqual([
+      '7',
+      '0',
+      null,
+      '6',
+    ])
+    expect(requests[2]?.url.search).toBe('')
+    expect(requests[0]?.body).toEqual(body)
   })
 
   it('lists versions', async () => {

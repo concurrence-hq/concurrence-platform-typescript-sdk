@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest'
+import * as indexExports from '../../src/index.js'
 import {
   AmigoClient,
   BadRequestError,
   ConfigurationError,
+  createIdempotencyKey,
   NotFoundError,
+  PermissionError,
   ValidationError,
   sessionConnectAuthProtocols,
-  textStreamAuthProtocols,
 } from '../../src/index.js'
 import type {
   ChannelKind,
@@ -18,6 +20,8 @@ import type {
   TurnConversationSnapshot,
   TurnRequest,
   TurnResponse,
+  TurnStateEvent,
+  TurnStateTransitionEvent,
 } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -255,6 +259,37 @@ describe('ConversationsResource', () => {
 
     expect(deleteCalled).toBe(true)
     expect(result).toBeUndefined()
+  })
+
+  it('close sends source=playground only when asked, and a refused close throws PermissionError', async () => {
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    const requestUrls: string[] = []
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`DELETE ${BASE}/conversations/${conversationId}`]: (req) => {
+          requestUrls.push(req.url)
+          return new URL(req.url).searchParams.get('source') === 'playground'
+            ? Response.json(
+                {
+                  detail:
+                    'A Playground or test-credential session may not close a real conversation',
+                },
+                { status: 403 },
+              )
+            : new Response(null, { status: 204 })
+        },
+      }),
+    })
+
+    await client.conversations.close(conversationId)
+    await expect(
+      client.conversations.close(conversationId, { source: 'playground' }),
+    ).rejects.toBeInstanceOf(PermissionError)
+
+    expect(new URL(requestUrls[0]!).searchParams.has('source')).toBe(false)
+    expect(new URL(requestUrls[1]!).searchParams.get('source')).toBe('playground')
   })
 
   it('switches a conversation channel', async () => {
@@ -579,6 +614,46 @@ describe('ConversationsResource', () => {
     expect(requestBody).toEqual({})
   })
 
+  it('pollTurn sends source in the body, never the query, next to poll=true', async () => {
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    let requestUrl: string | undefined
+    let requestBody: unknown
+    const apiResponse: TurnResponse = {
+      turn_id: 'turn-poll',
+      conversation: {
+        id: conversationId,
+        status: 'active',
+        turn_count: 1,
+        updated_at: '2026-01-01T00:00:01Z',
+      },
+      input: { role: 'user', text: '', content: [] },
+      output: [],
+      tool_calls: [],
+    }
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/conversations/${conversationId}/turns`]: async (req) => {
+          requestUrl = req.url
+          requestBody = await req.json()
+          return Response.json(apiResponse)
+        },
+      }),
+    })
+
+    await client.conversations.pollTurn(conversationId, {
+      includeToolCalls: true,
+      source: 'playground',
+    })
+
+    const url = new URL(requestUrl as string)
+    expect(url.searchParams.get('poll')).toBe('true')
+    expect(url.searchParams.get('include_tool_calls')).toBe('true')
+    expect(url.searchParams.has('source')).toBe(false)
+    expect(requestBody).toEqual({ source: 'playground' })
+  })
+
   it('createTurn rejects poll combined with a message (fail fast, no server round-trip)', async () => {
     const conversationId = '00000000-0000-4000-8000-000000000001'
     let called = false
@@ -656,297 +731,14 @@ describe('ConversationsResource', () => {
     ).rejects.toBeInstanceOf(BadRequestError)
   })
 
-  it('builds a text-stream URL from the client baseUrl', () => {
+  it('does not expose the removed text-stream helpers', () => {
     const client = new AmigoClient({
       apiKey: TEST_API_KEY,
       workspaceId: TEST_WORKSPACE_ID,
       baseUrl: 'https://api.example.com',
     })
-
-    const url = new URL(
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        conversationId: '00000000-0000-4000-8000-000000000001',
-        entityId: 'ent-1',
-      }),
-    )
-
-    expect(url.protocol).toBe('wss:')
-    expect(url.host).toBe('api.example.com')
-    expect(url.pathname).toBe('/agent/text-stream')
-    expect(url.searchParams.get('workspace_id')).toBe(TEST_WORKSPACE_ID)
-    expect(url.searchParams.get('service_id')).toBe('svc-1')
-    expect(url.searchParams.get('conversation_id')).toBe('00000000-0000-4000-8000-000000000001')
-    expect(url.searchParams.get('entity_id')).toBe('ent-1')
-    // Query key order is deliberate API behavior so downstream tests can assert
-    // exact URLs without incidental reordering.
-    expect([...url.searchParams.keys()]).toEqual([
-      'workspace_id',
-      'service_id',
-      'conversation_id',
-      'entity_id',
-    ])
-  })
-
-  it('maps non-TLS REST base URLs to ws text-stream URLs', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'http://localhost:8000',
-    })
-
-    const url = new URL(client.conversations.textStreamUrl({ serviceId: 'svc-1' }))
-
-    expect(url.protocol).toBe('ws:')
-    expect(url.host).toBe('localhost:8000')
-    expect(url.pathname).toBe('/agent/text-stream')
-  })
-
-  it('supports preview/custom text-stream URL overrides', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: '/api/platform',
-    })
-
-    const url = new URL(
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        textStreamUrl: 'wss://preview-123.platform.example.com/agent/text-stream',
-      }),
-    )
-
-    expect(url.host).toBe('preview-123.platform.example.com')
-    expect(url.searchParams.get('workspace_id')).toBe(TEST_WORKSPACE_ID)
-    expect(url.searchParams.get('service_id')).toBe('svc-1')
-    expect(url.searchParams.has('conversation_id')).toBe(false)
-    expect(url.searchParams.has('entity_id')).toBe(false)
-    // Query key order is deliberate API behavior so downstream tests can assert
-    // exact URLs without incidental reordering.
-    expect([...url.searchParams.keys()]).toEqual(['workspace_id', 'service_id'])
-  })
-
-  it('applies scoped request options while preserving text-stream URL derivation', async () => {
-    let scopedHeader: string | null = null
-    const conversationId = '00000000-0000-4000-8000-000000000001'
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com',
-      fetch: mockFetch({
-        [`GET ${BASE}/conversations/${conversationId}`]: (request) => {
-          scopedHeader = request.headers.get('x-request-scope')
-          return Response.json({
-            id: conversationId,
-            channel_kind: 'web',
-            status: 'active',
-            lifecycle: 'active',
-            turn_count: 0,
-            created_at: '2026-01-01T00:00:00Z',
-            updated_at: '2026-01-01T00:00:00Z',
-          })
-        },
-      }),
-    })
-
-    const scoped = client.conversations.withOptions({
-      headers: { 'x-request-scope': 'conversation' },
-    })
-    const url = new URL(scoped.textStreamUrl({ serviceId: 'svc-1' }))
-    await scoped.get(conversationId)
-
-    expect(scopedHeader).toBe('conversation')
-    expect(url.protocol).toBe('wss:')
-    expect(url.host).toBe('api.example.com')
-    expect(url.pathname).toBe('/agent/text-stream')
-  })
-
-  it('supports token query auth fallback for non-subprotocol-safe keys', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com',
-    })
-
-    const url = new URL(
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        token: 'workspace:secret/with=base64+chars',
-      }),
-    )
-
-    expect(url.searchParams.get('token')).toBe('workspace:secret/with=base64+chars')
-    // Query key order is deliberate API behavior so downstream tests can assert
-    // exact URLs without incidental reordering.
-    expect([...url.searchParams.keys()]).toEqual(['workspace_id', 'service_id', 'token'])
-  })
-
-  it('includes tool_events=true when toolEvents is enabled', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com',
-    })
-
-    const url = new URL(
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        toolEvents: true,
-      }),
-    )
-
-    expect(url.searchParams.get('tool_events')).toBe('true')
-    expect([...url.searchParams.keys()]).toEqual(['workspace_id', 'service_id', 'tool_events'])
-  })
-
-  it('omits tool_events when toolEvents is false or undefined', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com',
-    })
-
-    const urlFalse = new URL(
-      client.conversations.textStreamUrl({ serviceId: 'svc-1', toolEvents: false }),
-    )
-    const urlUndefined = new URL(client.conversations.textStreamUrl({ serviceId: 'svc-1' }))
-
-    expect(urlFalse.searchParams.has('tool_events')).toBe(false)
-    expect(urlUndefined.searchParams.has('tool_events')).toBe(false)
-  })
-
-  it('places tool_events before token in query parameter order', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com',
-    })
-
-    const url = new URL(
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        conversationId: '00000000-0000-4000-8000-000000000001',
-        toolEvents: true,
-        token: 'test-key',
-      }),
-    )
-
-    expect([...url.searchParams.keys()]).toEqual([
-      'workspace_id',
-      'service_id',
-      'conversation_id',
-      'tool_events',
-      'token',
-    ])
-  })
-
-  it('rejects caller-supplied query parameters on text-stream URL overrides', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: '/api/platform',
-    })
-
-    expect(() =>
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        textStreamUrl:
-          'wss://preview-123.platform.example.com/agent/text-stream?workspace_id=wrong&service_id=wrong&conversation_id=wrong#frag',
-      }),
-    ).toThrow(ConfigurationError)
-  })
-
-  it('rejects non-WebSocket text-stream URL overrides', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: '/api/platform',
-    })
-
-    expect(() =>
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        textStreamUrl: 'https://preview-123.platform.example.com/agent/text-stream',
-      }),
-    ).toThrow(ConfigurationError)
-  })
-
-  it('fails clearly when deriving a text-stream URL from a relative baseUrl', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: '/api/platform',
-    })
-
-    expect(() => client.conversations.textStreamUrl({ serviceId: 'svc-1' })).toThrow(
-      ConfigurationError,
-    )
-  })
-
-  it('fails clearly when a text-stream URL override is malformed', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: '/api/platform',
-    })
-
-    expect(() =>
-      client.conversations.textStreamUrl({
-        serviceId: 'svc-1',
-        textStreamUrl: '/agent/text-stream',
-      }),
-    ).toThrow(ConfigurationError)
-  })
-
-  it('fails clearly when deriving a text-stream URL from a non-http baseUrl', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'http+unix://socket/api',
-    })
-
-    expect(() => client.conversations.textStreamUrl({ serviceId: 'svc-1' })).toThrow(
-      ConfigurationError,
-    )
-  })
-
-  it('fails clearly when deriving a text-stream URL from a path-prefixed baseUrl', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com/v1/platform',
-    })
-
-    expect(() => client.conversations.textStreamUrl({ serviceId: 'svc-1' })).toThrow(
-      ConfigurationError,
-    )
-  })
-
-  it('returns browser WebSocket subprotocols for auth', () => {
-    expect(textStreamAuthProtocols(TEST_API_KEY)).toEqual(['auth', TEST_API_KEY])
-    expect(textStreamAuthProtocols('test+api.key')).toEqual(['auth', 'test+api.key'])
-    expect(() => textStreamAuthProtocols('')).toThrow(/apiKey is required/)
-    expect(() => textStreamAuthProtocols('   ')).toThrow(/apiKey is required/)
-    expect(() => textStreamAuthProtocols('workspace:secret')).toThrow(/":"/)
-    expect(() => textStreamAuthProtocols('base64/with=padding')).toThrow(/"\/", "="/)
-  })
-
-  it('rejects invalid text-stream token query values before building URLs', () => {
-    const client = new AmigoClient({
-      apiKey: TEST_API_KEY,
-      workspaceId: TEST_WORKSPACE_ID,
-      baseUrl: 'https://api.example.com',
-    })
-
-    expect(() => client.conversations.textStreamUrl({ serviceId: 'svc-1', token: '' })).toThrow(
-      ConfigurationError,
-    )
-    expect(() => client.conversations.textStreamUrl({ serviceId: 'svc-1', token: '   ' })).toThrow(
-      ConfigurationError,
-    )
-    expect(() =>
-      client.conversations.textStreamUrl({ serviceId: 'svc-1', token: 'abc\r\nx-evil: y' }),
-    ).toThrow(ConfigurationError)
+    expect('textStreamUrl' in client.conversations).toBe(false)
+    expect('textStreamAuthProtocols' in indexExports).toBe(false)
   })
 
   it('builds a session-connect URL from the client baseUrl', () => {
@@ -1059,10 +851,13 @@ describe('ConversationsResource', () => {
     ).toThrow(ConfigurationError)
   })
 
-  it('sessionConnectAuthProtocols mirrors textStreamAuthProtocols', () => {
+  it('sessionConnectAuthProtocols validates the API key as a subprotocol token', () => {
     expect(sessionConnectAuthProtocols(TEST_API_KEY)).toEqual(['auth', TEST_API_KEY])
     expect(() => sessionConnectAuthProtocols('')).toThrow(/apiKey is required/)
+    expect(() => sessionConnectAuthProtocols('   ')).toThrow(/apiKey is required/)
+    expect(sessionConnectAuthProtocols('test+api.key')).toEqual(['auth', 'test+api.key'])
     expect(() => sessionConnectAuthProtocols('workspace:secret')).toThrow(/":"/)
+    expect(() => sessionConnectAuthProtocols('base64/with=padding')).toThrow(/"\/", "="/)
   })
 
   // Helpers shared across the streamTurn tests.
@@ -1086,9 +881,12 @@ describe('ConversationsResource', () => {
       'event: token\ndata: {"text":" "}\n\n',
       'event: token\ndata: {"text":"world"}\n\n',
       'event: thinking\ndata: {"tier":1,"tier_name":"fast"}\n\n',
+      'event: artifact\ndata: {"type":"surface.link","schema_version":"1","payload":{"url":"https://example.test/s/abc"}}\n\n',
       'event: tool_call_started\ndata: {"tool_name":"lookup","call_id":"call-1","input":"{}"}\n\n',
       'event: tool_call_completed\ndata: {"tool_name":"lookup","call_id":"call-1","result":"ok","succeeded":true}\n\n',
       'event: message\ndata: {"role":"agent","text":"Hello world"}\n\n',
+      'event: state_transition\ndata: {"from_state":"greet","to_state":"triage","exit_condition":"The caller says hello"}\n\n',
+      'event: state\ndata: {"context_graph_state":{"type":"action","name":"triage"}}\n\n',
       'event: done\ndata: {"conversation_id":"00000000-0000-4000-8000-000000000001","status":"active","turn_count":2}\n\n',
     ])
     const client = new AmigoClient({
@@ -1114,11 +912,21 @@ describe('ConversationsResource', () => {
       'token',
       'token',
       'thinking',
+      'artifact',
       'tool_call_started',
       'tool_call_completed',
       'message',
+      'state_transition',
+      'state',
       'done',
     ])
+    const artifact = events.find((e) => e.event === 'artifact')
+    expect(artifact).toEqual({
+      event: 'artifact',
+      type: 'surface.link',
+      schema_version: '1',
+      payload: { url: 'https://example.test/s/abc' },
+    })
     // Spot-check payloads to confirm the JSON body's fields land on the
     // typed union member alongside the discriminator.
     const tokens = events.filter((e) => e.event === 'token')
@@ -1127,6 +935,72 @@ describe('ConversationsResource', () => {
       ' ',
       'world',
     ])
+  })
+
+  it('streamTurn yields each state_transition, then state, then done', async () => {
+    // The end of a turn that went greet -> triage -> echo_lookup, as
+    // platform-api sends it: one state_transition per hop, then the state the
+    // turn ended in, then done. The data line repeats the discriminator, as
+    // platform-api's format_sse writes it.
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    const contextGraphState: TurnStateEvent['context_graph_state'] = {
+      type: 'action',
+      name: 'echo_lookup',
+      objective: 'Look up the echo code the caller gave',
+      actions: [{ description: 'Read the echo code back' }],
+      intra_state_navigation_guidelines: [],
+      action_guidelines: [],
+      boundary_constraints: [],
+      exit_conditions: [{ description: 'The caller is done', next_state: 'wrap_up' }],
+    }
+    const stream = sseStream([
+      'event: message\ndata: {"event":"message","role":"agent","text":"Looking up PARITY-42."}\n\n',
+      'event: state_transition\ndata: {"event":"state_transition","from_state":"greet","to_state":"triage","exit_condition":"The caller says what they need"}\n\n',
+      'event: state_transition\ndata: {"event":"state_transition","from_state":"triage","to_state":"echo_lookup","exit_condition":null}\n\n',
+      `event: state\ndata: ${JSON.stringify({ event: 'state', context_graph_state: contextGraphState })}\n\n`,
+      `event: done\ndata: {"event":"done","conversation_id":"${conversationId}","status":"active","turn_count":1}\n\n`,
+    ])
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: mockFetch({
+        [`POST ${BASE}/conversations/${conversationId}/turns/stream`]: () =>
+          new Response(stream, {
+            headers: { 'content-type': 'text/event-stream' },
+          }),
+      }),
+    })
+
+    const events = []
+    for await (const event of client.conversations.streamTurn(conversationId, {
+      message: 'PARITY-42',
+    })) {
+      events.push(event)
+    }
+
+    expect(events.map((e) => e.event)).toEqual([
+      'message',
+      'state_transition',
+      'state_transition',
+      'state',
+      'done',
+    ])
+    const hops: TurnStateTransitionEvent[] = [
+      {
+        event: 'state_transition',
+        from_state: 'greet',
+        to_state: 'triage',
+        exit_condition: 'The caller says what they need',
+      },
+      {
+        event: 'state_transition',
+        from_state: 'triage',
+        to_state: 'echo_lookup',
+        exit_condition: null,
+      },
+    ]
+    const state: TurnStateEvent = { event: 'state', context_graph_state: contextGraphState }
+    expect(events.slice(1, 4)).toEqual([...hops, state])
   })
 
   it('streamTurn forwards include_tool_calls=true on the stream URL', async () => {
@@ -1170,6 +1044,8 @@ describe('ConversationsResource', () => {
     const stream = sseStream([
       // Unknown event discriminator — drift-tolerant skip.
       'event: future_variant\ndata: {"foo":"bar"}\n\n',
+      // Object.prototype keys are not event names.
+      'event: constructor\ndata: {"foo":"bar"}\n\n',
       // Bad JSON — drop, do not throw.
       'event: token\ndata: not-json\n\n',
       // No `data:` field — drop.
@@ -1319,5 +1195,96 @@ describe('ConversationsResource', () => {
     expect(events).toHaveLength(2)
     expect(events[0]).toMatchObject({ event: 'token', text: 'streamed' })
     expect(events[1]).toMatchObject({ event: 'done', conversation_id: 'x' })
+  })
+  describe('turn idempotency and delivery ack', () => {
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    const deliveryId = '00000000-0000-4000-8000-0000000000d1'
+    const idempotencyKey = '00000000-0000-4000-8000-0000000000e1'
+    const turnResponse: TurnResponse = {
+      turn_id: 'turn-1',
+      conversation: {
+        id: conversationId,
+        status: 'active',
+        turn_count: 1,
+        updated_at: '2026-01-01T00:00:01Z',
+      },
+      input: { role: 'user', text: '', content: [] },
+      output: [],
+      tool_calls: [],
+    }
+
+    it('createIdempotencyKey returns a fresh UUID each call', () => {
+      const first = createIdempotencyKey()
+      expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+      expect(createIdempotencyKey()).not.toBe(first)
+    })
+
+    it('createTurn and pollTurn send the Idempotency-Key header', async () => {
+      const keys: (string | null)[] = []
+      const client = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`POST ${BASE}/conversations/${conversationId}/turns`]: (req) => {
+            keys.push(req.headers.get('Idempotency-Key'))
+            return Response.json(turnResponse)
+          },
+        }),
+      })
+
+      await client.conversations.createTurn(conversationId, { message: 'hi' }, { idempotencyKey })
+      await client.conversations.pollTurn(conversationId, { idempotencyKey })
+      await client.conversations.createTurn(conversationId, { message: 'hi' })
+
+      expect(keys).toEqual([idempotencyKey, idempotencyKey, null])
+    })
+
+    it('streamTurn sends the Idempotency-Key header', async () => {
+      let key: string | null | undefined
+      const client = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`POST ${BASE}/conversations/${conversationId}/turns/stream`]: (req) => {
+            key = req.headers.get('Idempotency-Key')
+            return new Response('', { headers: { 'Content-Type': 'text/event-stream' } })
+          },
+        }),
+      })
+
+      for await (const event of client.conversations.streamTurn(
+        conversationId,
+        { message: 'hi' },
+        { idempotencyKey },
+      )) {
+        void event
+      }
+
+      expect(key).toBe(idempotencyKey)
+    })
+
+    it('acknowledgeTurnDelivery posts the receipt and request id', async () => {
+      let body: unknown
+      const client = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`POST ${BASE}/conversations/${conversationId}/turns/${deliveryId}/ack`]: async (req) => {
+            body = await req.json()
+            return new Response(null, { status: 204 })
+          },
+        }),
+      })
+      const ack = {
+        receipt: '00000000-0000-4000-8000-0000000000a1',
+        request_id: '00000000-0000-4000-8000-0000000000b1',
+        source: 'playground',
+      } as const
+
+      await expect(
+        client.conversations.acknowledgeTurnDelivery(conversationId, deliveryId, ack),
+      ).resolves.toBeUndefined()
+      expect(body).toEqual(ack)
+    })
   })
 })

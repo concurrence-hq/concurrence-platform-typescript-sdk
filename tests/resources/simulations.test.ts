@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AmigoClient } from '../../src/index.js'
+import type { components } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -9,6 +10,44 @@ const SESSION_ID = 'sim-00000000-0000-0000-0000-000000000001'
 const AGENT_ID = 'agent-00000000-0000-0000-0000-000000000001'
 const RUN_ID = 'run-00000000-0000-0000-0000-000000000001'
 const SERVICE_ID = 'svc-00000000-0000-0000-0000-000000000001'
+const CASE_ID = '00000000-0000-0000-0000-0000000000c1'
+const SUITE_ID = '00000000-0000-0000-0000-0000000000a1'
+const SUITE_RUN_ID = '00000000-0000-0000-0000-0000000000b1'
+const ENTITY_ID = '00000000-0000-0000-0000-0000000000e1'
+
+interface RecordedRequest {
+  method: string
+  path: string
+  query: URLSearchParams
+  body: unknown
+}
+
+/**
+ * A client whose fetch records each request's method, path, query and JSON
+ * body, so a test can assert what goes over the wire. DELETE answers 204, any
+ * other method answers 200 with `responseBody`.
+ */
+function recordingClient(responseBody: unknown = {}) {
+  const requests: RecordedRequest[] = []
+  const recording = new AmigoClient({
+    apiKey: TEST_API_KEY,
+    workspaceId: TEST_WORKSPACE_ID,
+    fetch: async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      const url = new URL(request.url)
+      const text = await request.text()
+      requests.push({
+        method: request.method,
+        path: url.pathname,
+        query: url.searchParams,
+        body: text ? JSON.parse(text) : undefined,
+      })
+      if (request.method === 'DELETE') return new Response(null, { status: 204 })
+      return Response.json(responseBody)
+    },
+  })
+  return { client: recording, requests }
+}
 
 const SESSION_FIXTURE = {
   session_id: SESSION_ID,
@@ -117,7 +156,6 @@ const client = new AmigoClient({
     [`POST ${BASE}/simulations/runs/${RUN_ID}/complete`]: () => Response.json({ ok: true }),
     [`POST ${BASE}/simulations/runs/${RUN_ID}/sessions`]: () => Response.json(SESSION_FIXTURE),
 
-    [`POST ${BASE}/simulations/bridge/plan`]: () => Response.json({ candidates: [] }),
     [`POST ${BASE}/simulations/bridge`]: () => Response.json({ run_id: RUN_ID }),
 
     [`GET ${BASE}/simulations/services/${SERVICE_ID}/graph`]: () => Response.json({ nodes: [] }),
@@ -222,12 +260,7 @@ describe('SimulationsResource', () => {
   })
 
   describe('bridge', () => {
-    it('plans and runs a bridge', async () => {
-      expect(
-        await client.simulations.bridge.plan(
-          {} as Parameters<typeof client.simulations.bridge.plan>[0],
-        ),
-      ).toMatchObject({ candidates: [] })
+    it('runs a bridge', async () => {
       expect(
         await client.simulations.bridge.run(
           {} as Parameters<typeof client.simulations.bridge.run>[0],
@@ -251,6 +284,297 @@ describe('SimulationsResource', () => {
       expect(await client.simulations.services.listTurns(SERVICE_ID)).toMatchObject({
         items: [],
       })
+    })
+
+    it('sends the run, include_turns, limit and transition filters', async () => {
+      const { client: recording, requests } = recordingClient()
+      await recording.simulations.services.getGraph(SERVICE_ID, {
+        run_id: RUN_ID,
+        include_turns: true,
+      })
+      await recording.simulations.services.getGraphPaths(SERVICE_ID, { run_id: RUN_ID })
+      await recording.simulations.services.listSessions(SERVICE_ID, { run_id: RUN_ID, limit: 25 })
+      await recording.simulations.services.listTurns(SERVICE_ID, {
+        from_state: 'greeting',
+        to_state: 'collect_info',
+        limit: 10,
+      })
+
+      const services = `${BASE}/simulations/services/${SERVICE_ID}`
+      expect(requests.map((r) => r.path)).toEqual([
+        `${services}/graph`,
+        `${services}/graph/paths`,
+        `${services}/sessions`,
+        `${services}/turns`,
+      ])
+      expect(Object.fromEntries(requests[0]!.query)).toEqual({
+        run_id: RUN_ID,
+        include_turns: 'true',
+      })
+      expect(Object.fromEntries(requests[1]!.query)).toEqual({ run_id: RUN_ID })
+      expect(Object.fromEntries(requests[2]!.query)).toEqual({ run_id: RUN_ID, limit: '25' })
+      expect(Object.fromEntries(requests[3]!.query)).toEqual({
+        from_state: 'greeting',
+        to_state: 'collect_info',
+        limit: '10',
+      })
+    })
+  })
+
+  describe('session turns, performance and turn policy', () => {
+    it('steps the session named in the path and sends the body as given', async () => {
+      const { client: recording, requests } = recordingClient(STEP_RESULT_FIXTURE)
+      const result = await recording.simulations.stepSession(SESSION_ID, {
+        caller_text: "I'd like to schedule an appointment",
+      })
+
+      expect(requests).toHaveLength(1)
+      expect(requests[0]).toMatchObject({
+        method: 'POST',
+        path: `${BASE}/simulations/sessions/${SESSION_ID}/step`,
+        body: { caller_text: "I'd like to schedule an appointment" },
+      })
+      expect(result.observation.agent_text).toContain('schedule an appointment')
+    })
+
+    it('reads a session turns, the performance rollup and the turn policy', async () => {
+      const { client: recording, requests } = recordingClient()
+      await recording.simulations.getSessionTurns(SESSION_ID)
+      await recording.simulations.getPerformance({ service_id: SERVICE_ID, limit: 30 })
+      await recording.simulations.configToPolicy({ config: { greeting_shield_s: 1.5 } })
+
+      expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `GET ${BASE}/simulations/sessions/${SESSION_ID}/turns`,
+        `GET ${BASE}/simulations/performance`,
+        `POST ${BASE}/simulations/config-to-policy`,
+      ])
+      expect(Object.fromEntries(requests[1]!.query)).toEqual({
+        service_id: SERVICE_ID,
+        limit: '30',
+      })
+      expect(requests[2]!.body).toEqual({ config: { greeting_shield_s: 1.5 } })
+    })
+  })
+
+  describe('runs.complete', () => {
+    it('sends the failure reason as the error query parameter', async () => {
+      const { client: recording, requests } = recordingClient({ status: 'failed' })
+      const result = await recording.simulations.runs.complete(RUN_ID, {
+        error: 'All 3 scenarios failed',
+      })
+
+      expect(requests[0]).toMatchObject({
+        method: 'POST',
+        path: `${BASE}/simulations/runs/${RUN_ID}/complete`,
+        body: undefined,
+      })
+      expect(requests[0]!.query.get('error')).toBe('All 3 scenarios failed')
+      expect(result.status).toBe('failed')
+    })
+
+    it('sends no error when the run completed', async () => {
+      const { client: recording, requests } = recordingClient({ status: 'completed' })
+      await recording.simulations.runs.complete(RUN_ID)
+
+      expect(requests[0]!.query.has('error')).toBe(false)
+    })
+  })
+
+  describe('cases', () => {
+    const caseItem = {
+      description: 'Refill request in Spanish',
+      scenario: { instructions: 'Ask for a refill of your blood pressure medication.' },
+      tags: ['intake', 'spanish'],
+    }
+
+    it('calls every case route with its path, query and body', async () => {
+      const { client: recording, requests } = recordingClient()
+      await recording.simulations.cases.list({
+        service_id: SERVICE_ID,
+        tags: ['intake', 'spanish'],
+        search: 'refill',
+        sort_by: ['-updated_at'],
+        limit: 20,
+        continuation_token: 20,
+      })
+      await recording.simulations.cases.create({ cases: [caseItem] })
+      await recording.simulations.cases.get(CASE_ID)
+      await recording.simulations.cases.update(CASE_ID, { service_id: SERVICE_ID })
+      await recording.simulations.cases.delete(CASE_ID)
+      await recording.simulations.cases.run(CASE_ID, { max_turns: 8 })
+
+      const cases = `${BASE}/simulations/cases`
+      expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `GET ${cases}`,
+        `POST ${cases}`,
+        `GET ${cases}/${CASE_ID}`,
+        `PATCH ${cases}/${CASE_ID}`,
+        `DELETE ${cases}/${CASE_ID}`,
+        `POST ${cases}/${CASE_ID}/run`,
+      ])
+      const listQuery = requests[0]!.query
+      expect(listQuery.getAll('tags')).toEqual(['intake', 'spanish'])
+      expect(listQuery.getAll('sort_by')).toEqual(['-updated_at'])
+      expect(listQuery.get('service_id')).toBe(SERVICE_ID)
+      expect(listQuery.get('search')).toBe('refill')
+      expect(listQuery.get('limit')).toBe('20')
+      expect(listQuery.get('continuation_token')).toBe('20')
+      expect(requests[1]!.body).toEqual({ cases: [caseItem] })
+      expect(requests[3]!.body).toEqual({ service_id: SERVICE_ID })
+      expect(requests[5]!.body).toEqual({ max_turns: 8 })
+    })
+
+    it('returns nothing from delete and surfaces a missing case as NotFoundError', async () => {
+      const { client: recording } = recordingClient()
+      await expect(recording.simulations.cases.delete(CASE_ID)).resolves.toBeUndefined()
+
+      const missing = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`DELETE ${BASE}/simulations/cases/${CASE_ID}`]: () =>
+            Response.json({ detail: 'Simulation case not found' }, { status: 404 }),
+        }),
+      })
+      await expect(missing.simulations.cases.delete(CASE_ID)).rejects.toThrow(NotFoundError)
+    })
+  })
+
+  describe('suites', () => {
+    it('calls every suite route with its path, query and body', async () => {
+      const { client: recording, requests } = recordingClient()
+      await recording.simulations.suites.list()
+      await recording.simulations.suites.create({ name: 'Intake', required_tags: ['intake'] })
+      await recording.simulations.suites.get(SUITE_ID)
+      await recording.simulations.suites.update(SUITE_ID, { case_ids: [CASE_ID] })
+      await recording.simulations.suites.delete(SUITE_ID)
+      await recording.simulations.suites.run(SUITE_ID, { service_id: SERVICE_ID, max_cases: 50 })
+      await recording.simulations.suites.listRuns(SUITE_ID, { limit: 5 })
+      await recording.simulations.suites.listCases(SUITE_ID, { search: 'refill', limit: 50 })
+
+      const suites = `${BASE}/simulations/suites`
+      expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `GET ${suites}`,
+        `POST ${suites}`,
+        `GET ${suites}/${SUITE_ID}`,
+        `PATCH ${suites}/${SUITE_ID}`,
+        `DELETE ${suites}/${SUITE_ID}`,
+        `POST ${suites}/${SUITE_ID}/run`,
+        `GET ${suites}/${SUITE_ID}/runs`,
+        `GET ${suites}/${SUITE_ID}/cases`,
+      ])
+      expect(requests[1]!.body).toEqual({ name: 'Intake', required_tags: ['intake'] })
+      expect(requests[3]!.body).toEqual({ case_ids: [CASE_ID] })
+      expect(requests[5]!.body).toEqual({ service_id: SERVICE_ID, max_cases: 50 })
+      expect(Object.fromEntries(requests[6]!.query)).toEqual({ limit: '5' })
+      expect(Object.fromEntries(requests[7]!.query)).toEqual({ search: 'refill', limit: '50' })
+    })
+  })
+
+  describe('suiteRuns and benchmarks', () => {
+    it('reads a suite run and runs and aggregates a benchmark', async () => {
+      const { client: recording, requests } = recordingClient()
+      await recording.simulations.suiteRuns.get(SUITE_RUN_ID)
+      await recording.simulations.benchmarks.run({ required_tags: ['intake'], max_cases: 20 })
+      await recording.simulations.benchmarks.getResults({ run_ids: [RUN_ID] })
+
+      expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `GET ${BASE}/simulations/suite-runs/${SUITE_RUN_ID}`,
+        `POST ${BASE}/simulations/benchmarks/run`,
+        `POST ${BASE}/simulations/benchmarks/results`,
+      ])
+      expect(requests[1]!.body).toEqual({ required_tags: ['intake'], max_cases: 20 })
+      expect(requests[2]!.body).toEqual({ run_ids: [RUN_ID] })
+    })
+
+    it("returns each run's case name, verdict counts and participant in the suite run results", async () => {
+      const OTHER_RUN_ID = 'run-00000000-0000-0000-0000-000000000002'
+      const results = {
+        suite_run_id: SUITE_RUN_ID,
+        suite_id: SUITE_ID,
+        run_ids: [RUN_ID, OTHER_RUN_ID],
+        total_runs: 2,
+        summary: {
+          suite_run_id: SUITE_RUN_ID,
+          run_ids: [RUN_ID, OTHER_RUN_ID],
+          status: 'completed',
+          total_runs: 2,
+        },
+        per_run: [
+          {
+            run_id: RUN_ID,
+            service_id: SERVICE_ID,
+            status: 'completed',
+            case_name: 'Refill request',
+            evaluations_configured: true,
+            eval_counts: { passed: 3, failed: 1, pending: 0, skipped: 0, error: 0 },
+            participant: {
+              binding: 'bound',
+              entity_id: ENTITY_ID,
+              entity_type: 'patient',
+              display_name: 'Pat Example',
+            },
+          },
+          {
+            run_id: OTHER_RUN_ID,
+            service_id: SERVICE_ID,
+            status: 'running',
+            case_name: null,
+            evaluations_configured: false,
+            eval_counts: null,
+            participant: { binding: 'unbound' },
+          },
+        ],
+      } satisfies components['schemas']['SimulationSuiteRunResultsResponse']
+      const { client: recording } = recordingClient(results)
+
+      const suiteRun = await recording.simulations.suiteRuns.get(SUITE_RUN_ID)
+
+      const [bound, unbound] = suiteRun.per_run ?? []
+      expect(bound?.case_name).toBe('Refill request')
+      expect(bound?.evaluations_configured).toBe(true)
+      expect(bound?.eval_counts).toEqual({ passed: 3, failed: 1, pending: 0, skipped: 0, error: 0 })
+      expect(bound?.participant).toEqual({
+        binding: 'bound',
+        entity_id: ENTITY_ID,
+        entity_type: 'patient',
+        display_name: 'Pat Example',
+      })
+      expect(unbound?.eval_counts).toBeNull()
+      expect(unbound?.participant?.binding).toBe('unbound')
+    })
+
+    it('reads many suite run summaries and one suite run performance, each in one request', async () => {
+      const OTHER_SUITE_RUN_ID = '00000000-0000-0000-0000-0000000000b2'
+      const summaries = {
+        suite_runs: [
+          {
+            suite_run_id: SUITE_RUN_ID,
+            suite_id: SUITE_ID,
+            run_ids: [RUN_ID],
+            service_ids: [SERVICE_ID],
+            total_runs: 1,
+            status: 'completed',
+            status_counts: { completed: 1 },
+            expected_case_count: 1,
+            total_sessions: 1,
+            total_turns: 6,
+          },
+        ],
+      } satisfies components['schemas']['ListSimulationSuiteRunSummariesResponse']
+      const { client: recording, requests } = recordingClient(summaries)
+
+      const page = await recording.simulations.suiteRuns.listSummaries({
+        suite_run_id: [SUITE_RUN_ID, OTHER_SUITE_RUN_ID],
+      })
+      await recording.simulations.suiteRuns.getPerformance(SUITE_RUN_ID)
+
+      expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `GET ${BASE}/simulations/suite-runs`,
+        `GET ${BASE}/simulations/suite-runs/${SUITE_RUN_ID}/performance`,
+      ])
+      expect(requests[0]!.query.getAll('suite_run_id')).toEqual([SUITE_RUN_ID, OTHER_SUITE_RUN_ID])
+      expect(page.suite_runs[0]?.service_ids).toEqual([SERVICE_ID])
     })
   })
 })

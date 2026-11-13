@@ -13,7 +13,7 @@ export type UpdateExternalIntegrationRequest =
 export type CreateExternalIntegrationCredentialRequest =
   components['schemas']['ExternalIntegrationCredentialRequest']
 export type ExternalIntegrationListResponse =
-  components['schemas']['PaginatedResponse_ExternalIntegrationResponse_']
+  components['schemas']['ExternalIntegrationListResponse']
 export type ListExternalIntegrationsParams = ListParams &
   NonNullable<operations['list-external-integrations']['parameters']['query']>
 

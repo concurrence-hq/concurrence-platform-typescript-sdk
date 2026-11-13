@@ -4,7 +4,7 @@
 
 <h1 align="center">@amigo-ai/platform-sdk</h1>
 
-<p align="center">Official TypeScript SDK for the <a href="https://api.platform.amigo.ai/v1/docs">Amigo Platform API</a>.</p>
+<p align="center">Official TypeScript SDK for the <a href="https://platform.api-us.concurrence.com/v1/docs">Amigo Platform API</a>.</p>
 
 <p align="center">
   <a href="https://docs.amigo.ai">Product Docs</a>
@@ -124,6 +124,10 @@ await tokens.store(result)
 const client = new AmigoClient({ apiKey: result.accessToken, workspaceId: result.workspaceId })
 ```
 
+To sign out, call `tokens.signOut()`. It requests revocation of the refresh token and access token at Identity, then removes the stored credentials. It joins any in-flight refresh, includes its rotated credentials in the revocation requests, and prevents access-token reads during sign-out. Refresh network requests have a 30-second deadline; each revocation attempt has a five-second deadline and retries once on a server error. If a revocation request fails it rejects, after removing the credentials. A successful response confirms acceptance of the request; it does not prove immediate rejection by every token consumer. `tokens.clear()` only forgets the credentials on this machine; a copied token stays valid until it expires.
+
+Services that validate JWTs locally can keep accepting previously issued access tokens until expiry. Sign-out does not guarantee immediate access-token revocation across every downstream service.
+
 See [`examples/auth/device-code-login.ts`](./examples/auth/device-code-login.ts) for a complete working example.
 
 ### Exchange an API key for a JWT
@@ -134,7 +138,8 @@ narrowly scoped, time-bound token from a privileged server (for example to
 forward to a browser via a BFF proxy, or to call the platform from a runtime
 that can't safely hold the raw API key).
 
-The call posts to `POST /token` on the configured `baseUrl` and is **not**
+The call posts to `POST /token` on the identity host (`identityBaseUrl`, see
+[Hosts](#hosts)) and is **not**
 workspace-scoped — `workspaceId` is still required on the client because it
 governs every other resource call on the same instance, but `POST /token`
 itself ignores it. The SDK also unconditionally strips the configured
@@ -268,17 +273,33 @@ credential.
 
 ## Configuration
 
-| Option        | Type           | Required | Description                                                          |
-| ------------- | -------------- | -------- | -------------------------------------------------------------------- |
-| `apiKey`      | `string`       | Yes      | API key or JWT from device code flow (Bearer auth)                   |
-| `workspaceId` | `string`       | Yes      | Your workspace ID — all resource operations are scoped to this       |
-| `baseUrl`     | `string`       | No       | Override the API base URL (default: `https://api.platform.amigo.ai`) |
-| `retry`       | `RetryOptions` | No       | Retry configuration for transient failures                           |
-| `maxRetries`  | `number`       | No       | Convenience alias for retry count                                    |
-| `timeout`     | `number`       | No       | Default request timeout in milliseconds                              |
-| `headers`     | `HeadersInit`  | No       | Default headers added to every request                               |
-| `hooks`       | `ClientHooks`  | No       | Request/response lifecycle hooks for tracing or logging              |
-| `fetch`       | `typeof fetch` | No       | Custom fetch for BFF proxy, cookie forwarding, or test mocking       |
+| Option            | Type           | Required | Description                                                                                                   |
+| ----------------- | -------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `apiKey`          | `string`       | Yes      | API key or JWT from device code flow (Bearer auth)                                                            |
+| `workspaceId`     | `string`       | Yes      | Your workspace ID — all resource operations are scoped to this                                                |
+| `baseUrl`         | `string`       | No       | Override the API base URL (default: `https://platform.api-us.concurrence.com`)                                |
+| `identityBaseUrl` | `string`       | No       | Identity host for `client.tokens` (default: `baseUrl` if set, else `https://identity.api-us.concurrence.com`) |
+| `retry`           | `RetryOptions` | No       | Retry configuration for transient failures                                                                    |
+| `maxRetries`      | `number`       | No       | Convenience alias for retry count                                                                             |
+| `timeout`         | `number`       | No       | Default request timeout in milliseconds                                                                       |
+| `headers`         | `HeadersInit`  | No       | Default headers added to every request                                                                        |
+| `hooks`           | `ClientHooks`  | No       | Request/response lifecycle hooks for tracing or logging                                                       |
+| `fetch`           | `typeof fetch` | No       | Custom fetch for BFF proxy, cookie forwarding, or test mocking                                                |
+
+### Hosts
+
+The defaults are US production. In another region, set both
+base URLs: identity has its own host, and `client.tokens` calls it.
+
+| Environment | `baseUrl`                                 | `identityBaseUrl`                         |
+| ----------- | ----------------------------------------- | ----------------------------------------- |
+| US          | `https://platform.api-us.concurrence.com` | `https://identity.api-us.concurrence.com` |
+| EU          | `https://platform.api-eu.concurrence.com` | `https://identity.api-eu.concurrence.com` |
+| AU          | `https://platform.api-au.concurrence.com` | `https://identity.api-au.concurrence.com` |
+| CA          | `https://platform.api-ca.concurrence.com` | `https://identity.api-ca.concurrence.com` |
+
+Device-code login (`loginWithDeviceCode`, `TokenManager`) takes the same
+identity host as its own `identityBaseUrl` option.
 
 ### Retry options
 
@@ -323,6 +344,8 @@ Public builds are generated from the committed [`openapi.json`](./openapi.json) 
 ```bash
 npm run openapi:sync
 ```
+
+Sync and type generation use the same public-contract projection. Internal-only operations and their exclusive schema dependencies are omitted; shared types and the explicitly preserved, already-published workspace-copy API remain compatible. The committed snapshot must be unchanged by a second projection, which CI verifies before publication.
 
 For a repo-local overview of the exported client surface, see the generated [api.md](./api.md).
 
@@ -443,6 +466,131 @@ const parent = await client.tokens.exchangeClientCredentials({
 })
 ```
 
+### Workspace SSO administration
+
+`client.workspaceAuthentication`, `client.ssoLifecycle`, `client.ssoGrants`, and
+`client.ssoGroupGrants`
+call the configured `identityBaseUrl` with the client's workspace ID. These
+operations require a current human administrator session; an API key or machine
+credential does not substitute for that authority. Pass the human access token
+through `apiKey`. A Console-style proxy must set `identityBaseUrl` to its Identity
+proxy separately from the Platform proxy.
+
+These methods require server support for workspace authentication policies and
+lifecycle endpoints; publishing or upgrading the SDK does not enable those features.
+
+Configure an optional policy with explicit coverage, review the current credential
+inventory, and prepare and test recovery before requesting activation. Recovery
+setup and lifecycle configuration require an independent account sign-in. Owner
+confirmation, readiness, activation, and ordinary disabling require the configured
+SSO sign-in. Readiness returns blockers and an expiry; activation rechecks current
+server evidence and accepts only `expected_revision`. Use `get()` to read the
+policy after activation.
+
+Recovery codes and provider private keys belong in transient input state, outside
+query caches, URLs, logs, and browser storage. `testRecovery()` consumes one code
+and requires the selected recovery administrator. The standalone
+`recoverWorkspaceAuthentication()` helper accepts the workspace, recovery revision,
+and code without an authenticated client. It disables the policy and invalidates
+the code set; it never signs in, creates membership, or returns a token.
+
+Lifecycle `verify()` and `snapshot()` are previews. Configuration or a successful
+preview alone does not establish enforced access or an offboarding guarantee.
+Managed grants remain separate from independent membership. Before
+`convertIndependent()`, read `independent()` and forward its `updated_at` string
+unchanged as `expected_updated_at`; converting it through `Date` can discard
+precision. The SDK rejects grant revisions outside JavaScript's safe integer range
+instead of rounding them. Server-owned revisions are read-only.
+
+Use `ssoGroupGrants.list()` to discover stored group-managed contributions, with the
+same pagination options as `ssoGrants.list()`. Each result includes `mapping_id` and
+`mapping_revision`. Listing is not proof of current group membership or conversion
+eligibility: call `ssoGroupGrants.independent(mappingId, grantId)` before conversion
+and forward that snapshot's revision and timestamp unchanged to
+`ssoGroupGrants.convertIndependent()`. Group conversion keeps the group source;
+it does not create an app-managed grant.
+
+Identity writes are never retried automatically, including after `Retry-After`.
+Read the current state after an uncertain result; reuse the original approval ID
+when retrying a grant approval. Scoped request signals, timeouts, and headers use
+the same `withOptions()` API as other resources. Identity errors preserve status
+and recognized policy conflict codes while omitting arbitrary response details.
+
+### Platform API key reporting
+
+`client.apiKeys.list()` reports an existing key's stored expiration. `expires_at`
+is `null` when no expiry is set; `client.apiKeys.me()` returns `null` for both
+`expires_at` and `expires_in_seconds` in that case. Check for `null` before parsing
+these values as dates or calculating a countdown. New and rotated keys still
+require a 1–90 day lifetime and return a concrete expiration.
+
+A null `last_used_at` means no usage has been recorded. Historical telemetry can
+be incomplete, so it does not prove that a key has never been used or is safe to
+revoke.
+
+### Identity credential administration
+
+`client.identityCredentials` manages `/admin/credentials` on `identityBaseUrl`.
+It is separate from `client.apiKeys`, which manages legacy Platform API keys.
+Supply `workspace_id` explicitly when listing or creating credentials; the server
+enforces workspace authority. `get()`, `update()`, and `deactivate()` take the
+credential ID. Deactivation retains the record and associated data.
+
+For machine credentials (`api_key` and `client_credentials`), `expires_at` accepts
+a timezone-aware ISO timestamp. SSO and session-token lifetimes remain managed by
+their respective lifecycles. Preserve timestamp strings
+without rounding through `Date`. On update, omitting the field preserves its
+current value; explicit `null` removes expiration and is an increase in authority.
+On create, omitted/null expiry preserves unbounded compatibility only when the
+server permits it. The server limits explicit API key expiry to 90 days and client
+credential expiry to 3,650 days, and constrains machine callers to their own expiry.
+Expiry support requires the corresponding Identity server release.
+Changing a deadline does not rewrite an already issued JWT's expiry or guarantee
+immediate closure of existing streams. Verify the relevant consumer's admission
+and refresh behavior when planning a credential replacement.
+
+Machine creation returns `{ credential, client_id, client_secret }`; SSO and
+session-token creation return credential metadata directly. The machine secret is
+returned once and belongs outside logs, query caches, URLs, and browser storage.
+Writes never retry automatically, even when scoped retry options request it.
+
+```typescript
+const credentials = await client.identityCredentials.list({ workspace_id: workspaceId })
+await client.identityCredentials.update(credentialId, {
+  expires_at: '2027-01-01T00:00:00Z',
+})
+```
+
+### Registered-operation machine access
+
+`client.operationGrants` approves, lists, invokes and revokes access to one
+registered Lakebase query or SQL function. An independently authenticated Admin
+or Owner approves a dedicated `client_credentials` credential with exactly
+`tools:execute` and no role. Each grant pins the workspace, credential, operation,
+action, definition and expiration. This requires the Platform operation-grants
+API release.
+
+Use the machine's current Identity access token when invoking its approved grant:
+
+```typescript
+const machine = new AmigoClient({ apiKey: accessToken, workspaceId })
+const result = await machine.operationGrants.invoke(grantId, {
+  input: { record_id: recordId, expected_revision: revision },
+})
+```
+
+The input must match that registered operation's parameter schema. Renew the
+machine token before expiration and construct the client with the renewed token;
+the SDK does not renew `apiKey` automatically. Keep client secrets on the server.
+Invocations never retry automatically, even when `withOptions()` requests retries:
+an error can follow a committed write, so reconcile the result before retrying.
+
+`listAutoPaging({ sort_by: ['-expires_at'] })` lists the latest expirations first,
+preserves that sort across opaque continuation tokens, and includes retained
+revoked approvals. The default is earliest expiration first. `revoke()` prevents future authorization without deleting
+history; an already-authorized call may finish. Changing an operation's definition
+requires a new approval and an updated grant ID in the consumer.
+
 ### Agents
 
 ```typescript
@@ -471,7 +619,7 @@ const version = await client.agents.createVersion(agent.id, {
   },
   voice_config: {
     voice_id: 'voice-abc123',
-    session_provider: 'inhouse' satisfies VoiceSessionProvider,
+    session_provider: 'concurrence' satisfies VoiceSessionProvider,
   },
 })
 
@@ -521,8 +669,154 @@ console.log(service.agent_name, service.channel_type, service.version_sets)
 await client.services.update(service.id, {
   voice_config: {
     ...(service.voice_config ?? {}),
-    session_provider: 'inhouse' satisfies VoiceSessionProvider,
+    session_provider: 'concurrence' satisfies VoiceSessionProvider,
   },
+})
+
+// Replace one version set and leave the others as they are
+await client.services.upsertVersionSet(service.id, 'canary', {
+  version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+})
+
+// Platform caller verification is on by default. Off, the agent never asks a caller to
+// verify, and every platform tool that reads a patient record refuses.
+await client.services.update(service.id, { platform_caller_verification: false })
+```
+
+#### Harness settings, pins and releases
+
+The settings schema lists every setting available for each harness a service runs. That is the
+settings the harness release declares and the platform's Core-owned settings, which stay available
+when the service pins an external release. The schema does not say which of the two a setting is,
+so read it, not a release's own declaration, for what a service can store. Then replace the
+service's values. A key left out runs the harness default.
+
+```typescript
+const schema = await client.services.getSettingsSchema(service.id)
+const current = await client.services.getSettings(service.id)
+await client.services.setSettings(service.id, { settings: { ...current.settings } })
+
+// Pin a harness to a registered release; setting the pin back to its default is the rollback
+const { effective_harnesses } = await client.services.getHarnesses(service.id)
+await client.services.setHarnessPins(service.id, {
+  pins: [{ kind: 'voice', harness: 'concurrence', tag: 'in-tree' }],
+})
+
+// Platform-level (scope `platform:harnesses` or `platform:admin`)
+const { items: releases } = await client.harnesses.listReleases({ kind: 'voice' })
+const defaults = await client.harnesses.listDefaults()
+await client.harnesses.setDefault('voice', 'concurrence', { tag: 'in-tree' })
+```
+
+#### Promote a reviewed configuration
+
+`promoteConfiguration` stores a reviewed candidate version set, with the service's harness pins
+and settings when the request names them, in one write. The flow is review, promotion, receipt,
+and an exact retry when the outcome is not known.
+
+```typescript
+import { randomUUID } from 'node:crypto'
+import {
+  ConflictError,
+  ServiceUnavailableError,
+  type PromoteServiceConfigurationRequest,
+} from '@amigo-ai/platform-sdk'
+
+// 1. Review: read the identity of each version set the promotion replaces. Keep `updated_at`
+//    as the string the API returned.
+const reviewed = await client.services.getConfigurationIdentity(service.id, {
+  version_set: 'release',
+})
+
+// 2. Build the request once and keep it. `request_id` is yours: one UUID per promotion.
+const request: PromoteServiceConfigurationRequest = {
+  request_id: randomUUID(),
+  expected_updated_at: reviewed.updated_at,
+  reviewed_base: [
+    { version_set: 'release', service_config_digest: reviewed.service_config_digest },
+  ],
+  target_version_set: 'release',
+  version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+}
+
+// 3. Promote. The receipt comes back for a first promotion (201) and for a repeat (200).
+try {
+  const receipt = await client.services.promoteConfiguration(service.id, request)
+  console.log(receipt.promotion_id, receipt.service_config_digest, receipt.lastResponse.statusCode)
+} catch (error) {
+  if (error instanceof ConflictError) {
+    // Nothing was stored. `errorBody.detail.code` is `promotion_base_changed` (with `changed`)
+    // or `promotion_request_mismatch`. Review again and send a new request with a new id.
+  } else if (error instanceof ServiceUnavailableError) {
+    // `errorBody.detail.code` and, for `promotion_transaction_timeout`, `detail.outcome`:
+    // `not_stored`, or `unknown` when the deadline passed during the commit.
+    // 4. Resolve it by sending `request` again, unchanged.
+  } else {
+    throw error
+  }
+}
+```
+
+- **Reviewed base.** `reviewed_base` names the target version set when the service has it, and
+  every version set of the service when the request names `harness_pins` or `settings`. Leaving
+  `harness_pins` or `settings` out keeps what the service has; `[]` and `{}` clear them. The
+  candidate names its agent version and its context graph version.
+- **Receipt.** The receipt is historical configuration evidence. Its `service_config_digest` is
+  the digest of the target configuration that promotion committed. It
+  is not proof of what the service stores now, and it is not proof that any session loaded or
+  ran that configuration. A simulation's `harness_execution` or a run's own receipt is the
+  evidence of what ran.
+- **Exact retry.** The SDK never creates or changes `request_id`. Its normal POST retry policy
+  still applies to 429 with `Retry-After`; it does not automatically retry 409, 422 or 503.
+  After a `promotion_transaction_timeout` with `outcome: 'unknown'`, a client
+  timeout or a lost response, the promotion may have been stored. Send the same request object
+  again with the same credential: a stored promotion answers its receipt with 200 and writes
+  nothing, and one that was not stored runs as a new attempt. The same `request_id` with a
+  different request is refused with `promotion_request_mismatch`, so do not rebuild the request
+  from a new read before retrying.
+- **Refusals.** 409, 422 and 503 keep the API's `detail` on `errorBody`. Apart from the
+  `unknown` outcome above, a refusal stored nothing.
+
+### Runs
+
+List runs with optional service, kind, channel, and status filters. Values within a filter
+match any selected value; different filters combine. Omitted or empty filters leave that
+dimension unfiltered.
+
+The API accepts up to 100 service IDs and filters conversations and live voice runs before
+pagination. Historical framework runs have no stored service attribution and are excluded
+when a service is selected. Combining only `kind: ['framework']` with a service selection
+returns no matches.
+
+```typescript
+const runs = await client.runs.list({
+  serviceId: ['00000000-0000-0000-0000-000000000101'],
+  kind: ['conversation'],
+  channel: ['voice'],
+  status: ['live', 'completed'],
+  limit: 25,
+})
+
+// Keep the service filter when requesting the next page.
+if (runs.has_more) {
+  const nextPage = await client.runs.list({
+    serviceId: ['00000000-0000-0000-0000-000000000101'],
+    kind: ['conversation'],
+    channel: ['voice'],
+    status: ['live', 'completed'],
+    continuationToken: runs.continuation_token,
+  })
+  console.log(nextPage.items)
+}
+```
+
+Pass up to 100 conversation IDs as `sourceConversationId` to find the runs those conversations
+produced, such as a Playground session's run. Runs with no source conversation, such as framework
+runs, are excluded.
+
+```typescript
+const { items: conversationRuns } = await client.runs.list({
+  sourceConversationId: ['conversation-id'],
 })
 ```
 
@@ -553,8 +847,9 @@ const results = await client.world.search({
   limit: 5,
 })
 
-// View sync status from connectors
-const syncStatus = await client.world.getSyncStatusBySink()
+// Current enrichment values for an entity, and the history of one key
+const { values } = await client.world.listEnrichment('entity-id')
+const { history } = await client.world.getEnrichmentHistory('entity-id', 'preferred_language')
 ```
 
 ### Calls
@@ -615,29 +910,17 @@ await client.conversations.switchChannel(conversation.id, {
 await client.conversations.close(conversation.id)
 ```
 
-For real-time browser clients, build the text-stream URL and use WebSocket
-subprotocol auth so the token is not placed in the URL:
+For real-time text, stream a turn over server-sent events. Each event carries
+the `event` discriminator (`token`, `tool_call_started`, `tool_call_completed`,
+`message`, `done`, `error`, ...):
 
 ```typescript
-import { textStreamAuthProtocols } from '@amigo-ai/platform-sdk'
-
-const apiKey = process.env.AMIGO_API_KEY!
-const url = client.conversations.textStreamUrl({ serviceId: 'service-id' })
-const socket = new WebSocket(url, textStreamAuthProtocols(apiKey))
-
-socket.addEventListener('open', () => {
-  socket.send(JSON.stringify({ type: 'message', text: 'Hello' }))
-})
-```
-
-If a browser rejects your API key as a WebSocket subprotocol value, use the
-query-token fallback only in trusted contexts. URL tokens can appear in browser
-history, server access logs, HTTP proxy logs, and referrer headers:
-
-```typescript
-// WARNING: query tokens can be captured by URL logs and browser history.
-const url = client.conversations.textStreamUrl({ serviceId: 'service-id', token: apiKey })
-const socket = new WebSocket(url)
+for await (const event of client.conversations.streamTurn(conversation.id, {
+  message: 'Hello',
+})) {
+  if (event.event === 'token') process.stdout.write(event.text)
+  else if (event.event === 'done') break
+}
 ```
 
 ### Browser voice test calls
@@ -756,11 +1039,18 @@ console.log(dashboard.call_volume.value, dashboard.call_volume.delta_pct)
 console.log(dashboard.avg_quality.value)
 
 // Call volume time series
-const calls = await client.analytics.getCalls({ days: 30, interval: '1d' })
+const calls = await client.analytics.getCalls({ days: 30 })
 console.log(calls.total_calls, calls.calls_by_date)
 
 // Per-agent performance
-const { agents } = await client.analytics.getAgents({ period: '7d' })
+const { agents } = await client.analytics.getAgents({ days: 7 })
+
+// Every service's numbers in one request: group_by adds one entry per service to `groups`
+const callStats = await client.analytics.getAdvancedCallStats({ days: 30, group_by: 'service_id' })
+for (const group of callStats.groups ?? []) {
+  console.log(group.service_id, group.summary.total_calls, group.summary.escalated)
+}
+const toolStats = await client.analytics.getToolPerformance({ days: 30, group_by: 'service_id' })
 
 // Compare two periods
 const comparison = await client.analytics.compareCallPeriods({
@@ -769,6 +1059,54 @@ const comparison = await client.analytics.compareCallPeriods({
   previous_from: '2026-03-15',
   previous_to: '2026-03-31',
 })
+```
+
+### Metrics and production evals
+
+`metrics.listLatest` returns the newest period of each metric series by default. A
+categorical or boolean series comes back as one row, with `distribution` counting each value.
+
+```typescript
+const page = await client.metrics.listLatest({ scope: 'aggregate', sort_by: ['+metric_key'] })
+
+// Keep the same filters when requesting the next page.
+if (page.has_more) {
+  const next = await client.metrics.listLatest({
+    scope: 'aggregate',
+    sort_by: ['+metric_key'],
+    continuation_token: page.continuation_token,
+  })
+  console.log(next.metrics)
+}
+```
+
+Production evals score live calls on any channel. A metric eval names an active `ai_query`
+call_intelligence metric from the workspace's metric settings.
+
+```typescript
+await client.productionEvals.createDefinition({
+  eval_key: 'appointment_booked',
+  eval_type: 'metric',
+  metric_key: 'appointment_booked',
+  expected: { equals: true },
+})
+
+// Run the active definitions against one completed call (waits on the judge)
+const { results } = await client.productionEvals.evaluate(conversationId)
+
+// Read stored verdicts later
+const stored = await client.productionEvals.getResults(conversationId)
+
+// One eval's verdicts across calls in a date window (UTC days), failed verdicts first
+const verdicts = await client.productionEvals.listResults({
+  eval_key: 'appointment_booked',
+  date_from: '2026-10-01',
+  date_to: '2026-10-28',
+})
+
+// Pass rate and score across calls, and recent voice-judge scores for one service
+const quality = await client.analytics.getEvalQuality({ days: 30, interval: '1d' })
+const voiceJudge = await client.services.listVoiceJudgeResults(serviceId, { limit: 20 })
 ```
 
 ### Integrations
@@ -784,22 +1122,36 @@ const result = await client.integrations.testEndpoint('integration-id', 'geocode
 
 ### Data Sources
 
+Data sources are stored records. Nothing polls or syncs them since the
+[connector runner](https://docs.concurrence.com/developer-guide/platform-api/data-world-model/connector-runner)
+was retired, so send source records with `client.fhir.import()` or `client.intake`.
+
 ```typescript
-const { items: sources } = await client.dataSources.list()
+const { items: sources } = await client.dataSources.list({
+  source_type: ['ehr'],
+  is_active: true,
+  search: 'chart',
+})
 const source = await client.dataSources.get('source-id')
-console.log(source.source_type, source.health_status, source.last_sync_at)
+console.log(source.source_type, source.is_active, source.updated_at)
+
+// Events recorded for the source in the last 90 days
+const status = await client.dataSources.getStatus('source-id')
+console.log(status.event_count)
 ```
 
 ### Settings
 
 ```typescript
-import type { SttProvider, TtsProvider } from '@amigo-ai/platform-sdk'
+import type { SttProvider, TtsProvider, VoiceLanguage } from '@amigo-ai/platform-sdk'
 
-// Voice
+// Voice. `language` is one of VOICE_LANGUAGES; `multilingual` starts each call in English
+// and follows the language the caller speaks.
 const voice = await client.settings.voice.get()
 await client.settings.voice.update({
   voice_id: 'new-voice-id',
   speed: 1.1,
+  language: 'es' satisfies VoiceLanguage,
   stt_provider: 'deepgram' satisfies SttProvider,
   tts_provider: 'cartesia' satisfies TtsProvider,
 })
@@ -849,15 +1201,6 @@ const { data: rates } = await client.GET(
 
 Public token routes (`/s/{token}/spec`, `/s/{token}/submit`, etc.) require no API key -- use `openapi-fetch` with the SDK's `paths` type for full type safety on unauthenticated endpoints.
 
-### Billing
-
-```typescript
-const dashboard = await client.billing.getDashboard()
-const usage = await client.billing.getUsage()
-const { items: invoices } = await client.billing.listInvoices()
-const pdf = await client.billing.getInvoicePdf('invoice-id')
-```
-
 ### Operators
 
 ```typescript
@@ -871,6 +1214,115 @@ await client.operators.joinCall('operator-id', { call_sid: 'call-sid' })
 await client.operators.sendGuidance('operator-id', { text: 'Ask about allergies' })
 await client.operators.wrapUp('operator-id', { outcome: 'resolved' })
 ```
+
+### Operator hand-over
+
+Operators is a beta feature. A workspace has to be enabled for it, and any other workspace gets a
+403 (`PermissionError`) from these calls. Ask your Concurrence representative for access.
+
+Hand-over lets a person take over a live conversation. The calls act as the signed-in operator, so
+build the client from that operator's identity token, as in the
+[device code flow](#device-code-flow-cli-and-desktop-apps). A workspace API key gets a 403.
+`operator_id` must be that operator's own id, and the operator needs the `Operator:Update`
+permission (the operator, admin and owner roles).
+
+On a text channel (sms, whatsapp, email, web or imessage) the operator takes over, writes a reply,
+then hands back. A text run is held under a lease. `takeOver` returns the hold (`held_by`), how long
+it lasts (`lease_seconds`, 90) and a `hold_token`, and the hold ends by itself unless the operator
+renews it with `renewTakeover`:
+
+```typescript
+// operatorToken is the signed-in operator's identity token.
+const operatorClient = new AmigoClient({ apiKey: operatorToken, workspaceId })
+
+// Every run says whether it can be taken over. `run.takeover.reason` says why not, and
+// `run.takeover.held_by` says who holds it now and until when.
+const run = await operatorClient.runs.get(runId)
+
+if (run.takeover.eligible) {
+  const hold = await operatorClient.runs.takeOver(runId, {
+    operator_id: operatorId,
+    mode: 'takeover',
+  })
+
+  // Renew while the operator is present, well inside `lease_seconds`. Send `hold_token` back
+  // exactly as `takeOver` returned it: it is opaque, and the server matches it exactly.
+  if (hold.hold_token) {
+    await operatorClient.runs.renewTakeover(runId, {
+      operator_id: operatorId,
+      hold_token: hold.hold_token,
+    })
+  }
+
+  // The agent sends the reply as its own message. A 200 means it was handed over, not sent.
+  // A run has one reply waiting at a time, and a reply waits up to 2 minutes.
+  await operatorClient.runs.authorTurn(runId, {
+    operator_id: operatorId,
+    text: 'Thanks for waiting. Your refill is ready for pickup.',
+  })
+
+  // What became of the reply: `none`, `pending`, `consumed` or `expired`.
+  const { state } = await operatorClient.runs.getAuthoredTurn(runId)
+
+  // The agent picks the conversation back up, and a reply still waiting is discarded.
+  await operatorClient.runs.handBack(runId, { operator_id: operatorId })
+}
+```
+
+On a web conversation an external user owns, no agent is started for them. `authorTurn` then
+returns `waits_for_person: true`, and the reply goes out when the person next sends a message or
+polls, before `expires_at`.
+
+These 409s carry a `detail.code` in the error body: `hold_lost` on a renewal when the hold is gone
+(handed back, ended, or another operator took the run), `run_held` on a takeover when another
+operator holds the run, and `no_hold` or `reply_pending` on `authorTurn`. A 503 means the run is
+busy. The SDK does not retry a POST on a 503, so call again.
+
+```typescript
+import { ConflictError, isHttpException } from '@amigo-ai/platform-sdk'
+
+try {
+  await operatorClient.runs.renewTakeover(runId, { operator_id: operatorId, hold_token })
+} catch (err) {
+  const detail = err instanceof ConflictError && isHttpException(err) ? err.errorBody.detail : null
+  if (typeof detail === 'object' && !Array.isArray(detail) && detail?.code === 'hold_lost') {
+    // The operator no longer holds the run. Take over again to hold it.
+  }
+}
+```
+
+On a voice run the operator joins by phone. `takeOver` dials the number on the operator's profile
+into the call. Take over with `mode: 'listen'` to listen first, then call `runs.switchMode` with the
+`participant_call_sid` from the response to go live:
+
+```typescript
+const joined = await operatorClient.runs.takeOver(runId, {
+  operator_id: operatorId,
+  mode: 'listen',
+})
+
+if (joined.participant_call_sid) {
+  await operatorClient.runs.switchMode(runId, {
+    operator_id: operatorId,
+    mode: 'takeover',
+    participant_call_sid: joined.participant_call_sid,
+  })
+}
+
+// Message the agent without taking over, or hand the call back.
+await operatorClient.runs.sendGuidance(runId, {
+  operator_id: operatorId,
+  message: 'Ask about allergies',
+})
+await operatorClient.runs.handBack(runId, { operator_id: operatorId })
+```
+
+`renewTakeover`, `authorTurn` and `getAuthoredTurn` are for text runs, and `authorTurn` returns a
+409 on a voice run. A reply is 1 to 4,000 characters.
+
+To keep an operator screen current, `client.events.subscribeToWorkspace` delivers `call.escalated`,
+`operator.registered`, `operator.status_changed`, `operator.joined_call`, `operator.left_call`,
+`operator.mode_changed` and `operator.wrap_up`. See [Real-time event streams](#real-time-event-streams).
 
 ### Triggers (Automations)
 
@@ -907,8 +1359,7 @@ await client.audit.createExport({ start_date: '2026-01-01', end_date: '2026-03-3
 ### Recordings
 
 ```typescript
-const urls = await client.recordings.getUrls('call-sid')
-const metadata = await client.recordings.getMetadata('call-sid')
+const urls = await client.recordings.get('call-sid')
 ```
 
 ### Functions (UC Functions)
@@ -931,6 +1382,85 @@ const query = await client.workspaceDataQueries.create({
 const result = await client.workspaceDataQueries.invoke(query.id, {
   input: { status: 'open' },
 })
+```
+
+A query over practice data, such as FAQ articles, locations or hours, declares that its rows hold
+no patient's record, so the voice agent never counts its result as one. A query that declares
+nothing is counted as one that may hold a patient's record.
+
+```typescript
+await client.workspaceDataQueries.create({
+  name: 'office_hours',
+  description: 'Opening hours by location',
+  sql_template: 'select location, opens, closes from custom.office_hours',
+  declarations: { reads: { patient_in: 'none' } },
+})
+```
+
+To run one statement without saving it, use `dataQuery.execute`. It runs as the workspace's own
+database role, so it reaches only what that role's grants allow.
+
+```typescript
+const { columns, rows } = await client.dataQuery.execute({
+  sql: "select id, status from custom.orders where status = 'open'",
+})
+```
+
+### Intake
+
+Files land in registered datasets, either uploaded directly or synced from Google Shared Drive
+sources. Snapshot datasets then materialize into customer-data tables.
+
+```typescript
+await client.intake.datasets.registerSchema({
+  name: 'clinical-notes',
+  file_type: 'pdf',
+  accepted_file_types: ['pdf', 'docx'],
+})
+
+// A File uploads under its own name. Pass `filename` for a plain Blob.
+const uploaded = await client.intake.files.upload({
+  dataset: 'clinical-notes',
+  file: new File([pdfBytes], 'visit.pdf', { type: 'application/pdf' }),
+  doc_metadata: { patient_id: 'patient-123' },
+})
+const original = await client.intake.files.download(uploaded.id)
+
+for await (const file of client.intake.files.listAutoPaging({ status: 'curated' })) {
+  console.log(file.filename, file.version)
+}
+
+// Sync a dataset's Drive folders, prepare new files and publish, then wait for the run
+let run = await client.intake.datasets.startUpdate('clinical-notes')
+while (['checking_drive', 'preparing', 'publishing'].includes(run.status)) {
+  await new Promise((resolve) => setTimeout(resolve, 5000))
+  run = await client.intake.datasets.getUpdateRun(run.run_id)
+}
+
+// Write a snapshot dataset to its customer-data table
+await client.intake.materialize({ dataset: 'claims' })
+```
+
+### Dashboards
+
+```typescript
+const dashboard = await client.dashboards.getBySlug('call-quality')
+const { results } = await client.dashboards.execute(dashboard.id, {
+  filter_values: { days: 30 },
+})
+for (const panel of results) {
+  if (panel.error) console.warn(panel.panel_id, panel.error)
+}
+```
+
+### Tool catalog and client config
+
+```typescript
+// Built-in world and surface tools, read live from the agent engine
+const { tools } = await client.tools.listCatalog()
+
+// Platform values that are safe to embed in browser code
+const { google_maps_api_key } = await client.clientConfig.get()
 ```
 
 ## Webhook Verification

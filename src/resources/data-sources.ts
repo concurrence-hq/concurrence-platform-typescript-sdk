@@ -1,12 +1,10 @@
-import type { components } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
 import type { DataSourceId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
-import type { ListParams } from '../core/utils.js'
 
-export interface ListDataSourcesParams extends ListParams {
-  type?: string
-  status?: string
-}
+export type ListDataSourcesParams = NonNullable<
+  operations['list-data-sources']['parameters']['query']
+>
 
 /**
  * Manage data sources — connections to external databases, warehouses,
@@ -73,24 +71,6 @@ export class DataSourcesResource extends WorkspaceScopedResource {
   async getSyncHistory(dataSourceId: DataSourceId | string) {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/data-sources/{data_source_id}/sync-history', {
-        params: { path: { workspace_id: this.workspaceId, data_source_id: dataSourceId } },
-      }),
-    )
-  }
-
-  /**
-   * Trigger a one-off manual sync of a data source.
-   *
-   * Bypasses the business-hours gate and per-resource cadence counter on
-   * connector-runner. Resolves with `{ status: "started", ... }` once the
-   * request is queued — the poll itself runs asynchronously. Platform-api
-   * returns 409 if the source is already mid-sync (see
-   * `TriggerSyncConflictResponse` for the body shape), 503 if
-   * connector-runner is unreachable.
-   */
-  async triggerSync(dataSourceId: DataSourceId | string) {
-    return extractData(
-      await this.client.POST('/v1/{workspace_id}/data-sources/{data_source_id}/sync', {
         params: { path: { workspace_id: this.workspaceId, data_source_id: dataSourceId } },
       }),
     )

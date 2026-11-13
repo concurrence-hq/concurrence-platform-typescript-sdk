@@ -1,6 +1,6 @@
 {
   "name": "@amigo-ai/platform-sdk",
-  "version": "0.102.1",
+  "version": "0.144.1",
   "description": "Official TypeScript SDK for the Amigo Platform API",
   "publishConfig": {
     "access": "public",
@@ -14,13 +14,13 @@
     "voice",
     "world-model"
   ],
-  "homepage": "https://github.com/amigo-ai/amigo-platform-typescript-sdk",
+  "homepage": "https://github.com/concurrence-hq/concurrence-platform-typescript-sdk",
   "bugs": {
-    "url": "https://github.com/amigo-ai/amigo-platform-typescript-sdk/issues"
+    "url": "https://github.com/concurrence-hq/concurrence-platform-typescript-sdk/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amigo-ai/amigo-platform-typescript-sdk.git"
+    "url": "git+https://github.com/concurrence-hq/concurrence-platform-typescript-sdk.git"
   },
   "license": "MIT",
   "author": "Amigo Inc.",
@@ -63,17 +63,17 @@
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'examples/**/*.ts' 'scripts/**/*.{js,mjs}' --fix",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "test": "vitest run --project unit",
+    "test": "vitest run --project unit --project gc",
     "test:dist": "vitest run --project dist",
     "test:tarball": "node scripts/test-tarball.mjs",
-    "test:reviewer": "python3 -m unittest scripts.pr_review.test_main",
     "test:integration": "vitest run --project integration",
     "test:all": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --project unit",
     "typecheck": "tsc --noEmit",
     "typecheck:examples": "tsc --project examples/tsconfig.json --noEmit",
-    "prepublishOnly": "npm run docs:check && npm run build && npm test && npm run test:dist && npm run test:tarball && npm run typecheck && npm run typecheck:examples"
+    "prepublishOnly": "npm run docs:check && npm run build && npm test && npm run test:dist && npm run test:tarball && npm run typecheck && npm run typecheck:examples",
+    "check:staging": "node scripts/check-no-staging.mjs"
   },
   "sideEffects": false,
   "dependencies": {
@@ -86,8 +86,8 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "@vitest/coverage-v8": "^4.1.4",
-    "esbuild": "0.28.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "esbuild": "0.28.2",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
     "husky": "^9.0.0",
@@ -97,7 +97,7 @@
     "prettier": "^3.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.12"
   },
   "lint-staged": {
     "src/**/*.{ts,js,mjs}": [
@@ -122,5 +122,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "overrides": {
+    "js-yaml": "4.3.2"
   }
 }

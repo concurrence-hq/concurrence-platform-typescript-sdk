@@ -117,7 +117,7 @@ const serviceId = requireEnv('AMIGO_SERVICE_ID')
 const client = new AmigoClient({
   apiKey,
   workspaceId,
-  baseUrl: process.env.AMIGO_BASE_URL ?? 'https://api.platform.amigo.ai',
+  baseUrl: process.env.AMIGO_BASE_URL ?? 'https://platform.api-us.concurrence.com',
 })
 
 const DISPLAY_TOOLS = new Set(['show_observation_cards', 'show_options', 'show_alert', 'escalate_to_clinician'])

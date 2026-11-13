@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { AmigoClient, ConfigurationError, RequestTimeoutError } from '../../src/index.js'
+import {
+  AmigoClient,
+  ConfigurationError,
+  DEFAULT_BASE_URL,
+  RequestTimeoutError,
+} from '../../src/index.js'
 import { withResponse } from '../../src/core/utils.js'
 import { TEST_API_KEY, fixtures } from '../test-helpers.js'
 
@@ -30,6 +35,24 @@ describe('AmigoClient configuration', () => {
 
     await client.agents.list()
     expect(mockFetch).toHaveBeenCalledOnce()
+  })
+
+  it('defaults to the US production platform host', async () => {
+    const urls: string[] = []
+    const client = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: 'ws-001',
+      fetch: async (input, init) => {
+        urls.push((input instanceof Request ? input : new Request(input, init)).url)
+        return Response.json(fixtures.paginatedList([]))
+      },
+    })
+
+    await client.agents.list()
+
+    expect(DEFAULT_BASE_URL).toBe('https://platform.api-us.concurrence.com')
+    expect(client.baseUrl).toBe('https://platform.api-us.concurrence.com')
+    expect(urls).toEqual(['https://platform.api-us.concurrence.com/v1/ws-001/agents'])
   })
 
   it('forwards requests through the provided fetch implementation', async () => {

@@ -70,6 +70,12 @@ const client = new AmigoClient({
 
     [`DELETE ${BASE}/agents/${AGENT_FIXTURE.id}`]: () => new Response(null, { status: 204 }),
 
+    [`GET ${BASE}/agents/${AGENT_FIXTURE.id}/versions/2`]: () =>
+      Response.json(AGENT_VERSION_FIXTURE),
+
+    [`GET ${BASE}/agents/${AGENT_FIXTURE.id}/versions/latest`]: () =>
+      Response.json(AGENT_VERSION_FIXTURE),
+
     [`POST ${BASE}/agents/${AGENT_FIXTURE.id}/versions`]: ({ body }) => {
       lastCreateVersionBody = body
       return Response.json({
@@ -150,6 +156,17 @@ describe('AgentsResource', () => {
 
   it('deletes an agent', async () => {
     await expect(client.agents.delete(AGENT_FIXTURE.id)).resolves.toBeUndefined()
+  })
+
+  it('gets an agent version by number', async () => {
+    const result = await client.agents.getVersion(AGENT_FIXTURE.id, 2)
+    expect(result.version).toBe(2)
+  })
+
+  it('gets the latest agent version', async () => {
+    const result = await client.agents.getVersion(AGENT_FIXTURE.id, 'latest')
+    expect(result.version).toBe(2)
+    expect(result.agent_id).toBe(AGENT_FIXTURE.id)
   })
 
   it('creates an agent version', async () => {

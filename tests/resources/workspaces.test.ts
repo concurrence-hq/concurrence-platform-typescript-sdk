@@ -58,16 +58,6 @@ const client = new AmigoClient({
 
     [`POST /v1/workspaces/${TEST_WORKSPACE_ID}/provision`]: () =>
       Response.json({ workspace: WORKSPACE_FIXTURE }),
-
-    [`GET /v1/workspaces/${TEST_WORKSPACE_ID}/environment-check`]: () =>
-      Response.json({
-        current: 'staging',
-        target: 'production',
-        warnings: ['No HIPAA BAA on file'],
-      }),
-
-    [`POST /v1/workspaces/${TEST_WORKSPACE_ID}/convert-environment`]: () =>
-      Response.json({ ...WORKSPACE_FIXTURE, environment: 'production' }),
   }),
 })
 
@@ -106,21 +96,6 @@ describe('WorkspacesResource', () => {
   it('provisions a workspace', async () => {
     const result = await client.workspaces.provision()
     expect(result.workspace.id).toBe(TEST_WORKSPACE_ID)
-  })
-
-  it('checks environment conversion warnings', async () => {
-    const result = await client.workspaces.checkEnvironment('production')
-    expect(result.current).toBe('staging')
-    expect(result.target).toBe('production')
-    expect(result.warnings).toEqual(['No HIPAA BAA on file'])
-  })
-
-  it('converts workspace environment', async () => {
-    const result = await client.workspaces.convertEnvironment({
-      target: 'production',
-      confirm_slug: 'acme-health',
-    })
-    expect(result.name).toBe('Acme Health')
   })
 
   describe('testCallerNumbers', () => {

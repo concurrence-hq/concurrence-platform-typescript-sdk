@@ -3,7 +3,6 @@ import { AmigoClient } from '../../src/index.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
-const RUN_ID = 'run-00000000-0000-0000-0000-000000000001'
 const BASE = `/v1/${TEST_WORKSPACE_ID}`
 
 function mockFetch(
@@ -34,17 +33,6 @@ const client = new AmigoClient({
   apiKey: TEST_API_KEY,
   workspaceId: TEST_WORKSPACE_ID,
   fetch: mockFetch({
-    [`POST ${BASE}/agent-runs`]: () =>
-      Response.json({ run_id: RUN_ID, status: 'running' }, { status: 202 }),
-    [`GET ${BASE}/agent-runs/${RUN_ID}`]: () =>
-      Response.json({
-        run_id: RUN_ID,
-        status: 'succeeded',
-        framework: 'claude-agent-sdk',
-        text: 'All set.',
-        error: '',
-        trajectory: [{ kind: 'completion', seq: 1 }],
-      }),
     [`GET ${BASE}/agent-runs/harness-context`]: () =>
       Response.json({
         source: 'api',
@@ -61,22 +49,6 @@ const client = new AmigoClient({
 })
 
 describe('AgentRunsResource', () => {
-  it('create() launches a framework run (202)', async () => {
-    const res = await client.agentRuns.create({
-      service_id: 'svc-1',
-      framework: 'claude-agent-sdk',
-      message: 'hi',
-    })
-    expect(res.run_id).toBe(RUN_ID)
-    expect(res.status).toBe('running')
-  })
-
-  it('get() fetches a run snapshot', async () => {
-    const res = await client.agentRuns.get(RUN_ID)
-    expect(res.status).toBe('succeeded')
-    expect(res.framework).toBe('claude-agent-sdk')
-  })
-
   it('harnessContext() fetches the CONTEXT edge', async () => {
     const res = await client.agentRuns.harnessContext({
       serviceId: 'svc-1',

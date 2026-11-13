@@ -1,8 +1,5 @@
 import type { components } from '../generated/api.js'
-import { WorkspaceScopedResource, extractData, untypedClient } from './base.js'
-
-/** Agones fleet selector — live voice calls (default) or the isolated background-tool runners. */
-type FleetKind = 'voice' | 'tool-runner'
+import { WorkspaceScopedResource, extractData } from './base.js'
 
 /**
  * Sessions — operator visibility into **live agent calls**. List the
@@ -27,25 +24,23 @@ export class SessionsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Live Agones fleet capacity (workspace-global) — Ready/Allocated/total
-   * GameServers plus headroom against the maxReplicas ceiling. `fleet`
-   * selects the voice fleet (default) or the isolated `tool-runner` fleet;
-   * omitted, the server defaults to voice. Operator-only.
-   *
-   * The `fleet` query param is typed locally until the generated spec picks
-   * it up via sdk-sync; the response schema is already generated.
+   * Live voice fleet capacity and headroom. Operator-only.
+   * The current endpoint has no fleet selector and cannot report a separate
+   * tool-runner fleet. Older calls supplying options fail before transport
+   * instead of returning voice capacity under the wrong interpretation.
    */
-  async getFleetStatus(opts?: { fleet?: FleetKind }) {
+  async getFleetStatus() {
+    if (arguments.length > 0) {
+      throw new TypeError(
+        'getFleetStatus() reports voice capacity and does not accept fleet options',
+      )
+    }
     return extractData(
-      await untypedClient(this.client).GET<components['schemas']['FleetStatusResponse']>(
-        '/v1/{workspace_id}/sessions/fleet-status',
-        {
-          params: {
-            path: { workspace_id: this.workspaceId },
-            query: opts?.fleet === undefined ? undefined : { fleet: opts.fleet },
-          },
+      await this.client.GET('/v1/{workspace_id}/sessions/fleet-status', {
+        params: {
+          path: { workspace_id: this.workspaceId },
         },
-      ),
+      }),
     )
   }
 
@@ -54,6 +49,16 @@ export class SessionsResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.POST('/v1/{workspace_id}/sessions/{call_sid}/inject', {
         params: { path: { workspace_id: this.workspaceId, call_sid: callSid } },
+        body,
+      }),
+    )
+  }
+
+  /** Start a web text session with a world model entity. Materializes the conversation and returns conversation_id for subsequent turns via POST /v1/{ws}/conversations/{id}/turns. */
+  async start(body: components['schemas']['StartSessionRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/sessions/start', {
+        params: { path: { workspace_id: this.workspaceId } },
         body,
       }),
     )

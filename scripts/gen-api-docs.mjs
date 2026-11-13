@@ -177,7 +177,7 @@ const markdown = await prettier.format(
     )}`,
     `- Generated OpenAPI types: ${formatNames(exportMap.types.get('./generated/api.js'))}`,
     '- Generated API types are produced with `npm run gen-types` from the committed `openapi.json` snapshot.',
-    '- The generated OpenAPI types may include spec-only endpoints that do not yet have resource wrappers; use the low-level `GET`/`POST`/`PUT`/`PATCH`/`DELETE` helpers for those operations until a dedicated resource is added. Current spec-only groups include `/use-cases` and `/voicemail`.',
+    '- The generated OpenAPI types may include spec-only endpoints that do not yet have resource wrappers; use the low-level `GET`/`POST`/`PUT`/`PATCH`/`DELETE` helpers for those operations until a dedicated resource is added. Current spec-only groups include `/use-cases`, `/cost-to-serve`, and `/metric-store`.',
     '',
     '## Resources',
     '',

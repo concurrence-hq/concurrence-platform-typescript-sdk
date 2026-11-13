@@ -4,7 +4,7 @@ type PaginatedResponse<T> = { items: T[]; has_more: boolean; continuation_token:
 
 export const TEST_API_KEY = 'test-api-key-abc123'
 export const TEST_WORKSPACE_ID = 'ws-test-00000000-0000-0000-0000-000000000001'
-export const BASE_URL = 'https://api.platform.amigo.ai'
+export const BASE_URL = 'https://platform.api-us.concurrence.com'
 export const WS_BASE = `${BASE_URL}/v1/${TEST_WORKSPACE_ID}`
 
 // --- Fixtures ---

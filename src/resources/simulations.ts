@@ -1,8 +1,20 @@
-import type { components, paths } from '../generated/api.js'
+import type { components, operations, paths } from '../generated/api.js'
 import type { ServiceId, SimulationRunId, SimulationSessionId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 type CreateSimulationSessionRequest = components['schemas']['CreateSessionRequest']
+
+/** Query parameters of one operation, typed from the generated spec. */
+type QueryOf<Operation extends keyof operations> = NonNullable<
+  operations[Operation]['parameters']['query']
+>
+
+/** JSON request body of one operation, typed from the generated spec. */
+type BodyOf<Operation extends keyof operations> = operations[Operation] extends {
+  requestBody: { content: { 'application/json': infer Body } }
+}
+  ? Body
+  : never
 
 export type ListSimulationRunsParams = NonNullable<
   paths['/v1/{workspace_id}/simulations/runs']['get']['parameters']['query']
@@ -13,7 +25,8 @@ export type ListSimulationRunsParams = NonNullable<
  *
  * Create a session to get the agent's greeting, then step through the
  * conversation turn by turn. Get LLM-generated caller suggestions to
- * guide exploratory testing.
+ * guide exploratory testing. Saved `cases` and `suites` run as graded
+ * runs; read them back with `runs`, `suiteRuns` and `getPerformance`.
  */
 export class SimulationsResource extends WorkspaceScopedResource {
   /** Start a simulation session — returns the agent's greeting and initial snapshot */
@@ -45,8 +58,9 @@ export class SimulationsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Send a caller utterance and advance the session by one turn.
-   * Returns the agent's response observation and updated snapshot.
+   * Send a caller utterance and advance the session named in `body` by one turn.
+   * Returns the agent's response observation and updated snapshot. Nothing is
+   * stored; use `stepSession` for a session under a coverage run.
    */
   async step(body: components['schemas']['StepRequest']) {
     return extractData(
@@ -127,6 +141,57 @@ export class SimulationsResource extends WorkspaceScopedResource {
   }
 
   /**
+   * Advance the session named in the path by one caller turn. When the session
+   * belongs to a coverage run, the turn is stored as an observation for that
+   * run's service graph. Leave `body.session_id` unset; a value that differs
+   * from the path returns 422.
+   */
+  async stepSession(sessionId: SimulationSessionId | string, body: BodyOf<'simulation-step'>) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/simulations/sessions/{session_id}/step', {
+        params: { path: { workspace_id: this.workspaceId, session_id: sessionId } },
+        body,
+      }),
+    )
+  }
+
+  /** Get the stored turns of a coverage session in turn order, up to the first 200 */
+  async getSessionTurns(sessionId: SimulationSessionId | string) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/simulations/sessions/{session_id}/turns', {
+        params: { path: { workspace_id: this.workspaceId, session_id: sessionId } },
+      }),
+    )
+  }
+
+  /**
+   * Roll recent graded case and suite runs up into overall, per-metric,
+   * per-case and per-suite pass rates. `limit` (1 to 50) bounds how many runs
+   * are read; `service_id` narrows them to one service.
+   */
+  async getPerformance(params?: QueryOf<'get-simulation-performance'>) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/simulations/performance', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  /**
+   * Map a config object onto the turn-policy overrides the simulator applies.
+   * The policy is sparse: a field the config doesn't set is left out and keeps
+   * its turn-policy default.
+   */
+  async configToPolicy(body: BodyOf<'config-to-turn-policy'>) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/simulations/config-to-policy', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /**
    * Multi-session simulation runs — orchestrate a batch of scenarios against
    * a service to compute coverage and surface regressions. Use this when you
    * want to compare branch behavior or measure drift between versions.
@@ -159,11 +224,18 @@ export class SimulationsResource extends WorkspaceScopedResource {
         }),
       ),
 
-    /** Mark a run as complete (used by the harness once all sessions finish) */
-    complete: async (runId: SimulationRunId | string) =>
+    /**
+     * Finish a running run (used by the harness once all sessions finish). Pass
+     * `error` with the failure reason to finish it as failed instead of
+     * completed. A run finishes once; completing a finished run returns 409.
+     */
+    complete: async (
+      runId: SimulationRunId | string,
+      params?: QueryOf<'complete-simulation-run'>,
+    ) =>
       extractData(
         await this.client.POST('/v1/{workspace_id}/simulations/runs/{run_id}/complete', {
-          params: { path: { workspace_id: this.workspaceId, run_id: runId } },
+          params: { path: { workspace_id: this.workspaceId, run_id: runId }, query: params },
         }),
       ),
 
@@ -178,21 +250,232 @@ export class SimulationsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Bridge — convert recorded production calls into simulation scenarios so
-   * they can be replayed against a candidate version. ``plan`` returns a
-   * preview of which calls would be selected; ``run`` executes the plan.
+   * Saved simulation cases: durable scenarios (persona, instructions, evals)
+   * that suites select and that run as graded case runs.
    */
-  readonly bridge = {
-    /** Plan a bridge run — returns the candidate scenarios without executing */
-    plan: async (body: components['schemas']['BridgePlanRequest']) =>
+  readonly cases = {
+    /**
+     * List one page of cases, newest first unless `sort_by` says otherwise.
+     * `tags` matches cases that carry every tag; `total` counts every match.
+     * Round-trip `continuation_token` from the previous page verbatim.
+     */
+    list: async (params?: QueryOf<'list-simulation-cases'>) =>
       extractData(
-        await this.client.POST('/v1/{workspace_id}/simulations/bridge/plan', {
+        await this.client.GET('/v1/{workspace_id}/simulations/cases', {
+          params: { path: { workspace_id: this.workspaceId }, query: params },
+        }),
+      ),
+
+    /** Create one or more cases in a single request */
+    create: async (body: BodyOf<'create-simulation-cases'>) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/simulations/cases', {
           params: { path: { workspace_id: this.workspaceId } },
           body,
         }),
       ),
 
-    /** Execute a bridge run and return the resulting run handle */
+    /** Get one case */
+    get: async (caseId: string) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/cases/{case_id}', {
+          params: { path: { workspace_id: this.workspaceId, case_id: caseId } },
+        }),
+      ),
+
+    /** Update a case's editable fields; fields left out keep their value */
+    update: async (caseId: string, body: BodyOf<'update-simulation-case'>) =>
+      extractData(
+        await this.client.PATCH('/v1/{workspace_id}/simulations/cases/{case_id}', {
+          params: { path: { workspace_id: this.workspaceId, case_id: caseId } },
+          body,
+        }),
+      ),
+
+    /** Delete a case and remove it from every suite that lists it */
+    delete: async (caseId: string): Promise<void> => {
+      await this.client.DELETE('/v1/{workspace_id}/simulations/cases/{case_id}', {
+        params: { path: { workspace_id: this.workspaceId, case_id: caseId } },
+      })
+    },
+
+    /**
+     * Start a graded run of one case. The case runs against its saved service
+     * unless `service_id` overrides it. Returns 429 while the workspace is at
+     * its limit of simulations in progress.
+     */
+    run: async (caseId: string, body: BodyOf<'run-simulation-case'>) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/simulations/cases/{case_id}/run', {
+          params: { path: { workspace_id: this.workspaceId, case_id: caseId } },
+          body,
+        }),
+      ),
+  }
+
+  /**
+   * Simulation suites: named selections of saved cases (explicit `case_ids`
+   * plus every case carrying all `required_tags`) that run as one suite run.
+   */
+  readonly suites = {
+    /** List every suite in the workspace with its case count */
+    list: async () =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suites', {
+          params: { path: { workspace_id: this.workspaceId } },
+        }),
+      ),
+
+    /** Create a suite */
+    create: async (body: BodyOf<'create-simulation-suite'>) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/simulations/suites', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+
+    /** Get one suite */
+    get: async (suiteId: string) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suites/{suite_id}', {
+          params: { path: { workspace_id: this.workspaceId, suite_id: suiteId } },
+        }),
+      ),
+
+    /** Update a suite; fields left out keep their value */
+    update: async (suiteId: string, body: BodyOf<'update-simulation-suite'>) =>
+      extractData(
+        await this.client.PATCH('/v1/{workspace_id}/simulations/suites/{suite_id}', {
+          params: { path: { workspace_id: this.workspaceId, suite_id: suiteId } },
+          body,
+        }),
+      ),
+
+    /** Delete a suite. Its cases stay in the library. */
+    delete: async (suiteId: string): Promise<void> => {
+      await this.client.DELETE('/v1/{workspace_id}/simulations/suites/{suite_id}', {
+        params: { path: { workspace_id: this.workspaceId, suite_id: suiteId } },
+      })
+    },
+
+    /**
+     * Start a suite run: one graded case run per selected case. The response's
+     * `batch_id` is the suite run id to read back with `suiteRuns.get`. Returns
+     * 429 while the workspace is at its limit of simulations in progress; the
+     * whole suite run counts once toward it.
+     */
+    run: async (suiteId: string, body: BodyOf<'run-simulation-suite'>) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/simulations/suites/{suite_id}/run', {
+          params: { path: { workspace_id: this.workspaceId, suite_id: suiteId } },
+          body,
+        }),
+      ),
+
+    /** List the suite's runs, newest first, with status counts per run */
+    listRuns: async (suiteId: string, params?: QueryOf<'list-simulation-suite-runs'>) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suites/{suite_id}/runs', {
+          params: { path: { workspace_id: this.workspaceId, suite_id: suiteId }, query: params },
+        }),
+      ),
+
+    /**
+     * List one page of the cases the suite selects, for explicit, tag-defined
+     * and hybrid suites alike. Without `search`, `total` equals the suite's
+     * `case_count`.
+     */
+    listCases: async (suiteId: string, params?: QueryOf<'list-simulation-suite-cases'>) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suites/{suite_id}/cases', {
+          params: { path: { workspace_id: this.workspaceId, suite_id: suiteId }, query: params },
+        }),
+      ),
+  }
+
+  /** Suite runs: the durable record of one suite launch */
+  readonly suiteRuns = {
+    /**
+     * Get a suite run's server-side summary (expected vs started cases, status
+     * counts) and its aggregate results across every case run. Each `per_run`
+     * item also carries its verdict counts (`eval_counts`), `evaluations_configured`,
+     * `case_name` and the `participant` it simulated, so a run history needs no
+     * per-run reads.
+     */
+    get: async (suiteRunId: string) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}', {
+          params: { path: { workspace_id: this.workspaceId, suite_run_id: suiteRunId } },
+        }),
+      ),
+
+    /**
+     * Get the summaries of up to 50 suite runs in one request, such as a run
+     * history page. Each carries the suite run's status, per-status run counts,
+     * expected case count, the services its runs ran against (`service_ids`),
+     * and session and turn totals. They come back in request order, and a suite
+     * run with no runs in the workspace is left out.
+     */
+    listSummaries: async (params: QueryOf<'list-simulation-suite-run-summaries'>) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/simulations/suite-runs', {
+          params: { path: { workspace_id: this.workspaceId }, query: params },
+        }),
+      ),
+
+    /**
+     * Roll every run of one suite run up into pass rates, per-metric results and
+     * per-case checks in one request, however many runs it has. The response has
+     * the same shape as `getPerformance`, which reads the workspace's most recent
+     * runs instead.
+     */
+    getPerformance: async (suiteRunId: string) =>
+      extractData(
+        await this.client.GET(
+          '/v1/{workspace_id}/simulations/suite-runs/{suite_run_id}/performance',
+          {
+            params: { path: { workspace_id: this.workspaceId, suite_run_id: suiteRunId } },
+          },
+        ),
+      ),
+  }
+
+  /** Benchmarks: batches of saved cases selected by `suite_id` or `required_tags` */
+  readonly benchmarks = {
+    /**
+     * Start one graded case run per selected case. With `suite_id` it is a
+     * suite run, and the response's `batch_id` is its suite run id. Returns 429
+     * while the workspace is at its limit of simulations in progress; the
+     * whole batch counts once toward it.
+     */
+    run: async (body: BodyOf<'run-simulation-benchmark'>) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/simulations/benchmarks/run', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+
+    /** Aggregate results over the run ids a benchmark or suite run returned */
+    getResults: async (body: BodyOf<'get-simulation-benchmark-results'>) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/simulations/benchmarks/results', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+  }
+
+  /**
+   * Bridge — convert recorded production calls into simulation scenarios so
+   * they can be replayed against a candidate version.
+   */
+  readonly bridge = {
+    /**
+     * Execute a bridge run and return the resulting run handle. Returns 429
+     * while the workspace is at its limit of simulations in progress.
+     */
     run: async (body: components['schemas']['BridgeRequest']) =>
       extractData(
         await this.client.POST('/v1/{workspace_id}/simulations/bridge', {
@@ -208,11 +491,20 @@ export class SimulationsResource extends WorkspaceScopedResource {
    * coverage tab to visualize what scenarios have been exercised.
    */
   readonly services = {
-    /** Get the conversation graph (nodes/edges) for a service */
-    getGraph: async (serviceId: ServiceId | string) =>
+    /**
+     * Get the conversation graph (nodes/edges) for a service. `run_id` narrows
+     * it to one run; `include_turns` adds the per-turn observations.
+     */
+    getGraph: async (
+      serviceId: ServiceId | string,
+      params?: QueryOf<'get-simulation-coverage-graph'>,
+    ) =>
       extractData(
         await this.client.GET('/v1/{workspace_id}/simulations/services/{service_id}/graph', {
-          params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+          params: {
+            path: { workspace_id: this.workspaceId, service_id: serviceId },
+            query: params,
+          },
         }),
       ),
 
@@ -224,27 +516,42 @@ export class SimulationsResource extends WorkspaceScopedResource {
         }),
       ),
 
-    /** Get the set of explored conversation paths through the graph */
-    getGraphPaths: async (serviceId: ServiceId | string) =>
+    /** Get the set of explored conversation paths through the graph, optionally for one run */
+    getGraphPaths: async (
+      serviceId: ServiceId | string,
+      params?: QueryOf<'get-simulation-coverage-paths'>,
+    ) =>
       extractData(
         await this.client.GET('/v1/{workspace_id}/simulations/services/{service_id}/graph/paths', {
-          params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+          params: {
+            path: { workspace_id: this.workspaceId, service_id: serviceId },
+            query: params,
+          },
         }),
       ),
 
-    /** List recorded sessions for the service */
-    listSessions: async (serviceId: ServiceId | string) =>
+    /** List recorded sessions for the service, optionally for one run */
+    listSessions: async (
+      serviceId: ServiceId | string,
+      params?: QueryOf<'list-simulation-sessions'>,
+    ) =>
       extractData(
         await this.client.GET('/v1/{workspace_id}/simulations/services/{service_id}/sessions', {
-          params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+          params: {
+            path: { workspace_id: this.workspaceId, service_id: serviceId },
+            query: params,
+          },
         }),
       ),
 
-    /** List per-turn observations for the service */
-    listTurns: async (serviceId: ServiceId | string) =>
+    /** List per-turn observations for the service, filtered by state or transition */
+    listTurns: async (serviceId: ServiceId | string, params?: QueryOf<'query-simulation-turns'>) =>
       extractData(
         await this.client.GET('/v1/{workspace_id}/simulations/services/{service_id}/turns', {
-          params: { path: { workspace_id: this.workspaceId, service_id: serviceId } },
+          params: {
+            path: { workspace_id: this.workspaceId, service_id: serviceId },
+            query: params,
+          },
         }),
       ),
   }

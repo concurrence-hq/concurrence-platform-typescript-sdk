@@ -51,19 +51,16 @@ src/
     api-keys.ts         -- API key management
     tokens.ts           -- Exchange API key for identity-issued JWT (POST /token)
     audit.ts            -- Audit log queries
-    billing.ts          -- Dashboard, usage, invoices
     calls.ts            -- Call list, detail, intelligence, trace analysis
     context-graphs.ts   -- Context graph (HSM) CRUD and versioning
     data-sources.ts     -- Connected data source management
     integrations.ts     -- Integration CRUD, endpoint testing, health check
     operators.ts        -- Operator CRUD, dashboard, queue, escalations, call actions
     recordings.ts       -- Call recording access
-    review-queue.ts     -- Review queue management
     services.ts         -- Service CRUD
     settings.ts         -- Workspace settings (voice, branding, outreach, security, retention, workflows)
     simulations.ts      -- Call simulation management
     triggers.ts         -- Trigger CRUD, fire, pause, resume, runs
-    webhook-destinations.ts -- Webhook destination management
     workspaces.ts       -- Workspace CRUD
     world.ts            -- World model entities, events, relationships
   generated/
@@ -81,7 +78,7 @@ scripts/
 ## Conventions
 
 - **Strict TypeScript** -- `strict: true`, `noUncheckedIndexedAccess: true` in tsconfig.
-- **Single runtime dependency** -- `openapi-fetch` is the only production dep.
+- **Runtime dependencies** -- `openapi-fetch` and its aligned `openapi-typescript-helpers` range support the runtime and published declarations.
 - **Dual ESM/CJS output** -- esbuild produces `dist/index.mjs` (ESM) and `dist/index.cjs` (CJS). Declarations go to `dist/types/`.
 - **Vitest** -- Test runner with coverage thresholds (85% lines, 80% branches).
 - **ESLint** -- Lint runs with `--max-warnings 0` (zero tolerance).
@@ -113,7 +110,7 @@ Files in `src/generated/` are auto-generated from the platform-api OpenAPI spec.
 npm run gen-types
 ```
 
-The codegen script auto-detects the local spec at `../platform/services/platform-api/openapi.json`.
+The codegen script uses this repository's committed `openapi.json` by default. A sibling source checkout is optional; public builds require no private repository.
 
 ## Breaking Changes
 

@@ -1,6 +1,6 @@
 import { ConfigurationError } from '../core/errors.js'
 import { type PlatformFetch } from '../core/openapi-client.js'
-import type { components } from '../generated/api.js'
+import type { components, paths } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 export type ChannelKind = components['schemas']['ChannelKind']
@@ -10,57 +10,32 @@ export type ConversationTurnAvailableAction =
   components['schemas']['ConversationTurnAvailableAction']
 export type ConversationTurnStateTransition =
   components['schemas']['ConversationTurnStateTransition']
+export type ConversationTag = components['schemas']['ConversationTag']
+export type ConversationTagsPatch = components['schemas']['ConversationTagsPatch']
+export type ConversationTagsResponse = components['schemas']['ConversationTagsResponse']
 export type CreateConversationRequest = components['schemas']['CreateConversationRequest']
 export type SwitchChannelRequest = components['schemas']['SwitchChannelRequest']
 export type TurnRequest = components['schemas']['TurnRequest']
+/**
+ * The `source` the developer console Playground sets on its conversation
+ * requests. A Playground request on a real conversation, one no Playground
+ * session or test credential started, gets 403.
+ */
+export type ConversationSource = NonNullable<TurnRequest['source']>
+export type TurnDeliveryAckRequest = components['schemas']['TurnDeliveryAckRequest']
 export type TurnResponse = components['schemas']['TurnResponse']
 export type TurnConversationSnapshot = components['schemas']['TurnConversationSnapshot']
 export type TurnStreamEvent = components['schemas']['TurnStreamEvent']
 export type TurnTokenEvent = components['schemas']['TurnTokenEvent']
+export type TurnArtifactEvent = components['schemas']['TurnArtifactEvent']
 export type TurnToolCallStartedEvent = components['schemas']['TurnToolCallStartedEvent']
 export type TurnToolCallCompletedEvent = components['schemas']['TurnToolCallCompletedEvent']
 export type TurnThinkingEvent = components['schemas']['TurnThinkingEvent']
 export type TurnMessageEvent = components['schemas']['TurnMessageEvent']
+export type TurnStateTransitionEvent = components['schemas']['TurnStateTransitionEvent']
+export type TurnStateEvent = components['schemas']['TurnStateEvent']
 export type TurnDoneEvent = components['schemas']['TurnDoneEvent']
 export type TurnErrorEvent = components['schemas']['TurnErrorEvent']
-
-/**
- * Hand-authored because the text-stream WebSocket endpoint is intentionally
- * outside the generated OpenAPI REST snapshot.
- * TODO: replace with generated types when `/agent/text-stream` is added to
- * openapi.json.
- *
- * @beta The text-stream WebSocket contract may evolve independently of the REST API.
- */
-export interface TextStreamUrlParams {
-  serviceId: string
-  conversationId?: string
-  entityId?: string
-  /**
-   * Enable `tool_call_started` and `tool_call_completed` frames on the
-   * text-stream WebSocket so the client can render tool invocations in
-   * real time.
-   */
-  toolEvents?: boolean
-  /**
-   * Bearer token query-param fallback for clients whose API key cannot be sent
-   * as a WebSocket subprotocol token. Prefer textStreamAuthProtocols() when
-   * the token is subprotocol-safe so secrets do not appear in URLs. The SDK
-   * intentionally accepts only the server-supported text-stream token alphabet
-   * (letters, digits, `.`, `_`, `+`, `=`, `/`, `:`, `-`) even though
-   * URLSearchParams can percent-encode additional characters.
-   */
-  token?: string
-  /**
-   * Full text-stream URL override for preview/custom ingress.
-   * Defaults to `${baseUrl origin}/agent/text-stream` with
-   * `http` mapped to `ws` and `https` mapped to `wss`.
-   */
-  textStreamUrl?: string
-}
-
-/** @beta The text-stream WebSocket contract may evolve independently of the REST API. */
-export type TextStreamAuthProtocols = readonly ['auth', string]
 
 /**
  * Hand-authored because the workspace-scoped session-connect WebSocket is
@@ -95,10 +70,9 @@ export interface SessionConnectUrlParams {
 }
 
 const MAX_AUTH_TOKEN_CHARS = 4096
-const TEXT_STREAM_AUTH_TOKEN_RE = /^[-A-Za-z0-9._+=/:]+$/
 const WEB_SOCKET_PROTOCOL_TOKEN_RE = /^[!#$%&'*+\-.^_`|~A-Za-z0-9]+$/
 
-/** Access text conversation APIs and text-stream URL helpers. */
+/** Access text conversation APIs and session-connect URL helpers. */
 export class ConversationsResource extends WorkspaceScopedResource {
   private readonly agentBaseUrl: string | undefined
 
@@ -140,10 +114,18 @@ export class ConversationsResource extends WorkspaceScopedResource {
     )
   }
 
-  async close(conversationId: string): Promise<void> {
+  /**
+   * Close a conversation.
+   *
+   * Pass `options.source: 'playground'` when the developer console Playground
+   * closes it. The close then throws `PermissionError` (403) on a real
+   * conversation, one no Playground session or test credential started.
+   */
+  async close(conversationId: string, options?: { source?: ConversationSource }): Promise<void> {
     await this.client.DELETE('/v1/{workspace_id}/conversations/{conversation_id}', {
       params: {
         path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+        ...(options?.source !== undefined && { query: { source: options.source } }),
       },
     })
   }
@@ -177,6 +159,9 @@ export class ConversationsResource extends WorkspaceScopedResource {
    * this opt-in the `tool_calls` array on the `TurnResponse` will be empty
    * even when the agent invoked tools during the turn.
    *
+   * Pass `options.idempotencyKey` (see `createIdempotencyKey`) to replay the same send or poll
+   * after an ambiguous failure.
+   *
    * Pass `options.poll: true` for a no-message drain-and-report poll (see
    * {@link pollTurn} for the ergonomic wrapper): the agent surfaces any
    * background tool results that completed since the last turn. A poll must
@@ -186,7 +171,7 @@ export class ConversationsResource extends WorkspaceScopedResource {
   async createTurn(
     conversationId: string,
     request: TurnRequest,
-    options?: { includeToolCalls?: boolean; poll?: boolean },
+    options?: { includeToolCalls?: boolean; poll?: boolean; idempotencyKey?: string },
   ): Promise<TurnResponse> {
     if (options?.poll && request.message) {
       // The server rejects poll + message with 422; fail fast with a clear
@@ -203,7 +188,12 @@ export class ConversationsResource extends WorkspaceScopedResource {
           ...(Object.keys(query).length > 0 && { query }),
         },
         body: request,
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...(options?.idempotencyKey !== undefined && {
+            'Idempotency-Key': options.idempotencyKey,
+          }),
+        },
       }),
     ) as TurnResponse
   }
@@ -215,6 +205,10 @@ export class ConversationsResource extends WorkspaceScopedResource {
    * has empty `output` and `tool_calls` (the idle case) — treat that as "keep
    * polling". Poll no more than once every ~5s per conversation.
    *
+   * Pass `options.source: 'playground'` from the developer console Playground,
+   * as on its turns. A Playground poll on a real conversation, one no
+   * Playground session or test credential started, throws `PermissionError` (403).
+   *
    * @example
    * ```ts
    * const res = await client.conversations.pollTurn(convId, { includeToolCalls: true });
@@ -223,9 +217,13 @@ export class ConversationsResource extends WorkspaceScopedResource {
    */
   async pollTurn(
     conversationId: string,
-    options?: { includeToolCalls?: boolean },
+    options?: { includeToolCalls?: boolean; source?: ConversationSource; idempotencyKey?: string },
   ): Promise<TurnResponse> {
-    return this.createTurn(conversationId, {}, { ...options, poll: true })
+    const { source, ...turnOptions } = options ?? {}
+    return this.createTurn(conversationId, source === undefined ? {} : { source }, {
+      ...turnOptions,
+      poll: true,
+    })
   }
 
   /**
@@ -253,7 +251,7 @@ export class ConversationsResource extends WorkspaceScopedResource {
   async createTurnStream(
     conversationId: string,
     request: TurnRequest,
-    options?: { signal?: AbortSignal; includeToolCalls?: boolean },
+    options?: { signal?: AbortSignal; includeToolCalls?: boolean; idempotencyKey?: string },
   ): Promise<ReadableStream<Uint8Array>> {
     const result = await this.client.POST(
       '/v1/{workspace_id}/conversations/{conversation_id}/turns/stream',
@@ -265,6 +263,9 @@ export class ConversationsResource extends WorkspaceScopedResource {
           }),
         },
         body: request,
+        ...(options?.idempotencyKey !== undefined && {
+          headers: { 'Idempotency-Key': options.idempotencyKey },
+        }),
         parseAs: 'stream',
         signal: options?.signal,
       },
@@ -282,12 +283,19 @@ export class ConversationsResource extends WorkspaceScopedResource {
    * The bytes-and-parser dance from `createTurnStream` is now hidden inside
    * the SDK — consumers iterate strongly typed events directly. Each yielded
    * value is a member of the `TurnStreamEvent` discriminated union (`token`,
-   * `thinking`, `tool_call_started`, `tool_call_completed`, `message`,
-   * `done`, `error`), validated as a record with a known `event`
-   * discriminator. Unknown / malformed frames are dropped silently — this
-   * matches the wire-format-drift behavior of the lower-level
-   * `createTurnStream` while keeping the strict `TurnStreamEvent` static
-   * contract intact for consumers.
+   * `thinking`, `tool_call_started`, `tool_call_completed`, `artifact`,
+   * `message`, `state_transition`, `state`, `done`, `error`), validated as a
+   * record with a known `event` discriminator. Unknown / malformed frames are
+   * dropped silently — this matches the wire-format-drift behavior of the
+   * lower-level `createTurnStream` while keeping the strict `TurnStreamEvent`
+   * static contract intact for consumers.
+   *
+   * Events arrive in the order the server sends them. Right before `done`, a
+   * turn sends one `state_transition` per context-graph hop it took
+   * (`from_state`, `to_state`, `exit_condition`), then a `state` event with
+   * the `context_graph_state` it ended in. These are the hops and state
+   * {@link createTurn} returns on `output[0].state_transitions` (as `from`
+   * and `to`) and `conversation.context_graph_state`.
    *
    * @example
    * ```ts
@@ -300,23 +308,13 @@ export class ConversationsResource extends WorkspaceScopedResource {
   async *streamTurn(
     conversationId: string,
     request: TurnRequest,
-    options?: { signal?: AbortSignal; includeToolCalls?: boolean },
+    options?: { signal?: AbortSignal; includeToolCalls?: boolean; idempotencyKey?: string },
   ): AsyncGenerator<TurnStreamEvent> {
     const byteStream = await this.createTurnStream(conversationId, request, options)
     for await (const frame of parseSSEFrames(byteStream)) {
       const event = parseTurnStreamFrame(frame.event, frame.data)
       if (event) yield event
     }
-  }
-
-  /** Build the real-time text WebSocket URL for browser or custom clients. */
-  textStreamUrl(params: TextStreamUrlParams): string {
-    const url = buildTextStreamUrl({
-      baseUrl: this.agentBaseUrl ?? this.platformBaseUrl,
-      workspaceId: this.workspaceId,
-      ...params,
-    })
-    return url.toString()
   }
 
   /**
@@ -345,133 +343,102 @@ export class ConversationsResource extends WorkspaceScopedResource {
     })
     return url.toString()
   }
-}
 
-/**
- * Build browser WebSocket subprotocols for text-stream authentication.
- *
- * @remarks The returned tuple contains the raw API key. Do not log, persist,
- * serialize, or otherwise expose this value.
- *
- * @security The second subprotocol entry is the bearer secret.
- */
-export function textStreamAuthProtocols(apiKey: string): TextStreamAuthProtocols {
-  const token = validateTextStreamAuthToken(apiKey, 'apiKey')
-  if (!WEB_SOCKET_PROTOCOL_TOKEN_RE.test(token)) {
-    const invalidChars = describeInvalidSubprotocolChars(token)
-    throw new ConfigurationError(
-      `apiKey contains characters browsers reject in WebSocket subprotocols (${invalidChars}); use the token option on client.conversations.textStreamUrl() instead for keys containing these characters, only in trusted contexts where URLs are not logged in browser history, server access logs, HTTP proxy logs, or referrer headers`,
+  /** Lets the external user who owns a conversation approve or reject a write that the agent paused for their confirmation. Only the conversation's own external user may call this; it requires the `conversations:approve_own` scope. */
+  async decideApproval(
+    conversationId: string,
+    body: components['schemas']['ConversationApprovalRequest'],
+  ): Promise<void> {
+    await this.client.POST('/v1/{workspace_id}/conversations/{conversation_id}/approval', {
+      params: { path: { workspace_id: this.workspaceId, conversation_id: conversationId } },
+      body,
+    })
+  }
+
+  /** Page through the turns ``GET /conversations/{conversation_id}`` returns, ordered by exchange (``turn_index``). The default ``+turn_index`` starts with the messages before the first user turn; ``-turn_index`` starts with the newest exchange and ends with them. Messages inside one exchange keep conversation order either way. Turns are folded from the conversation's journal on each request rather than read from a table, so ``truncated`` matches the detail's flag. When it is true, the turns stop at the read bound, before the end of the conversation, in either sort order. */
+  async listTurns(
+    conversationId: string,
+    params?: paths['/v1/{workspace_id}/conversations/{conversation_id}/turns']['get']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/conversations/{conversation_id}/turns', {
+        params: {
+          path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+          query: params,
+        },
+      }),
     )
   }
-  return ['auth', token] as const
+
+  /** Set and remove a conversation's tags */
+  async updateTags(
+    conversationId: string,
+    body: ConversationTagsPatch,
+    options?: { source?: ConversationSource },
+  ) {
+    return extractData(
+      await this.client.PATCH('/v1/{workspace_id}/conversations/{conversation_id}/tags', {
+        params: {
+          path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+          query: options?.source ? { source: options.source } : undefined,
+        },
+        body,
+      }),
+    )
+  }
+
+  /** Acknowledge a rendered background turn delivery */
+  async acknowledgeTurnDelivery(
+    conversationId: string,
+    deliveryId: string,
+    body: components['schemas']['TurnDeliveryAckRequest'],
+  ): Promise<void> {
+    await this.client.POST(
+      '/v1/{workspace_id}/conversations/{conversation_id}/turns/{delivery_id}/ack',
+      {
+        params: {
+          path: {
+            workspace_id: this.workspaceId,
+            conversation_id: conversationId,
+            delivery_id: deliveryId,
+          },
+        },
+        body,
+      },
+    )
+  }
 }
 
 /**
  * Build browser WebSocket subprotocols for the workspace-scoped session-connect
  * endpoint (``WS /v1/{workspace_id}/sessions/connect``).
  *
- * The wire format is identical to {@link textStreamAuthProtocols} — both
- * endpoints expect ``Sec-WebSocket-Protocol: auth, <token>`` — but the
- * session-connect endpoint has no query-param token fallback, so the API key
- * MUST round-trip through this subprotocol pair. Keys containing characters
- * browsers reject in subprotocols (e.g. ``:``, ``/``, ``=``) cannot be used
- * with the session-connect endpoint and must instead use the legacy
- * ``textStreamUrl`` path.
+ * The endpoint expects ``Sec-WebSocket-Protocol: auth, <token>`` and has no
+ * query-param token fallback, so the API key MUST round-trip through this
+ * subprotocol pair. Keys containing characters browsers reject in subprotocols
+ * (e.g. ``:``, ``/``, ``=``) cannot be used with the session-connect endpoint.
  *
  * @remarks The returned tuple contains the raw API key. Do not log, persist,
  * serialize, or otherwise expose this value.
  *
  * @security The second subprotocol entry is the bearer secret.
  */
-export function sessionConnectAuthProtocols(apiKey: string): TextStreamAuthProtocols {
-  return textStreamAuthProtocols(apiKey)
-}
-
-function buildTextStreamUrl({
-  baseUrl,
-  workspaceId,
-  serviceId,
-  conversationId,
-  entityId,
-  toolEvents,
-  token,
-  textStreamUrl: textStreamUrlOverride,
-}: TextStreamUrlParams & { baseUrl: string; workspaceId: string }): URL {
-  const url = textStreamUrlOverride
-    ? parseTextStreamUrlOverride(textStreamUrlOverride)
-    : deriveTextStreamUrl(baseUrl)
-  url.searchParams.set('workspace_id', workspaceId)
-  url.searchParams.set('service_id', serviceId)
-  if (conversationId) url.searchParams.set('conversation_id', conversationId)
-  if (entityId) url.searchParams.set('entity_id', entityId)
-  if (toolEvents) url.searchParams.set('tool_events', 'true')
-  if (token !== undefined)
-    url.searchParams.set('token', validateTextStreamAuthToken(token, 'token'))
-  return url
-}
-
-function validateTextStreamAuthToken(token: string, label: string): string {
-  if (!token.trim()) {
-    throw new ConfigurationError(`${label} is required for text-stream authentication`)
+export function sessionConnectAuthProtocols(apiKey: string): readonly ['auth', string] {
+  if (!apiKey.trim()) {
+    throw new ConfigurationError('apiKey is required for session-connect authentication')
   }
-  if (token.length > MAX_AUTH_TOKEN_CHARS || !TEXT_STREAM_AUTH_TOKEN_RE.test(token)) {
+  if (apiKey.length > MAX_AUTH_TOKEN_CHARS) {
     throw new ConfigurationError(
-      `${label} contains characters rejected by text-stream authentication`,
+      `apiKey exceeds the ${MAX_AUTH_TOKEN_CHARS}-character WebSocket subprotocol limit`,
     )
   }
-  return token
-}
-
-function parseTextStreamUrlOverride(textStreamUrl: string): URL {
-  try {
-    const url = new URL(textStreamUrl)
-    if (url.protocol !== 'ws:' && url.protocol !== 'wss:') {
-      throw new ConfigurationError('textStreamUrl overrides must use ws: or wss: URLs')
-    }
-    // Fragment rejection is defensive; WHATWG URL parsing normalizes most
-    // WebSocket fragments away, but callers should never rely on fragments here.
-    if (url.search || url.hash) {
-      throw new ConfigurationError(
-        'textStreamUrl overrides must not include query parameters or fragments; pass SDK-managed fields through textStreamUrl() options',
-      )
-    }
-    return url
-  } catch (cause) {
-    if (cause instanceof ConfigurationError) throw cause
+  if (!WEB_SOCKET_PROTOCOL_TOKEN_RE.test(apiKey)) {
+    const invalidChars = describeInvalidSubprotocolChars(apiKey)
     throw new ConfigurationError(
-      `textStreamUrl must be an absolute URL for text-stream overrides: ${String(cause)}`,
+      `apiKey contains characters browsers reject in WebSocket subprotocols (${invalidChars})`,
     )
   }
-}
-
-function deriveTextStreamUrl(baseUrl: string): URL {
-  if (!/^[a-z][a-z\d+.-]*:\/\//i.test(baseUrl)) {
-    throw new ConfigurationError(
-      'textStreamUrl cannot be derived from a relative baseUrl; pass agentBaseUrl or textStreamUrl explicitly',
-    )
-  }
-
-  const url = new URL(baseUrl)
-  if (url.protocol === 'ws:' || url.protocol === 'wss:') {
-    // Already a WebSocket URL (e.g. from agentBaseUrl) — use directly
-  } else if (url.protocol === 'http:' || url.protocol === 'https:') {
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  } else {
-    throw new ConfigurationError(
-      'textStreamUrl can only be derived from an http, https, ws, or wss baseUrl; pass textStreamUrl explicitly',
-    )
-  }
-  if (url.pathname !== '/' && url.pathname !== '') {
-    throw new ConfigurationError(
-      'textStreamUrl can only be derived from an origin-only baseUrl; pass agentBaseUrl as an origin or textStreamUrl explicitly when using path-prefixed gateways',
-    )
-  }
-  // Text streaming is served by agent-engine ingress, regardless of any REST
-  // API path segments on the configured base URL.
-  url.pathname = '/agent/text-stream'
-  url.search = ''
-  url.hash = ''
-  return url
+  return ['auth', apiKey] as const
 }
 
 function buildSessionConnectUrl({
@@ -648,18 +615,24 @@ function parseSSEBlock(block: string): SSEFrame | null {
 // known union members.
 // ---------------------------------------------------------------------------
 
-const KNOWN_TURN_STREAM_EVENTS: ReadonlySet<TurnStreamEvent['event']> = new Set([
-  'token',
-  'thinking',
-  'tool_call_started',
-  'tool_call_completed',
-  'message',
-  'done',
-  'error',
-])
+// Keyed by the generated union, so a spec regen that adds or removes a
+// `TurnStreamEvent` member fails typecheck here instead of silently dropping
+// the new frame.
+const KNOWN_TURN_STREAM_EVENTS = {
+  token: true,
+  artifact: true,
+  thinking: true,
+  tool_call_started: true,
+  tool_call_completed: true,
+  message: true,
+  state_transition: true,
+  state: true,
+  done: true,
+  error: true,
+} as const satisfies Record<TurnStreamEvent['event'], true>
 
 function parseTurnStreamFrame(eventName: string, dataJson: string): TurnStreamEvent | null {
-  if (!(KNOWN_TURN_STREAM_EVENTS as ReadonlySet<string>).has(eventName)) return null
+  if (!Object.hasOwn(KNOWN_TURN_STREAM_EVENTS, eventName)) return null
   let payload: unknown
   try {
     payload = JSON.parse(dataJson)

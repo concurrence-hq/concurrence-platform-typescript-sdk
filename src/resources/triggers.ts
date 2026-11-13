@@ -2,8 +2,7 @@ import type { components, operations } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 import type { ListParams } from '../core/utils.js'
 
-export type ListTriggersParams = ListParams &
-  NonNullable<operations['list-triggers']['parameters']['query']>
+export type ListTriggersParams = NonNullable<operations['list-triggers']['parameters']['query']>
 export type FireTriggerRequest = components['schemas']['FireTriggerRequest']
 
 export class TriggersResource extends WorkspaceScopedResource {

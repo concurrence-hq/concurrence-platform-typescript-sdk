@@ -13,6 +13,7 @@ Configuration fields:
 - `apiKey: string`
 - `workspaceId: string`
 - `baseUrl?: string`
+- `identityBaseUrl?: string`
 - `retry?: RetryOptions`
 - `maxRetries?: number`
 - `timeout?: number`
@@ -51,16 +52,16 @@ Notes:
 - Request option types: `AmigoRequestOptions`, `ScopedRequestOptions`
 - Webhooks: `verifyWebhookSignature`, `parseWebhookEvent`, `WebhookVerificationError`
 - Pagination and response helpers: `paginate`, `buildLastResponse`, `extractRequestId`
-- Conversation helpers: `sessionConnectAuthProtocols`, `textStreamAuthProtocols`
-- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TextStreamAuthProtocols` (WebSocket constructor subprotocol tuple), `TextStreamUrlParams`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Conversation helpers: `sessionConnectAuthProtocols`
+- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTag`, `ConversationTagsPatch`, `ConversationTagsResponse`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
 - Test-call helpers: `TestCallsResource`, `testCallAuthProtocols`
 - Test-call types: `TestCallAuthProtocols`, `TestCallCloseEvent`, `TestCallConnectOptions`, `TestCallControlMessage`, `TestCallAgentTranscriptEvent`, `TestCallEmotionEvent`, `TestCallEvent`, `TestCallHandle`, `TestCallInterruptionEvent`, `TestCallLatencyEvent`, `TestCallProgressEvent`, `TestCallReadyEvent`, `TestCallSessionStartedEvent`, `TestCallToolCallCompletedEvent`, `TestCallToolCallStartedEvent`, `TestCallUrlParams`, `TestCallUserTranscriptEvent`
-- Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_SESSION_PROVIDERS`
-- Voice provider types: `AgentVoiceConfig`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
+- Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_LANGUAGES`, `VOICE_SESSION_PROVIDERS`, `VoiceFamiliesResource`
+- Voice provider types: `AgentVoiceConfig`, `ListFamilyVoicesParams`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceFamily`, `VoiceFamilyListResponse`, `VoiceLanguage`, `VoiceListResponse`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
 - Response and hook types: `PaginatedList`, `ListParams`, `LastResponseInfo`, `ResponseMetadata`, `WithResponseMetadata`, `AmigoResponse`, `RetryOptions`, `RateLimitInfo`, `ClientHooks`, `RequestHookContext`, `ResponseHookContext`, `ErrorHookContext`
 - Generated OpenAPI types: `paths`, `components`, `operations`
 - Generated API types are produced with `npm run gen-types` from the committed `openapi.json` snapshot.
-- The generated OpenAPI types may include spec-only endpoints that do not yet have resource wrappers; use the low-level `GET`/`POST`/`PUT`/`PATCH`/`DELETE` helpers for those operations until a dedicated resource is added. Current spec-only groups include `/use-cases` and `/voicemail`.
+- The generated OpenAPI types may include spec-only endpoints that do not yet have resource wrappers; use the low-level `GET`/`POST`/`PUT`/`PATCH`/`DELETE` helpers for those operations until a dedicated resource is added. Current spec-only groups include `/use-cases`, `/cost-to-serve`, and `/metric-store`.
 
 ## Resources
 
@@ -76,10 +77,10 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `update`
 - `archive`
 - `provision`
-- `checkEnvironment`
-- `convertEnvironment`
 - `testCallerNumbers.get`
 - `testCallerNumbers.update`
+- `getTestCredentialIds`
+- `updateTestCredentialIds`
 
 ### `me`
 
@@ -93,6 +94,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listAutoPaging`
 - `revoke`
 - `rotate`
+- `getPermissionCatalog`
 
 ### `tokens`
 
@@ -100,6 +102,55 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `exchangeClientCredentials`
 - `createExternalUserSession`
 - `refresh`
+
+### `workspaceAuthentication`
+
+- `get`
+- `configure`
+- `confirmOwner`
+- `credentialInventory`
+- `reviewCredentials`
+- `configureRecovery`
+- `testRecovery`
+- `readiness`
+- `activate`
+- `disable`
+- `recover`
+
+### `ssoLifecycle`
+
+- `getStatus`
+- `getConfiguration`
+- `configure`
+- `verify`
+- `snapshot`
+- `enable`
+- `disable`
+
+### `ssoGrants`
+
+- `list`
+- `approve`
+- `revoke`
+- `independent`
+- `convertIndependent`
+
+### `ssoGroupGrants`
+
+- `list`
+- `independent`
+- `convertIndependent`
+
+### `identityCredentials`
+
+- `list`
+- `get`
+- `create`
+- `create`
+- `create`
+- `create`
+- `update`
+- `deactivate`
 
 ### `agents`
 
@@ -116,8 +167,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `agentRuns`
 
-- `create`
-- `get`
 - `harnessContext`
 
 ### `runs`
@@ -128,19 +177,11 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `trajectory`
 - `sendGuidance`
 - `takeOver`
+- `renewTakeover`
+- `authorTurn`
+- `getAuthoredTurn`
 - `handBack`
 - `switchMode`
-- `accessToken`
-
-### `agentDefinitions`
-
-- `list`
-- `listAutoPaging`
-- `register`
-- `validate`
-- `get`
-- `getVersion`
-- `archive`
 
 ### `skills`
 
@@ -154,6 +195,10 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 ### `actions`
 
+- `putIdentityLifecycle`
+- `getIdentityLifecycle`
+- `putIdentityGroupLifecycle`
+- `getIdentityGroupLifecycle`
 - `create`
 - `list`
 - `listAutoPaging`
@@ -177,7 +222,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getActiveEscalations`
 - `getEscalationStats`
 - `getPerformance`
-- `getAccessToken`
 - `joinCall`
 - `leaveCall`
 - `switchMode`
@@ -213,8 +257,41 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `list`
 - `listAutoPaging`
 - `get`
+- `getConfigurationIdentity`
+- `promoteConfiguration`
+- `getSafety`
 - `update`
+- `planCreate`
+- `planUpdate`
+- `upsertVersionSet`
+- `setDynamicBehaviorPin`
+- `clearDynamicBehaviorPin`
+- `getSettings`
+- `setSettings`
+- `getSettingsSchema`
+- `getHarnesses`
+- `setHarnessPins`
 - `delete`
+- `listVoiceJudgeResults`
+- `previewPrompt`
+- `getReadiness`
+- `sendVoiceTurn`
+
+### `stagingClones`
+
+- `importAll`
+- `importBatchService`
+- `listSourceServices`
+- `listSourceServicesAutoPaging`
+- `listImports`
+- `listImportsAutoPaging`
+- `getPairing`
+- `previewSource`
+- `previewImport`
+- `previewMirror`
+- `applyMirror`
+- `pairWorkspace`
+- `importService`
 
 ### `contextGraphs`
 
@@ -239,7 +316,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `delete`
 - `getStatus`
 - `getSyncHistory`
-- `triggerSync`
 
 ### `world`
 
@@ -251,7 +327,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getProvenance`
 - `getLineage`
 - `getMerged`
-- `getConnectors`
 - `getConnectorEntities`
 - `getConnectorResources`
 - `listEntityTypes`
@@ -259,15 +334,27 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `search`
 - `getTimeline`
 - `getTimelineAutoPaging`
-- `getSyncStatusBySink`
+- `listEnrichment`
+- `getEnrichmentHistory`
 - `getStats`
 - `getSourceBreakdown`
+- `getDashboard`
+- `listEnrichmentKeys`
+- `createEnrichmentKey`
+- `updateEnrichmentKey`
+- `deleteEnrichmentKey`
+- `resolveEntity`
+- `putEntityEnrichment`
+- `listEventTypes`
+- `importMigrationConversations`
+- `importMigrationTextThreads`
 
 ### `calls`
 
 - `list`
 - `listAutoPaging`
 - `get`
+- `getVoiceQuality`
 - `getTimeline`
 - `getIntelligence`
 - `getBenchmarks`
@@ -287,8 +374,11 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `pollTurn`
 - `createTurnStream`
 - `streamTurn`
-- `textStreamUrl`
 - `sessionConnectUrl`
+- `decideApproval`
+- `listTurns`
+- `updateTags`
+- `acknowledgeTurnDelivery`
 
 ### `integrations`
 
@@ -305,6 +395,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `updateEndpoint`
 - `deleteEndpoint`
 - `testEndpoint`
+- `approveWrite`
+- `rejectWrite`
 
 ### `externalIntegrations`
 
@@ -325,7 +417,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getCalls`
 - `getAgents`
 - `getCallQuality`
-- `getEmotionTrends`
 - `getLatency`
 - `getToolPerformance`
 - `getDataQuality`
@@ -333,6 +424,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getEventBreakdown`
 - `getOperatorPerformance`
 - `getAdvancedCallStats`
+- `getEvalQuality`
 - `compareCallPeriods`
 - `surfaces.getCompletionRates`
 - `surfaces.getChannelEffectiveness`
@@ -350,12 +442,34 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `forkSession`
 - `scoreSession`
 - `promoteSession`
+- `stepSession`
+- `getSessionTurns`
+- `getPerformance`
+- `configToPolicy`
 - `runs.list`
 - `runs.create`
 - `runs.get`
 - `runs.complete`
 - `runs.createSession`
-- `bridge.plan`
+- `cases.list`
+- `cases.create`
+- `cases.get`
+- `cases.update`
+- `cases.delete`
+- `cases.run`
+- `suites.list`
+- `suites.create`
+- `suites.get`
+- `suites.update`
+- `suites.delete`
+- `suites.run`
+- `suites.listRuns`
+- `suites.listCases`
+- `suiteRuns.get`
+- `suiteRuns.listSummaries`
+- `suiteRuns.getPerformance`
+- `benchmarks.run`
+- `benchmarks.getResults`
 - `bridge.run`
 - `services.getGraph`
 - `services.deleteGraph`
@@ -369,6 +483,29 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getCatalog`
 - `getValues`
 - `getTrend`
+- `definitions.list`
+- `definitions.get`
+- `definitions.put`
+- `definitions.delete`
+- `definitions.listRevisions`
+- `definitions.getRevision`
+
+### `voiceFamilies`
+
+- `list`
+- `listVoices`
+
+### `productionEvals`
+
+- `listDefinitions`
+- `listDefinitionsAutoPaging`
+- `createDefinition`
+- `updateDefinition`
+- `deleteDefinition`
+- `listResults`
+- `listResultsAutoPaging`
+- `evaluate`
+- `getResults`
 
 ### `settings`
 
@@ -380,30 +517,22 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `outreach.update`
 - `retention.get`
 - `retention.update`
-- `gapScanner.get`
-- `gapScanner.update`
-- `gapScanner.preview`
-- `gapScanner.scan`
 - `metrics.get`
 - `metrics.update`
-- `environments.get`
-- `environments.update`
-
-### `billing`
-
-- `getDashboard`
-- `getUsage`
-- `getUsageTrends`
-- `listInvoices`
-- `listInvoicesAutoPaging`
-- `getInvoice`
-- `getInvoicePdf`
+- `dataResidency.get`
+- `dataResidency.update`
+- `http.get`
+- `http.update`
+- `safety.get`
+- `safety.update`
+- `formTemplates.list`
+- `formTemplates.update`
+- `formTemplates.resolve`
 
 ### `recordings`
 
-- `getUrls`
-- `getMetadata`
-- `download`
+- `get`
+- `getClip`
 
 ### `audit`
 
@@ -413,7 +542,9 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getPhiAccess`
 - `getPhiAccessAutoPaging`
 - `createExport`
-- `listExports`
+- `getExport`
+- `listMyAuditEvents`
+- `listPlatformAuditEvents`
 - `getEntityAccessLog`
 - `getEntityAccessLogAutoPaging`
 
@@ -435,6 +566,14 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `delete`
 - `invoke`
 - `test`
+
+### `operationGrants`
+
+- `create`
+- `list`
+- `listAutoPaging`
+- `revoke`
+- `invoke`
 
 ### `observers`
 
@@ -468,12 +607,21 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `insights`
 
 - `getDigest`
+- `getDemoHome`
 - `getSchema`
 - `getSuggestions`
 - `runSql`
 - `sessions.create`
 - `sessions.get`
 - `sessions.chat`
+- `sessions.getResult`
+- `pins.list`
+- `pins.listAutoPaging`
+- `pins.get`
+- `pins.create`
+- `pins.refresh`
+- `pins.delete`
+- `pins.undo`
 
 ### `commandCenter`
 
@@ -484,9 +632,51 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getConnectorHealth`
 - `getLoopLatency`
 
+### `clientConfig`
+
+- `get`
+
+### `dashboards`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `getBySlug`
+- `update`
+- `delete`
+- `execute`
+
+### `intake`
+
+- `files.list`
+- `files.listAutoPaging`
+- `files.upload`
+- `files.download`
+- `datasets.list`
+- `datasets.listAutoPaging`
+- `datasets.registerSchema`
+- `datasets.startUpdate`
+- `datasets.getUpdateRun`
+- `sources.list`
+- `sources.listAutoPaging`
+- `sources.register`
+- `sources.delete`
+- `sources.sync`
+- `batches.list`
+- `batches.listAutoPaging`
+- `batches.get`
+- `batches.process`
+- `materializations.list`
+- `materializations.listAutoPaging`
+- `materialize`
+- `getBatchProcessingManifest`
+- `writeBackFileStatus`
+
 ### `dataQuery`
 
 - `run`
+- `execute`
 
 ### `briefs`
 
@@ -494,22 +684,6 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `regenerate`
 - `getForEntity`
 - `regenerateForEntity`
-
-### `desktopSessions`
-
-- `create`
-- `disconnect`
-- `sendAction`
-- `getScreenshot`
-- `getStatus`
-
-### `intake`
-
-- `links.list`
-- `links.create`
-- `links.delete`
-- `links.listUploads`
-- `links.downloadUpload`
 
 ### `network`
 
@@ -528,15 +702,11 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `sources.listEvents`
 - `sources.getHistory`
 
-### `tasks`
-
-- `get`
-- `listByCall`
-
 ### `tools`
 
 - `execute`
 - `resolveForService`
+- `listCatalog`
 
 ### `surfaces`
 
@@ -558,23 +728,129 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `listActive`
 - `getFleetStatus`
 - `inject`
+- `start`
 
-### `workspaceDatabase`
+### `billing`
 
+- `getCost`
+- `getUsage`
+- `getUsageCostExcluded`
+- `getUsageCostModels`
+- `getUsageCostOverview`
+
+### `externalAuthClaimMappings`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `resolvePreview`
 - `get`
-- `post`
-- `patch`
+- `supersede`
+
+### `externalIdentityBindings`
+
+- `list`
+- `listAutoPaging`
+- `upsert`
+- `get`
 - `delete`
-- `getFork`
-- `createFork`
-- `deleteFork`
-- `executeQuery`
-- `listQueryTools`
-- `listQueryToolsAutoPaging`
-- `createQueryTool`
-- `updateQueryTool`
-- `deleteQueryTool`
-- `testQueryTool`
+
+### `externalRoleAssignments`
+
+- `list`
+- `listAutoPaging`
+- `upsert`
+- `get`
+- `delete`
+
+### `externalRoles`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `delete`
+
+### `roleGrants`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `supersede`
+
+### `reviewQueue`
+
+- `list`
+- `listAutoPaging`
+- `approve`
+- `reject`
+
+### `m42`
+
+- `listRankedAnomalies`
+- `getCatalog`
+- `listClusterForecast`
+- `listClusterSummary`
+- `listForecastFan`
+- `listForecastFanDraws`
+- `listModelRegistry`
+- `getNotesRollup`
+- `listPatientTopology`
+- `listPatientLabs`
+- `getPatientNote`
+- `listStratifiedFits`
+
+### `memoryDimensions`
+
+- `create`
+
+### `metering`
+
+- `emit`
+
+### `harnesses`
+
+- `listDefaults`
+- `setDefault`
+- `listReleases`
+
+### `metricStore`
+
+- `setup`
+- `refresh`
+- `getRun`
+
+### `models`
+
+- `list`
+
+### `schedulingRuleSets`
+
+- `list`
+- `listAutoPaging`
+- `create`
+- `get`
+- `update`
+- `delete`
+
+### `workspaceTables`
+
+- `list`
+- `create`
+- `get`
+- `update`
+- `delete`
+
+### `traces`
+
+- `export`
+
+### `useCases`
+
+- `getServiceBinding`
+- `bindService`
+- `unbindService`
 
 ### `workspaceDataQueries`
 
@@ -585,15 +861,18 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `delete`
 - `invoke`
 
-### `useCases`
+### `dynamicBehaviorSets`
 
 - `list`
-- `listOwned`
-- `getOwnership`
-- `assignOwnership`
-- `releaseOwnership`
-- `getServiceBinding`
-- `bindToService`
-- `unbindFromService`
+- `listAutoPaging`
+- `create`
+- `get`
+- `update`
+- `createVersion`
+- `listVersions`
+- `listVersionsAutoPaging`
+- `getVersion`
+- `usage`
+- `usageAutoPaging`
 
 ### `api`

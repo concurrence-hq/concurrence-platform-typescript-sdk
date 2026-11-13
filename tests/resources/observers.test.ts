@@ -119,7 +119,7 @@ describe('ObserversResource.subscribe — URL building', () => {
       webSocketFactory: fakeFactory,
     })
     expect(FakeWebSocket.instances[0]!.url).toBe(
-      `wss://api.example.com/v1/ws-uuid/observers/${VALID_CALL_SID}/ws`,
+      `wss://api.example.com/agent/observe/${VALID_CALL_SID}`,
     )
   })
 
@@ -132,7 +132,7 @@ describe('ObserversResource.subscribe — URL building', () => {
       webSocketFactory: fakeFactory,
     })
     expect(FakeWebSocket.instances[0]!.url).toBe(
-      `ws://localhost:8080/v1/ws-uuid/observers/${VALID_CALL_SID}/ws`,
+      `ws://localhost:8080/agent/observe/${VALID_CALL_SID}`,
     )
   })
 

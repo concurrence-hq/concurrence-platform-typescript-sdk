@@ -33,6 +33,8 @@ async function main() {
     apiKey: requireEnv('AMIGO_API_KEY'),
     workspaceId,
     baseUrl,
+    // Set with AMIGO_BASE_URL outside US production; see README "Hosts".
+    identityBaseUrl: process.env.AMIGO_IDENTITY_URL,
   })
 
   const parent = await backendClient.tokens.exchangeClientCredentials({

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { AmigoClient } from '../../src/index.js'
+import { AmigoClient, ServiceUnavailableError } from '../../src/index.js'
 import { NotFoundError } from '../../src/core/errors.js'
 
 const TEST_API_KEY = 'test-api-key-abc123'
@@ -93,14 +93,6 @@ const client = new AmigoClient({
     [`POST ${BASE}/operators/${OPERATOR_ID}/leave-call`]: () =>
       Response.json({ operator_id: OPERATOR_ID, call_sid: CALL_SID, status: 'disconnected' }),
 
-    [`POST ${BASE}/operators/${OPERATOR_ID}/access-token`]: () =>
-      Response.json({
-        token: 'eyJhbGciOiJSUzI1NiJ9.test',
-        identity: OPERATOR_ID,
-        conference_sid: 'CF1234567890abcdef1234567890abcdef',
-        connect_params: {},
-      }),
-
     [`GET ${BASE}/operators/escalations`]: () =>
       Response.json({ items: [], has_more: false, continuation_token: null }),
 
@@ -154,14 +146,6 @@ describe('OperatorsResource', () => {
     expect(result.participant_call_sid).toBe('CA0987654321abcdef1234567890abcdef')
   })
 
-  it('gets an access token', async () => {
-    const result = await client.operators.getAccessToken(OPERATOR_ID, {
-      scope: 'operator',
-    } as never)
-    expect(result.token).toContain('eyJ')
-    expect(result.identity).toBe(OPERATOR_ID)
-  })
-
   it('lists escalations', async () => {
     const result = await client.operators.getEscalations()
     expect(result.items).toHaveLength(0)
@@ -170,5 +154,52 @@ describe('OperatorsResource', () => {
   it('gets active escalations', async () => {
     const result = await client.operators.getActiveEscalations()
     expect(result.items).toHaveLength(0)
+  })
+
+  describe('audit log', () => {
+    it('sends the operator, action, limit and continuation token as query parameters', async () => {
+      const queries: Record<string, string>[] = []
+      const recording = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+          const request = input instanceof Request ? input : new Request(input, init)
+          queries.push(Object.fromEntries(new URL(request.url).searchParams))
+          return Response.json({ items: [], has_more: false, continuation_token: null })
+        },
+      })
+
+      for (const action of [
+        'operator.takeover_started',
+        'operator.handback',
+        'operator.authored_turn',
+      ] as const) {
+        await recording.operators.getAuditLog({ operator_id: OPERATOR_ID, action, limit: 25 })
+      }
+      await recording.operators.getAuditLog({ continuation_token: 'next-page' })
+
+      expect(queries).toEqual([
+        { operator_id: OPERATOR_ID, action: 'operator.takeover_started', limit: '25' },
+        { operator_id: OPERATOR_ID, action: 'operator.handback', limit: '25' },
+        { operator_id: OPERATOR_ID, action: 'operator.authored_turn', limit: '25' },
+        { continuation_token: 'next-page' },
+      ])
+    })
+
+    it('throws ServiceUnavailableError when the audit ledger cannot be read', async () => {
+      const unavailable = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        maxRetries: 0,
+        fetch: mockFetch({
+          [`GET ${BASE}/operators/audit-log`]: () =>
+            Response.json({ detail: 'The audit ledger could not be read.' }, { status: 503 }),
+        }),
+      })
+
+      await expect(unavailable.operators.getAuditLog()).rejects.toBeInstanceOf(
+        ServiceUnavailableError,
+      )
+    })
   })
 })

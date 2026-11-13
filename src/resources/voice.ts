@@ -1,4 +1,5 @@
-import type { components } from '../generated/api.js'
+import type { components, operations } from '../generated/api.js'
+import { WorkspaceScopedResource, extractData } from './base.js'
 
 /** Provider constants derived from OpenAPI voice control-plane enums. */
 
@@ -7,6 +8,7 @@ export type VoiceSessionProvider = NonNullable<
 >
 export type SttProvider = NonNullable<components['schemas']['VoiceSettingsRequest']['stt_provider']>
 export type TtsProvider = NonNullable<components['schemas']['VoiceSettingsRequest']['tts_provider']>
+export type VoiceLanguage = NonNullable<components['schemas']['VoiceSettingsRequest']['language']>
 
 export type ServiceVoiceConfigInput = components['schemas']['ServiceVoiceConfig-Input']
 export type ServiceVoiceConfigOutput = components['schemas']['ServiceVoiceConfig-Output']
@@ -18,15 +20,21 @@ export type VoiceSettingsResponse = components['schemas']['VoiceSettingsResponse
 type ExhaustiveProviderList<Union extends string, Values extends readonly Union[]> =
   Exclude<Union, Values[number]> extends never ? Values : never
 
-// Voice MODEL FAMILIES (2026-07-09 rename): amigo = Amigo's own pipeline (the default),
-// gpt_realtime = OpenAI's GPT-Realtime family, gpt_live = OpenAI's GPT-Live full-duplex
-// family (dark until its API is GA — accepted by the contract, never selected by default).
-// Families name models; runtimes are platform-internal. Legacy values
-// (inhouse/atlas/openai_realtime) are normalized server-side and never appear here.
+// Voice MODEL FAMILIES: concurrence = Concurrence's own pipeline (the default), gpt_realtime = OpenAI's
+// GPT-Realtime family, eleven_realtime = ElevenLabs' Eleven Realtime family, gpt_live = OpenAI's
+// GPT-Live front end with the platform's reasoning engine as its backend (US workspaces without
+// regional data residency), grok_voice = xAI's Grok Voice family (workspaces without regional data
+// residency), gemini_live = Google's Gemini Live family, phonic = Phonic's family. A workspace in a
+// regional deployment is refused eleven_realtime, gpt_live and grok_voice. Families name models; runtimes are platform-internal. Discover each family's models,
+// voices and options with GET /v1/{workspace_id}/voice-families rather than baking them in.
 const voiceSessionProviders = [
-  'amigo',
+  'concurrence',
   'gpt_realtime',
+  'eleven_realtime',
   'gpt_live',
+  'grok_voice',
+  'gemini_live',
+  'phonic',
 ] as const satisfies readonly VoiceSessionProvider[]
 export const VOICE_SESSION_PROVIDERS = voiceSessionProviders satisfies ExhaustiveProviderList<
   VoiceSessionProvider,
@@ -46,8 +54,65 @@ export const STT_PROVIDERS = sttProviders satisfies ExhaustiveProviderList<
   typeof sttProviders
 >
 
-const ttsProviders = ['cartesia', 'elevenlabs', 'groq'] as const satisfies readonly TtsProvider[]
+const ttsProviders = ['cartesia', 'elevenlabs'] as const satisfies readonly TtsProvider[]
 export const TTS_PROVIDERS = ttsProviders satisfies ExhaustiveProviderList<
   TtsProvider,
   typeof ttsProviders
 >
+
+const voiceLanguages = [
+  'en',
+  'es',
+  'ar',
+  'fr',
+  'de',
+  'pt',
+  'zh',
+  'ja',
+  'ko',
+  'multilingual',
+] as const satisfies readonly VoiceLanguage[]
+/**
+ * The languages a workspace's calls can be spoken in when the caller's record
+ * names none. `multilingual` starts each call in English and follows the
+ * language the caller speaks. Any other value is a 422.
+ */
+export const VOICE_LANGUAGES = voiceLanguages satisfies ExhaustiveProviderList<
+  VoiceLanguage,
+  typeof voiceLanguages
+>
+
+export type VoiceFamily = operations['list-family-voices']['parameters']['path']['family']
+export type VoiceFamilyListResponse = components['schemas']['VoiceFamilyListResponse']
+export type VoiceListResponse = components['schemas']['VoiceListResponse']
+export type ListFamilyVoicesParams = NonNullable<
+  operations['list-family-voices']['parameters']['query']
+>
+
+/**
+ * Voice families: each family's models, voices and options, read from the platform instead of
+ * baked into the client.
+ */
+export class VoiceFamiliesResource extends WorkspaceScopedResource {
+  /** List the voice families and what each offers this workspace. */
+  async list() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/voice-families', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /**
+   * Page the voices of one family, even when this workspace cannot use the family. Reuse the
+   * returned `next_cursor` with the same filters. Static voices carry no language metadata, so a
+   * nonempty `language` filter matches none of them.
+   */
+  async listVoices(family: VoiceFamily, params?: ListFamilyVoicesParams) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/voice-families/{family}/voices', {
+        params: { path: { workspace_id: this.workspaceId, family }, query: params },
+      }),
+    )
+  }
+}

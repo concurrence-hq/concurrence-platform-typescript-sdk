@@ -16,8 +16,8 @@ export type InvokeWorkspaceDataQueryResponse =
   components['schemas']['src__routes__workspace_data_queries__invoke_workspace_data_query__Response']
 
 /**
- * Workspace data queries — register, list, update, and invoke Lakebase-backed
- * workspace query tools.
+ * Workspace data queries: register, list, update, and invoke workspace query
+ * tools.
  */
 export class WorkspaceDataQueriesResource extends WorkspaceScopedResource {
   async list(): Promise<WorkspaceDataQueryListResponse> {
@@ -28,6 +28,13 @@ export class WorkspaceDataQueriesResource extends WorkspaceScopedResource {
     )
   }
 
+  /**
+   * Register a data query. `declarations.reads` says whose patient record a
+   * call returns. A query over practice data, such as FAQ articles, locations
+   * or hours, declares `{ patient_in: 'none' }`, so the voice agent never
+   * counts its result as a patient's record. A declaration left out is
+   * undeclared, and one a data query can't make throws `ValidationError`.
+   */
   async create(body: CreateWorkspaceDataQueryRequest): Promise<WorkspaceDataQuery> {
     return extractData(
       await this.client.POST('/v1/{workspace_id}/data_queries', {
@@ -45,6 +52,10 @@ export class WorkspaceDataQueriesResource extends WorkspaceScopedResource {
     )
   }
 
+  /**
+   * Update a data query. Each declaration named in `declarations` replaces the
+   * stored one (`null` undeclares it), and one left out keeps what is stored.
+   */
   async update(
     queryId: string,
     body: UpdateWorkspaceDataQueryRequest,

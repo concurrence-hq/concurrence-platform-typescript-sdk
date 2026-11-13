@@ -117,6 +117,31 @@ describe('TriggersResource', () => {
     expect(result.items[0]?.is_active).toBe(true)
   })
 
+  it('passes an opaque response cursor back unchanged on the next request', async () => {
+    const cursor = 'page:next/+==200'
+    const requests: string[] = []
+    const paged = new AmigoClient({
+      apiKey: TEST_API_KEY,
+      workspaceId: TEST_WORKSPACE_ID,
+      fetch: async (input: string | URL | Request): Promise<Response> => {
+        const url = input instanceof Request ? input.url : input.toString()
+        requests.push(url)
+        return Response.json({
+          items: [TRIGGER_FIXTURE],
+          has_more: requests.length === 1,
+          continuation_token: requests.length === 1 ? cursor : null,
+        })
+      },
+    })
+    const first = await paged.triggers.list({ limit: 1 })
+    const second = await paged.triggers.list({
+      limit: 1,
+      continuation_token: first.continuation_token,
+    })
+    expect(new URL(requests[1] ?? '').searchParams.get('continuation_token')).toBe(cursor)
+    expect(second.has_more).toBe(false)
+  })
+
   it('gets a trigger by id', async () => {
     const result = await client.triggers.get(TRIGGER_ID)
     expect(result.id).toBe(TRIGGER_ID)

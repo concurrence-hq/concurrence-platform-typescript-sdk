@@ -6,6 +6,7 @@ import { mockFetch } from '../helpers/mock-fetch.js'
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
 let lastVoiceUpdateBody: unknown
+let lastSafetyUpdateBody: unknown
 
 const VOICE_SETTINGS_FIXTURE = {
   language: 'en',
@@ -78,16 +79,41 @@ const client = new AmigoClient({
     [`PUT ${BASE}/settings/retention`]: () =>
       Response.json({ ...RETENTION_FIXTURE, call_recordings_days: 180 }),
 
-    [`GET ${BASE}/settings/gap-scanner`]: () => Response.json({ enabled: true, rules: [] }),
-    [`PUT ${BASE}/settings/gap-scanner`]: () => Response.json({ enabled: false, rules: [] }),
-    [`POST ${BASE}/settings/gap-scanner/preview`]: () =>
-      Response.json({ matches: [{ call_id: 'c-1', rule: 'missing_consent' }] }),
-    [`POST ${BASE}/settings/gap-scanner/scan`]: () =>
-      Response.json({ scan_id: 'scan-1', queued_at: '2026-05-03T00:00:00Z' }),
+    [`GET ${BASE}/settings/safety`]: () =>
+      Response.json({
+        output_checks: {
+          phi_unverified: { mode: 'off', source: 'platform' },
+          diagnosis: { mode: 'cut', source: 'workspace' },
+        },
+      }),
+
+    [`PUT ${BASE}/settings/safety`]: ({ body }) => {
+      lastSafetyUpdateBody = body
+      return Response.json({
+        output_checks: { diagnosis: { mode: 'off', source: 'workspace' } },
+      })
+    },
   }),
 })
 
 describe('SettingsResource', () => {
+  describe('safety', () => {
+    it('gets each reply check with its effective mode and source', async () => {
+      const result = await client.settings.safety.get()
+      expect(result.output_checks.diagnosis).toEqual({ mode: 'cut', source: 'workspace' })
+      expect(result.output_checks.phi_unverified?.source).toBe('platform')
+    })
+
+    it('updates the workspace defaults', async () => {
+      const body = {
+        output_checks: { diagnosis: 'off' },
+      } as Parameters<typeof client.settings.safety.update>[0]
+      const result = await client.settings.safety.update(body)
+      expect(lastSafetyUpdateBody).toEqual(body)
+      expect(result.output_checks.diagnosis?.mode).toBe('off')
+    })
+  })
+
   beforeEach(() => {
     lastVoiceUpdateBody = undefined
   })
@@ -153,24 +179,6 @@ describe('SettingsResource', () => {
     it('updates retention policy', async () => {
       const result = await client.settings.retention.update({ call_recordings_days: 180 } as never)
       expect(result.call_recordings_days).toBe(180)
-    })
-  })
-
-  describe('gapScanner', () => {
-    it('gets and updates the rules', async () => {
-      expect(await client.settings.gapScanner.get()).toMatchObject({ enabled: true })
-      expect(
-        await client.settings.gapScanner.update({ enabled: false } as Parameters<
-          typeof client.settings.gapScanner.update
-        >[0]),
-      ).toMatchObject({ enabled: false })
-    })
-
-    it('previews and queues an on-demand scan', async () => {
-      expect(await client.settings.gapScanner.preview()).toMatchObject({
-        matches: [{ call_id: 'c-1' }],
-      })
-      expect(await client.settings.gapScanner.scan()).toMatchObject({ scan_id: 'scan-1' })
     })
   })
 })

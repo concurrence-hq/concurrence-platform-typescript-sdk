@@ -7,7 +7,7 @@ Thank you for your interest in contributing to the Amigo Platform SDK! This guid
 1. Clone the repository
 2. Install dependencies:
    ```bash
-   npm install
+   npm ci
    ```
 
 ## Package.json Scripts Overview
@@ -24,7 +24,7 @@ Thank you for your interest in contributing to the Amigo Platform SDK! This guid
 - **`npm run test:dist`** — Verify the built ESM and CJS artifacts
 - **`npm run typecheck:examples`** — Typecheck the repo-local SDK examples
 - **`npx vitest run`** — Run all tests including core utilities
-- **`npx vitest run tests/integration/`** — Run integration tests (requires API credentials)
+- **`npm run test:integration`** — Run integration tests (requires API credentials)
 
 ### Code Quality
 
@@ -35,8 +35,6 @@ Thank you for your interest in contributing to the Amigo Platform SDK! This guid
 ### Dependency Upgrades
 
 When upgrading `openapi-fetch`, keep the direct `openapi-typescript-helpers` dependency aligned with the range declared by `openapi-fetch`. The SDK's published declarations import both packages directly, and `npm run test:tarball` enforces the range coupling.
-
-`npm run test:reviewer` uses Python's standard `unittest` runner. Use the repository CI Python version when changing `scripts/pr_review/`; the workflow currently runs the reviewer tests on Python 3.12.
 
 ## Testing
 
@@ -59,7 +57,7 @@ npm test                              # Unit tests (fast)
 npm run test:dist                     # Dist compatibility tests (run after build)
 npm run typecheck:examples            # Validate repo-local examples
 npx vitest run                        # All tests
-npx vitest run tests/integration/     # Integration tests (needs env vars)
+npm run test:integration     # Integration tests (needs env vars)
 npx vitest run --coverage             # With coverage report
 ```
 
@@ -71,11 +69,11 @@ npx vitest run --coverage             # With coverage report
 
 ## OpenAPI Type Generation
 
-Types are auto-generated from the committed OpenAPI spec in `amigo-ai/platform`.
+Public builds use this repository's committed `openapi.json` snapshot. Contributors do not need access to another repository to build or test the SDK.
 
 ### How it Works
 
-1. `scripts/gen-types.mjs` reads `openapi.json` (local or from the platform repo)
+1. `scripts/gen-types.mjs` reads the committed `openapi.json` by default; an explicit `--spec` can select another permitted file
 2. Patches FastAPI's spec to add missing path parameters (`workspace_id`, etc.)
 3. Runs `openapi-typescript` to generate `src/generated/api.ts`
 4. These types drive all SDK resource methods with full type safety
@@ -83,7 +81,7 @@ Types are auto-generated from the committed OpenAPI spec in `amigo-ai/platform`.
 ### Regenerating Types
 
 ```bash
-npm run gen-types                                      # auto-detect local spec
+npm run gen-types                                      # committed repository snapshot
 npm run gen-types -- --spec path/to/openapi.json       # explicit file
 ```
 
@@ -115,7 +113,7 @@ scripts/
 
 ## Development Workflow
 
-1. **Start**: `npm install`
+1. **Start**: `npm ci`
 2. **Write code**: Edit `src/resources/` or `src/core/`
 3. **Write tests**: Add tests in `tests/`
 4. **Validate**: `npm run lint && npm run typecheck && npm run typecheck:examples && npm test && npm run build && npm run test:dist`
@@ -172,4 +170,4 @@ When the platform API spec changes on `main`, the `spec-sync.yml` workflow:
 
 ### Repository Secrets
 
-Maintainers: configure npm trusted publishing for `publish.yml` where possible. Keep `NPM_TOKEN` only as a temporary fallback and configure `RELEASE_PUSH_TOKEN` only when branch protection prevents the default `GITHUB_TOKEN` from pushing release commits and tags. See the internal runbook for CI secret configuration.
+Maintainers: configure npm trusted publishing for `publish.yml` where possible. Keep `NPM_TOKEN` only as a temporary fallback and configure `RELEASE_PUSH_TOKEN` only when branch protection prevents the default `GITHUB_TOKEN` from pushing release commits and tags. For recovery after a failed publish, dispatch `publish.yml` from `main` with `expected_version` set to the existing release version. The workflow still checks out and validates the immutable tag; do not move the tag or rerun version creation to recover a publish.

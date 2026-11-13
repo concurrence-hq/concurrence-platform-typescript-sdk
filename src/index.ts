@@ -20,6 +20,7 @@
 import type { FetchResponse, HeadersOptions } from 'openapi-fetch'
 import type { MediaType, PathsWithMethod } from 'openapi-typescript-helpers'
 import { ConfigurationError } from './core/errors.js'
+import { DEFAULT_IDENTITY_URL } from './core/device-code.js'
 import {
   applyPlatformRequestOptions,
   createPlatformClient,
@@ -38,18 +39,30 @@ import { MeResource } from './resources/me.js'
 import { WorkspacesResource } from './resources/workspaces.js'
 import { ApiKeysResource } from './resources/api-keys.js'
 import { TokensResource } from './resources/tokens.js'
+import { WorkspaceAuthenticationResource } from './resources/workspace-authentication.js'
+import { SsoLifecycleResource } from './resources/sso-lifecycle.js'
+import { SsoGrantsResource } from './resources/sso-grants.js'
+import { SsoGroupGrantsResource } from './resources/sso-group-grants.js'
+import { IdentityCredentialsResource } from './resources/identity-credentials.js'
 import { AgentsResource } from './resources/agents.js'
 import { AgentRunsResource } from './resources/agent-runs.js'
 export { AGENT_RUN_FRAMEWORKS, AGENT_RUN_FRAMEWORK_LABELS } from './resources/agent-runs.js'
 export type { AgentRunFramework } from './resources/agent-runs.js'
 import { RunsResource } from './resources/runs.js'
-import { AgentDefinitionsResource } from './resources/agent-definitions.js'
 import { SkillsResource } from './resources/skills.js'
 import { ActionsResource } from './resources/actions.js'
+export type {
+  IdentityGroupLifecycleActionRequest,
+  IdentityGroupLifecycleActionResponse,
+  IdentityLifecycleActionRequest,
+  IdentityLifecycleActionResponse,
+} from './resources/actions.js'
 import { OperatorsResource } from './resources/operators.js'
 import { PromptLogsResource } from './resources/prompt-logs.js'
 import { TriggersResource } from './resources/triggers.js'
 import { ServicesResource } from './resources/services.js'
+import { DynamicBehaviorSetsResource } from './resources/dynamic-behavior-sets.js'
+import { StagingClonesResource } from './resources/staging-clones.js'
 import { ContextGraphsResource } from './resources/context-graphs.js'
 import { DataSourcesResource } from './resources/data-sources.js'
 import { WorldResource } from './resources/world.js'
@@ -60,38 +73,55 @@ import { ExternalIntegrationsResource } from './resources/external-integrations.
 import { AnalyticsResource } from './resources/analytics.js'
 import { SimulationsResource } from './resources/simulations.js'
 import { MetricsResource } from './resources/metrics.js'
+import { VoiceFamiliesResource } from './resources/voice.js'
+import { ProductionEvalsResource } from './resources/production-evals.js'
 import { SettingsResource } from './resources/settings.js'
-import { BillingResource } from './resources/billing.js'
 import { RecordingsResource } from './resources/recordings.js'
 import { AuditResource } from './resources/audit.js'
 import { ComplianceResource } from './resources/compliance.js'
 import { EventsResource } from './resources/events.js'
 import { FunctionsResource } from './resources/functions.js'
+import { OperationGrantsResource } from './resources/operation-grants.js'
 import { ObserversResource } from './resources/observers.js'
 import { TestCallsResource } from './resources/test-calls.js'
 import { FhirResource } from './resources/fhir.js'
 import { InsightsResource } from './resources/insights.js'
 import { CommandCenterResource } from './resources/command-center.js'
 import { SensoriumResource } from './resources/sensorium.js'
+import { ClientConfigResource } from './resources/client-config.js'
+import { DashboardsResource } from './resources/dashboards.js'
+import { IntakeResource } from './resources/intake.js'
 import { DataQueryResource } from './resources/data-query.js'
 import { BriefsResource } from './resources/briefs.js'
-import { DesktopSessionsResource } from './resources/desktop-sessions.js'
-import { IntakeResource } from './resources/intake.js'
 import { NetworkResource } from './resources/network.js'
 import { PipelineResource } from './resources/pipeline.js'
-import { TasksResource } from './resources/tasks.js'
 import { ToolsResource } from './resources/tools.js'
 import { SurfacesResource } from './resources/surfaces.js'
 import { SessionsResource } from './resources/sessions.js'
-import { WorkspaceDatabaseResource } from './resources/workspace-database.js'
-import { WorkspaceDataQueriesResource } from './resources/workspace-data-queries.js'
+import { BillingResource } from './resources/billing.js'
+import { ExternalAuthClaimMappingsResource } from './resources/external-auth-claim-mappings.js'
+import { ExternalIdentityBindingsResource } from './resources/external-identity-bindings.js'
+import { ExternalRoleAssignmentsResource } from './resources/external-role-assignments.js'
+import { ExternalRolesResource } from './resources/external-roles.js'
+import { RoleGrantsResource } from './resources/role-grants.js'
+import { ReviewQueueResource } from './resources/review-queue.js'
+import { M42Resource } from './resources/m42.js'
+import { MemoryDimensionsResource } from './resources/memory-dimensions.js'
+import { MeteringResource } from './resources/metering.js'
+import { HarnessesResource } from './resources/harnesses.js'
+import { MetricStoreResource } from './resources/metric-store.js'
+import { ModelsResource } from './resources/models.js'
+import { SchedulingRuleSetsResource } from './resources/scheduling-rule-sets.js'
+import { WorkspaceTablesResource } from './resources/workspace-tables.js'
+import { TracesResource } from './resources/traces.js'
 import { UseCasesResource } from './resources/use-cases.js'
+import { WorkspaceDataQueriesResource } from './resources/workspace-data-queries.js'
 import { resolveScopedPlatformClient, scopePlatformClient } from './resources/base.js'
 import type { components, paths } from './generated/api.js'
 import type { MetricValue as MetricValueAlias } from './resources/metrics.js'
 import { withResponse, type AmigoResponse } from './core/utils.js'
 
-export const DEFAULT_BASE_URL = 'https://api.platform.amigo.ai'
+export const DEFAULT_BASE_URL = 'https://platform.api-us.concurrence.com'
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 // The generated client exposes TRACE, but the SDK only publishes helpers for
@@ -132,7 +162,10 @@ export interface AmigoClientConfig {
   workspaceId: string
 
   /**
-   * Override the base URL. Defaults to https://api.platform.amigo.ai
+   * Override the base URL. Defaults to https://platform.api-us.concurrence.com
+   *
+   * Other regions use `https://platform.api-eu.concurrence.com` (also `-au`,
+   * `-ca`).
    *
    * For BFF proxy patterns (e.g., Next.js), point this at your proxy:
    * ```ts
@@ -140,6 +173,23 @@ export interface AmigoClientConfig {
    * ```
    */
   baseUrl?: string
+
+  /**
+   * Base URL for the identity service, which `client.tokens` calls for
+   * `POST /token`. Defaults to `baseUrl` when you set one, otherwise
+   * https://identity.api-us.concurrence.com.
+   *
+   * The hosted platform serves identity on its own host, so set both when you
+   * point `baseUrl` at another region:
+   * ```ts
+   * new AmigoClient({
+   *   baseUrl: 'https://platform.api-eu.concurrence.com',
+   *   identityBaseUrl: 'https://identity.api-eu.concurrence.com',
+   *   ...
+   * })
+   * ```
+   */
+  identityBaseUrl?: string
 
   /** Retry configuration for failed requests */
   retry?: RetryOptions
@@ -170,7 +220,7 @@ export interface AmigoClientConfig {
    *
    * Required when `baseUrl` points to a BFF proxy or a different host
    * than the agent engine — WebSockets cannot traverse HTTP proxies.
-   * Used by `conversations.textStreamUrl()` to build the `ws://` URL.
+   * Used by `conversations.sessionConnectUrl()` and `observers.subscribe()` to build the `ws://` URL.
    *
    * Accepts `http://` or `https://` (auto-mapped to `ws://` / `wss://`)
    * or direct `ws://` / `wss://` URLs.
@@ -181,7 +231,7 @@ export interface AmigoClientConfig {
    * ```ts
    * new AmigoClient({
    *   baseUrl: '/api/platform',  // BFF proxy for REST
-   *   agentBaseUrl: 'wss://api.platform.amigo.ai',  // direct for WS
+   *   agentBaseUrl: 'wss://agent-engine.api-us.concurrence.com',  // direct for WS
    *   ...
    * })
    * ```
@@ -197,10 +247,14 @@ export class AmigoClient {
   readonly me!: MeResource
   readonly apiKeys!: ApiKeysResource
   readonly tokens!: TokensResource
+  readonly workspaceAuthentication!: WorkspaceAuthenticationResource
+  readonly ssoLifecycle!: SsoLifecycleResource
+  readonly ssoGrants!: SsoGrantsResource
+  readonly ssoGroupGrants!: SsoGroupGrantsResource
+  readonly identityCredentials!: IdentityCredentialsResource
   readonly agents!: AgentsResource
   readonly agentRuns!: AgentRunsResource
   readonly runs!: RunsResource
-  readonly agentDefinitions!: AgentDefinitionsResource
   /** @deprecated Use `actions` instead */
   readonly skills!: SkillsResource
   readonly actions!: ActionsResource
@@ -208,6 +262,7 @@ export class AmigoClient {
   readonly promptLogs!: PromptLogsResource
   readonly triggers!: TriggersResource
   readonly services!: ServicesResource
+  readonly stagingClones!: StagingClonesResource
   readonly contextGraphs!: ContextGraphsResource
   readonly dataSources!: DataSourcesResource
   readonly world!: WorldResource
@@ -218,13 +273,18 @@ export class AmigoClient {
   readonly analytics!: AnalyticsResource
   readonly simulations!: SimulationsResource
   readonly metrics!: MetricsResource
+  /** Voice families: each family's models and paged voices */
+  readonly voiceFamilies!: VoiceFamiliesResource
+  /** Production evals: eval definitions run against live calls, and each call's verdicts */
+  readonly productionEvals!: ProductionEvalsResource
   readonly settings!: SettingsResource
-  readonly billing!: BillingResource
   readonly recordings!: RecordingsResource
   readonly audit!: AuditResource
   readonly compliance!: ComplianceResource
   readonly events!: EventsResource
   readonly functions!: FunctionsResource
+  /** Approve and invoke exact registered operations with dedicated machine credentials. */
+  readonly operationGrants!: OperationGrantsResource
   /**
    * Voice-call observer real-time stream. Subscribe with
    * ``client.observers.subscribe({ callSid, token, onEvent })``. See
@@ -241,32 +301,48 @@ export class AmigoClient {
   readonly commandCenter!: CommandCenterResource
   /** Sensorium — operator-facing live agent loop observability */
   readonly sensorium!: SensoriumResource
-  /** Generic data query against whitelisted workspace datasets */
+  /** Browser-safe platform config, such as the Google Maps key */
+  readonly clientConfig!: ClientConfigResource
+  /** Plotly dashboard definitions and their panel queries */
+  readonly dashboards!: DashboardsResource
+  /** Customer data intake: files, datasets, Drive sources, sync batches, materialization */
+  readonly intake!: IntakeResource
+  /** Data queries over workspace Lakebase tables: filtered table reads and one-statement SQL */
   readonly dataQuery!: DataQueryResource
   /** AI-generated entity briefs (workspace-level + per-entity) */
   readonly briefs!: BriefsResource
-  /** Remote-controlled desktop sessions for driving GUI-only third-party apps */
-  readonly desktopSessions!: DesktopSessionsResource
-  /** Patient intake — signed upload links + uploads */
-  readonly intake!: IntakeResource
   /** Workspace network metadata (egress IP allowlist) */
   readonly network!: NetworkResource
   /** Data ingestion pipeline observability (sources, throughput, review backlog) */
   readonly pipeline!: PipelineResource
-  /** Long-running async tasks (poll by id or list by call) */
-  readonly tasks!: TasksResource
   /** Manual tool execution + per-service tool resolution */
   readonly tools!: ToolsResource
   /** Surfaces — short-lived form/intake experiences (lifecycle: create→deliver→review→approve) */
   readonly surfaces!: SurfacesResource
   /** Live agent sessions — list active calls + inject mid-call directives */
   readonly sessions!: SessionsResource
-  /** Workspace database — Lakebase fork lifecycle, SQL query execution, query tool CRUD */
-  readonly workspaceDatabase!: WorkspaceDatabaseResource
+  readonly billing!: BillingResource
+  readonly externalAuthClaimMappings!: ExternalAuthClaimMappingsResource
+  readonly externalIdentityBindings!: ExternalIdentityBindingsResource
+  readonly externalRoleAssignments!: ExternalRoleAssignmentsResource
+  readonly externalRoles!: ExternalRolesResource
+  readonly roleGrants!: RoleGrantsResource
+  readonly reviewQueue!: ReviewQueueResource
+  readonly m42!: M42Resource
+  readonly memoryDimensions!: MemoryDimensionsResource
+  readonly metering!: MeteringResource
+  /** Platform harness defaults and releases; pins and settings are on `services` */
+  readonly harnesses!: HarnessesResource
+  readonly metricStore!: MetricStoreResource
+  readonly models!: ModelsResource
+  readonly schedulingRuleSets!: SchedulingRuleSetsResource
+  readonly workspaceTables!: WorkspaceTablesResource
+  readonly traces!: TracesResource
+  readonly useCases!: UseCasesResource
   /** Workspace data queries — Lakebase-backed query tool registry */
   readonly workspaceDataQueries!: WorkspaceDataQueriesResource
-  /** Channel use cases and service bindings */
-  readonly useCases!: UseCasesResource
+  /** Dynamic behaviors library: sets and their versions; pin them with `services.setDynamicBehaviorPin` */
+  readonly dynamicBehaviorSets!: DynamicBehaviorSetsResource
   /** @internal — exposed for path-level type inference in GET/POST/PUT/etc. */
   readonly api!: PlatformFetch
 
@@ -279,10 +355,17 @@ export class AmigoClient {
     }
 
     const baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '')
+    // A custom baseUrl (BFF proxy, gateway) also carries /token unless identityBaseUrl is set.
+    const identityBaseUrl = (
+      config.identityBaseUrl ??
+      config.baseUrl ??
+      DEFAULT_IDENTITY_URL
+    ).replace(/\/$/, '')
 
     const client = createPlatformClient({
       apiKey: config.apiKey,
       baseUrl,
+      identityBaseUrl,
       retry: config.retry,
       maxRetries: config.maxRetries,
       timeout: config.timeout,
@@ -473,16 +556,21 @@ export class AmigoClient {
     mutable.me = new MeResource(client, '_account')
     mutable.apiKeys = new ApiKeysResource(client, workspaceId)
     mutable.tokens = new TokensResource(client, workspaceId)
+    mutable.workspaceAuthentication = new WorkspaceAuthenticationResource(client, workspaceId)
+    mutable.ssoLifecycle = new SsoLifecycleResource(client, workspaceId)
+    mutable.ssoGrants = new SsoGrantsResource(client, workspaceId)
+    mutable.ssoGroupGrants = new SsoGroupGrantsResource(client, workspaceId)
+    mutable.identityCredentials = new IdentityCredentialsResource(client, '_identity-admin')
     mutable.agents = new AgentsResource(client, workspaceId)
     mutable.agentRuns = new AgentRunsResource(client, workspaceId)
     mutable.runs = new RunsResource(client, workspaceId)
-    mutable.agentDefinitions = new AgentDefinitionsResource(client, workspaceId)
     mutable.skills = new SkillsResource(client, workspaceId)
     mutable.actions = new ActionsResource(client, workspaceId)
     mutable.operators = new OperatorsResource(client, workspaceId)
     mutable.promptLogs = new PromptLogsResource(client, workspaceId)
     mutable.triggers = new TriggersResource(client, workspaceId)
     mutable.services = new ServicesResource(client, workspaceId)
+    mutable.stagingClones = new StagingClonesResource(client, workspaceId)
     mutable.contextGraphs = new ContextGraphsResource(client, workspaceId)
     mutable.dataSources = new DataSourcesResource(client, workspaceId)
     mutable.world = new WorldResource(client, workspaceId)
@@ -493,32 +581,50 @@ export class AmigoClient {
     mutable.analytics = new AnalyticsResource(client, workspaceId)
     mutable.simulations = new SimulationsResource(client, workspaceId)
     mutable.metrics = new MetricsResource(client, workspaceId)
+    mutable.voiceFamilies = new VoiceFamiliesResource(client, workspaceId)
+    mutable.productionEvals = new ProductionEvalsResource(client, workspaceId)
     mutable.settings = new SettingsResource(client, workspaceId)
-    mutable.billing = new BillingResource(client, workspaceId)
     mutable.recordings = new RecordingsResource(client, workspaceId)
     mutable.audit = new AuditResource(client, workspaceId)
     mutable.compliance = new ComplianceResource(client, workspaceId)
     mutable.events = new EventsResource(client, workspaceId)
     mutable.functions = new FunctionsResource(client, workspaceId)
+    mutable.operationGrants = new OperationGrantsResource(client, workspaceId)
     mutable.observers = new ObserversResource(client, workspaceId, agentBaseUrl)
     mutable.testCalls = new TestCallsResource(client, workspaceId, agentBaseUrl)
     mutable.fhir = new FhirResource(client, workspaceId)
     mutable.insights = new InsightsResource(client, workspaceId)
     mutable.commandCenter = new CommandCenterResource(client, workspaceId)
     mutable.sensorium = new SensoriumResource(client, workspaceId)
+    mutable.clientConfig = new ClientConfigResource(client, workspaceId)
+    mutable.dashboards = new DashboardsResource(client, workspaceId)
+    mutable.intake = new IntakeResource(client, workspaceId)
     mutable.dataQuery = new DataQueryResource(client, workspaceId)
     mutable.briefs = new BriefsResource(client, workspaceId)
-    mutable.desktopSessions = new DesktopSessionsResource(client, workspaceId)
-    mutable.intake = new IntakeResource(client, workspaceId)
     mutable.network = new NetworkResource(client, workspaceId)
     mutable.pipeline = new PipelineResource(client, workspaceId)
-    mutable.tasks = new TasksResource(client, workspaceId)
     mutable.tools = new ToolsResource(client, workspaceId)
     mutable.surfaces = new SurfacesResource(client, workspaceId)
     mutable.sessions = new SessionsResource(client, workspaceId)
-    mutable.workspaceDatabase = new WorkspaceDatabaseResource(client, workspaceId)
-    mutable.workspaceDataQueries = new WorkspaceDataQueriesResource(client, workspaceId)
+    mutable.billing = new BillingResource(client, workspaceId)
+    mutable.externalAuthClaimMappings = new ExternalAuthClaimMappingsResource(client, workspaceId)
+    mutable.externalIdentityBindings = new ExternalIdentityBindingsResource(client, workspaceId)
+    mutable.externalRoleAssignments = new ExternalRoleAssignmentsResource(client, workspaceId)
+    mutable.externalRoles = new ExternalRolesResource(client, workspaceId)
+    mutable.roleGrants = new RoleGrantsResource(client, workspaceId)
+    mutable.reviewQueue = new ReviewQueueResource(client, workspaceId)
+    mutable.m42 = new M42Resource(client, workspaceId)
+    mutable.memoryDimensions = new MemoryDimensionsResource(client, workspaceId)
+    mutable.metering = new MeteringResource(client, workspaceId)
+    mutable.harnesses = new HarnessesResource(client, workspaceId)
+    mutable.metricStore = new MetricStoreResource(client, workspaceId)
+    mutable.models = new ModelsResource(client, workspaceId)
+    mutable.schedulingRuleSets = new SchedulingRuleSetsResource(client, workspaceId)
+    mutable.workspaceTables = new WorkspaceTablesResource(client, workspaceId)
+    mutable.traces = new TracesResource(client, workspaceId)
     mutable.useCases = new UseCasesResource(client, workspaceId)
+    mutable.workspaceDataQueries = new WorkspaceDataQueriesResource(client, workspaceId)
+    mutable.dynamicBehaviorSets = new DynamicBehaviorSetsResource(client, workspaceId)
   }
 
   private async resolveApiRequest<
@@ -652,6 +758,7 @@ export type { AmigoRequestOptions, ScopedRequestOptions } from './core/request-o
 export type { RetryOptions } from './core/retry.js'
 
 export { parseRateLimitHeaders } from './core/rate-limit.js'
+export { createIdempotencyKey } from './core/idempotency.js'
 export type { RateLimitInfo } from './core/rate-limit.js'
 
 export {
@@ -722,33 +829,127 @@ export type {
   MetricCatalogEntry,
   MetricCatalogResponse,
   MetricListResponse,
+  MetricValueListResponse,
   MetricValue,
   NumericalMetricValue,
   CategoricalMetricValue,
   BooleanMetricValue,
+  MetricListParams,
   MetricValuesParams,
   MetricTrendParams,
+  MetricDefinition,
+  MetricDefinitionRevision,
+  PutMetricDefinitionRequest,
+  MetricDefinitionListParams,
+  MetricDefinitionRevisionListParams,
 } from './resources/metrics.js'
 /** @deprecated Use `MetricValue` instead. */
 export type MetricValueResponse = MetricValueAlias
 
 export type { FireTriggerRequest, ListTriggersParams } from './resources/triggers.js'
+export type { DeleteInsightPinParams, ListInsightPinsParams } from './resources/insights.js'
 
 export type {
+  CallEvalResult,
+  CallEvalResultsResponse,
+  CreateProductionEvalDefinitionRequest,
+  ListProductionEvalDefinitionsParams,
+  ListProductionEvalResultsParams,
+  ProductionEvalDefinition,
+  ProductionEvalDefinitionListResponse,
+  ProductionEvalResultItem,
+  ProductionEvalResultListResponse,
+  UpdateProductionEvalDefinitionRequest,
+} from './resources/production-evals.js'
+
+export type {
+  AdvancedCallStatsParams,
+  AdvancedCallStatsResponse,
   EntitySurfaceHistoryParams,
+  EvalQualityParams,
+  EvalQualityResponse,
   SurfaceChannelEffectivenessParams,
   SurfaceCompletionRatesParams,
   SurfaceFieldAbandonmentParams,
+  ToolPerformanceParams,
+  ToolPerformanceResponse,
 } from './resources/analytics.js'
 
+export type {
+  CreateDynamicBehaviorSetRequest,
+  CreateDynamicBehaviorSetVersionRequest,
+  DynamicBehaviorSet,
+  DynamicBehaviorSetListResponse,
+  DynamicBehaviorSetPinningService,
+  DynamicBehaviorSetUsageParams,
+  DynamicBehaviorSetUsageResponse,
+  DynamicBehaviorSetVersion,
+  DynamicBehaviorSetVersionListResponse,
+  ListDynamicBehaviorSetsParams,
+  ListDynamicBehaviorSetVersionsParams,
+  UpdateDynamicBehaviorSetRequest,
+} from './resources/dynamic-behavior-sets.js'
+
+export type {
+  HarnessKind,
+  HarnessReleaseRef,
+  ListHarnessReleasesParams,
+} from './resources/harnesses.js'
+
+export type {
+  DynamicBehaviorPin,
+  GetServiceConfigurationIdentityParams,
+  ListVoiceJudgeResultsParams,
+  PromoteServiceConfigurationRequest,
+  ServiceConfigurationIdentityResponse,
+  ServicePromotionReceipt,
+  SetHarnessPinsRequest,
+  SetServiceSettingsRequest,
+  VoiceJudgeResult,
+  VoiceJudgeResultListResponse,
+} from './resources/services.js'
+
+export type {
+  StagingClonePreviewRequest,
+  StagingClonePreviewResponse,
+  StagingClonePullRequest,
+  StagingCloneApplyRequest,
+  StagingCloneReceipt,
+  StagingPairing,
+  StagingSourceServices,
+  StagingCloneImports,
+  StagingSourceServicesParams,
+  StagingCloneImportsParams,
+  StagingMirrorProposal,
+  StagingMirrorApplyRequest,
+  StagingMirrorReceipt,
+  StagingCloneBatchRequest,
+  StagingCloneBatchResult,
+} from './resources/staging-clones.js'
+
+export type { StagingWorkspaceSource } from './resources/me.js'
+
+export type { Run, RunManifest } from './resources/runs.js'
+
 /** Voice provider constants and types. */
-export { STT_PROVIDERS, TTS_PROVIDERS, VOICE_SESSION_PROVIDERS } from './resources/voice.js'
+export {
+  STT_PROVIDERS,
+  TTS_PROVIDERS,
+  VOICE_LANGUAGES,
+  VOICE_SESSION_PROVIDERS,
+  VoiceFamiliesResource,
+} from './resources/voice.js'
 export type {
   AgentVoiceConfig,
+  ListFamilyVoicesParams,
   ServiceVoiceConfigInput,
   ServiceVoiceConfigOutput,
   SttProvider,
   TtsProvider,
+  VoiceFamily,
+  VoiceFamilyListResponse,
+  VoiceLanguage,
+  VoiceListResponse,
   VoiceSessionProvider,
   VoiceSettingsRequest,
   VoiceSettingsResponse,
@@ -764,17 +965,71 @@ export type {
   WorkspaceDataQueryListResponse,
 } from './resources/workspace-data-queries.js'
 
-export { UseCasesResource } from './resources/use-cases.js'
 export type {
-  BindUseCaseServiceRequest,
-  ListUseCasesParams,
-  UseCase,
-  OwnedUseCasesResponse,
-  UseCaseListResponse,
-  UseCaseOwnership,
-  UseCaseServiceBinding,
-} from './resources/use-cases.js'
+  CreateOperationGrantRequest,
+  InvokeOperationGrantRequest,
+  InvokeOperationGrantResponse,
+  ListOperationGrantsParams,
+  OperationGrant,
+  OperationGrantListResponse,
+} from './resources/operation-grants.js'
 
+export type { ClientConfig } from './resources/client-config.js'
+
+export type {
+  CreateDashboardRequest,
+  Dashboard,
+  DashboardExecuteResponse,
+  DashboardListResponse,
+  DashboardPanelResult,
+  ExecuteDashboardRequest,
+  ListDashboardsParams,
+  UpdateDashboardRequest,
+} from './resources/dashboards.js'
+
+export type {
+  DataQueryParams,
+  WorkspaceQueryRequest,
+  WorkspaceQueryResponse,
+} from './resources/data-query.js'
+
+export type {
+  IntakeBatch,
+  IntakeBatchDetail,
+  IntakeBatchListResponse,
+  IntakeDataset,
+  IntakeDatasetListResponse,
+  IntakeDatasetUpdateRun,
+  IntakeFile,
+  IntakeFileListResponse,
+  IntakeFileStatus,
+  IntakeMaterialization,
+  IntakeMaterializationListResponse,
+  IntakeMaterializeRequest,
+  IntakeMaterializeResponse,
+  IntakeSource,
+  IntakeSourceListResponse,
+  IntakeSourceSyncResponse,
+  ListIntakeBatchesParams,
+  ListIntakeDatasetsParams,
+  ListIntakeFilesParams,
+  ListIntakeMaterializationsParams,
+  ListIntakeSourcesParams,
+  RegisterIntakeSchemaRequest,
+  RegisterIntakeSourceRequest,
+  UploadIntakeFileParams,
+} from './resources/intake.js'
+
+export type InsightsChatRequest = components['schemas']['ChatRequest']
+export type InsightSelection = components['schemas']['InsightSelection']
+export type InsightResult = components['schemas']['InsightResultResponse']
+export type InsightPublishedSource = components['schemas']['DemoSource']
+export type InsightDemoHome = components['schemas']['DemoHomeResponse']
+export type InsightPin = components['schemas']['SharedPin']
+export type InsightPinEvidence = components['schemas']['PinEvidence']
+export type InsightPinList = components['schemas']['PinListResponse']
+export type CreateInsightPinRequest = components['schemas']['CreatePinRequest']
+export type InsightPinRevisionRequest = components['schemas']['PinRevisionRequest']
 export type CallSummary = components['schemas']['CallSummary']
 export type CallDetail = components['schemas']['CallDetailResponse']
 export type CallTurn = components['schemas']['Turn']
@@ -800,24 +1055,29 @@ export type {
 } from './resources/events.js'
 export { WorkspaceEventStreamError, isWorkspaceEventStreamError } from './resources/events.js'
 
-export { sessionConnectAuthProtocols, textStreamAuthProtocols } from './resources/conversations.js'
+export { sessionConnectAuthProtocols } from './resources/conversations.js'
 export type {
   ChannelKind,
   ConversationDetail,
+  ConversationSource,
+  ConversationTag,
+  ConversationTagsPatch,
+  ConversationTagsResponse,
   ConversationTurn,
   ConversationTurnAvailableAction,
   ConversationTurnStateTransition,
   CreateConversationRequest,
   SessionConnectUrlParams,
   SwitchChannelRequest,
-  TextStreamAuthProtocols,
-  TextStreamUrlParams,
+  TurnArtifactEvent,
   TurnDoneEvent,
   TurnErrorEvent,
   TurnMessageEvent,
   TurnRequest,
   TurnResponse,
   TurnConversationSnapshot,
+  TurnStateEvent,
+  TurnStateTransitionEvent,
   TurnStreamEvent,
   TurnThinkingEvent,
   TurnTokenEvent,
@@ -927,3 +1187,9 @@ function withWorkspaceId<Path extends keyof paths & string, Init>(
     },
   }
 }
+
+export * from './resources/workspace-authentication.js'
+export * from './resources/sso-lifecycle.js'
+export * from './resources/sso-grants.js'
+export * from './resources/sso-group-grants.js'
+export * from './resources/identity-credentials.js'

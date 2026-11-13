@@ -8,6 +8,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { projectPublicOpenApi } from './lib/public-openapi.mjs'
 import {
   REPO_ROOT,
   assertWithinRoots,
@@ -15,7 +16,6 @@ import {
   resolveRepoPath,
 } from './lib/repo-paths.mjs'
 
-const OUT_FILE = resolveRepoPath('openapi.json')
 const PLATFORM_ROOT = path.resolve(REPO_ROOT, '../platform')
 const SIBLING_SPEC = path.resolve(PLATFORM_ROOT, 'services/platform-api/openapi.json')
 const ALLOWED_SPEC_ROOTS = [REPO_ROOT, PLATFORM_ROOT]
@@ -57,7 +57,8 @@ async function loadSpec(specSource) {
 const specSource = resolveSpecSource()
 console.log(`Syncing OpenAPI snapshot from: ${specSource}`)
 
-const document = await loadSpec(specSource)
+const OUT_FILE = resolveRepoPath(getArgValue('--output') ?? 'openapi.json')
+const document = projectPublicOpenApi(await loadSpec(specSource))
 fs.writeFileSync(OUT_FILE, `${JSON.stringify(document, null, 2)}\n`)
 
 console.log(`Wrote ${OUT_FILE}`)

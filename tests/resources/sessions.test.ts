@@ -71,10 +71,12 @@ describe('SessionsResource.getFleetStatus fleet param', () => {
     expect(url.searchParams.has('fleet')).toBe(false)
   })
 
-  it('requests the tool-runner fleet when specified', async () => {
-    await fleetClient.sessions.getFleetStatus({ fleet: 'tool-runner' })
-    const url = new URL(requestUrls.at(-1)!)
-    expect(url.pathname).toBe(`${BASE}/sessions/fleet-status`)
-    expect(url.searchParams.get('fleet')).toBe('tool-runner')
+  it('rejects an unsupported selector instead of mislabeling voice capacity', async () => {
+    const before = requestUrls.length
+    // @ts-expect-error The live endpoint has no fleet selector.
+    await expect(fleetClient.sessions.getFleetStatus({ fleet: 'tool-runner' })).rejects.toThrow(
+      'does not accept fleet options',
+    )
+    expect(requestUrls).toHaveLength(before)
   })
 })

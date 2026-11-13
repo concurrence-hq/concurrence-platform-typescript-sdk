@@ -6,6 +6,7 @@ import {
   type MetricCatalogResponse,
   type MetricListResponse,
   type MetricValue,
+  type MetricValueListResponse,
   type MetricValueResponse,
   type NumericalMetricValue,
 } from '../../src/index.js'
@@ -13,6 +14,8 @@ import {
 const TEST_API_KEY = 'test-api-key-abc123'
 const TEST_WORKSPACE_ID = 'ws-00000000-0000-0000-0000-000000000001'
 const BASE = `/v1/${TEST_WORKSPACE_ID}`
+const SERVICE_ID = '00000000-0000-0000-0000-0000000000a1'
+const RUN_ID = '00000000-0000-0000-0000-0000000000b1'
 
 const NUMERICAL_METRIC_VALUE = {
   metric_key: 'voice_quality_score',
@@ -33,6 +36,10 @@ const CATEGORICAL_METRIC_VALUE = {
   period_start: '2026-04-25T00:00:00Z',
   period_end: '2026-04-26T00:00:00Z',
   value: 'positive',
+  distribution: [
+    { value: 'positive', count: 8 },
+    { value: 'neutral', count: 4 },
+  ],
   event_count: 12,
   avg_confidence: null,
   unit: null,
@@ -53,8 +60,10 @@ const BOOLEAN_METRIC_VALUE = {
   source: 'production',
 } satisfies BooleanMetricValue
 
-const METRIC_LIST_FIXTURE: MetricListResponse = {
+const METRIC_LIST_FIXTURE: MetricValueListResponse = {
   metrics: [NUMERICAL_METRIC_VALUE, CATEGORICAL_METRIC_VALUE, BOOLEAN_METRIC_VALUE],
+  has_more: true,
+  continuation_token: 3,
 }
 
 const METRIC_CATALOG_FIXTURE: MetricCatalogResponse = {
@@ -145,6 +154,8 @@ function mockFetch(routes: Record<string, RouteHandler>): typeof globalThis.fetc
   }
 }
 
+const listHandler = vi.fn((_request: Request) => Response.json(METRIC_LIST_FIXTURE))
+
 const getValuesHandler = vi.fn((_request: Request) => Response.json(METRIC_VALUES_FIXTURE))
 
 const getTrendHandler = vi.fn((_request: Request) => Response.json(METRIC_TREND_FIXTURE))
@@ -168,7 +179,7 @@ const client = new AmigoClient({
   apiKey: TEST_API_KEY,
   workspaceId: TEST_WORKSPACE_ID,
   fetch: mockFetch({
-    [`GET ${BASE}/metrics`]: () => Response.json(METRIC_LIST_FIXTURE),
+    [`GET ${BASE}/metrics`]: listHandler,
     [`GET ${BASE}/metrics/catalog`]: () => Response.json(METRIC_CATALOG_FIXTURE),
     [`GET ${BASE}/metrics/voice_quality_score`]: getValuesHandler,
     [`GET ${BASE}/metrics/voice_quality_score/trend`]: getTrendHandler,
@@ -177,6 +188,7 @@ const client = new AmigoClient({
 
 describe('MetricsResource', () => {
   beforeEach(() => {
+    listHandler.mockClear()
     getValuesHandler.mockClear()
     getTrendHandler.mockClear()
   })
@@ -184,13 +196,63 @@ describe('MetricsResource', () => {
   it('lists the latest typed metric values', async () => {
     const result = await client.metrics.listLatest()
     const first = result.metrics[0]
+    const request = listHandler.mock.calls[0]?.[0]
+    if (!request) throw new Error('Expected listLatest request to be captured')
 
+    expect([...new URL(request.url).searchParams.keys()]).toEqual([])
     expect(result.metrics).toHaveLength(3)
+    expect(result.has_more).toBe(true)
+    expect(result.continuation_token).toBe(3)
     expect(first?.metric_type).toBe('numerical')
     if (first?.metric_type === 'numerical') {
       const value: number | null = first.value
       expect(value).toBe(0.87)
     }
+    const categorical = result.metrics[1]
+    if (categorical?.metric_type !== 'categorical') {
+      throw new Error(`Expected categorical metric value, received ${categorical?.metric_type}`)
+    }
+    expect(categorical.distribution).toEqual([
+      { value: 'positive', count: 8 },
+      { value: 'neutral', count: 4 },
+    ])
+  })
+
+  it('forwards list filters, sort order and the continuation token', async () => {
+    await client.metrics.listLatest({
+      source: 'all',
+      scope: 'entity',
+      entity_type: 'call',
+      entity_id: 'call-001',
+      service_id: SERVICE_ID,
+      run_id: RUN_ID,
+      session_id: 'session-001',
+      date_from: '2026-10-01T00:00:00Z',
+      date_to: '2026-10-11T00:00:00Z',
+      latest_only: false,
+      limit: 200,
+      sort_by: ['+metric_key', '-period_start'],
+      continuation_token: 200,
+    })
+    const request = listHandler.mock.calls[0]?.[0]
+
+    expect(listHandler).toHaveBeenCalledTimes(1)
+    if (!request) throw new Error('Expected listLatest request to be captured')
+
+    const searchParams = new URL(request.url).searchParams
+    expect(searchParams.get('source')).toBe('all')
+    expect(searchParams.get('scope')).toBe('entity')
+    expect(searchParams.get('entity_type')).toBe('call')
+    expect(searchParams.get('entity_id')).toBe('call-001')
+    expect(searchParams.get('service_id')).toBe(SERVICE_ID)
+    expect(searchParams.get('run_id')).toBe(RUN_ID)
+    expect(searchParams.get('session_id')).toBe('session-001')
+    expect(searchParams.get('date_from')).toBe('2026-10-01T00:00:00Z')
+    expect(searchParams.get('date_to')).toBe('2026-10-11T00:00:00Z')
+    expect(searchParams.get('latest_only')).toBe('false')
+    expect(searchParams.get('limit')).toBe('200')
+    expect(searchParams.getAll('sort_by')).toEqual(['+metric_key', '-period_start'])
+    expect(searchParams.get('continuation_token')).toBe('200')
   })
 
   it('returns catalog entries', async () => {

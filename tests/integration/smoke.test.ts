@@ -3,7 +3,7 @@ import { AmigoClient } from '../../src/index.js'
 
 const API_KEY = process.env.AMIGO_TEST_API_KEY
 const WORKSPACE_ID = process.env.AMIGO_TEST_WORKSPACE_ID
-const BASE_URL = process.env.AMIGO_TEST_BASE_URL ?? 'https://api-staging.platform.amigo.ai'
+const BASE_URL = process.env.AMIGO_TEST_BASE_URL ?? 'https://platform.api-staging.concurrence.com'
 
 describe.skipIf(!API_KEY || !WORKSPACE_ID)('Integration: smoke', () => {
   // Lazy init — AmigoClient constructor throws without valid credentials,

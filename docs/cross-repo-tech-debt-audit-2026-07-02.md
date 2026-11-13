@@ -1,5 +1,7 @@
 # Cross-repo tech debt audit — 2026-07-02
 
+> Historical engineering review from July 2026. The use-case resource discussed here has since been retired. For current supported helpers and upgrade steps, use [api.md](../api.md) and the [current SDK migration guidance](https://docs.amigo.ai/api-reference/change-logs/sdk-ecosystem#september-2026-compatibility-releases).
+
 Scope: `agent-forge-go`, `amigo-platform-typescript-sdk`, and `developer-console` on isolated feature-branch worktrees based on `origin/main`.
 
 ## What was checked

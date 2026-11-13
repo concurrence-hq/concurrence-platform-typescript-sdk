@@ -68,31 +68,6 @@ export class WorkspacesResource extends WorkspaceScopedResource {
     )
   }
 
-  /** Pre-check environment conversion warnings */
-  async checkEnvironment(target?: 'production' | 'staging', id?: WorkspaceId | string) {
-    return extractData(
-      await this.client.GET('/v1/workspaces/{workspace_id}/environment-check', {
-        params: {
-          path: { workspace_id: id ?? this.workspaceId },
-          query: target ? { target } : undefined,
-        },
-      }),
-    )
-  }
-
-  /** Convert workspace between staging and production */
-  async convertEnvironment(
-    body: components['schemas']['ConvertEnvironmentRequest'],
-    id?: WorkspaceId | string,
-  ) {
-    return extractData(
-      await this.client.POST('/v1/workspaces/{workspace_id}/convert-environment', {
-        params: { path: { workspace_id: id ?? this.workspaceId } },
-        body,
-      }),
-    )
-  }
-
   /**
    * Workspace-allowlisted phone numbers that can place test calls into voice
    * agents. The list is read-mostly; writes overwrite the entire allowlist.
@@ -124,5 +99,24 @@ export class WorkspacesResource extends WorkspaceScopedResource {
           body,
         }),
       ),
+  }
+
+  /** Get the credential IDs configured as test principals for this workspace's text channel. */
+  async getTestCredentialIds() {
+    return extractData(
+      await this.client.GET('/v1/workspaces/{workspace_id}/test-credential-ids', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Set credential IDs to be treated as test principals. Text turns from these credentials are tagged source='test' and excluded from billing, scores, analytics, outbound EHR sync, and entity views. */
+  async updateTestCredentialIds(body: components['schemas']['TestCredentialIdsRequest']) {
+    return extractData(
+      await this.client.PUT('/v1/workspaces/{workspace_id}/test-credential-ids', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
   }
 }

@@ -1,77 +1,57 @@
+import type { paths } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
-import type { ListParams } from '../core/utils.js'
-
-export interface ListInvoicesParams extends ListParams {
-  status?: 'draft' | 'sent' | 'paid' | 'void'
-  date_from?: string
-  date_to?: string
-}
-
-export interface UsageTrendsParams {
-  days?: number
-  date_from?: string
-  date_to?: string
-  meter_key?: string
-}
 
 /**
- * Billing — dashboard, usage summaries, invoices, and usage trends.
+ * Billing — workspace usage and cost reporting.
  */
 export class BillingResource extends WorkspaceScopedResource {
-  /** Get composite billing dashboard — KPIs, period comparison, top meters, invoice summary */
-  async getDashboard() {
+  /** Return Amigo-admin-only LLM cost for an inclusive date range from one complete published calculation. Omit `group_by` for workspace totals and service costs; use `group_by=model` to include each model's pricing status and applied rate records. The optional `service_id` filter is applied before aggregation. */
+  async getCost(params: paths['/v1/{workspace_id}/cost']['get']['parameters']['query']) {
     return extractData(
-      await this.client.GET('/v1/{workspace_id}/billing/dashboard', {
-        params: { path: { workspace_id: this.workspaceId } },
-      }),
-    )
-  }
-
-  /** Get usage summary for the workspace */
-  async getUsage() {
-    return extractData(
-      await this.client.GET('/v1/{workspace_id}/billing/usage', {
-        params: { path: { workspace_id: this.workspaceId } },
-      }),
-    )
-  }
-
-  /** Get usage time-series per meter for trend charts */
-  async getUsageTrends(params?: UsageTrendsParams) {
-    return extractData(
-      await this.client.GET('/v1/{workspace_id}/billing/usage/trends', {
+      await this.client.GET('/v1/{workspace_id}/cost', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
       }),
     )
   }
 
-  /** List invoices for the workspace */
-  async listInvoices(params?: ListInvoicesParams) {
+  /** Return customer-visible LLM usage for an inclusive date range from one complete published calculation. Omit `group_by` for totals, daily usage, attribution, and service breakdowns; use `group_by=model` or `group_by=class` for those breakdowns. The optional `service_id` filter is applied before aggregation. */
+  async getUsage(params: paths['/v1/{workspace_id}/usage']['get']['parameters']['query']) {
     return extractData(
-      await this.client.GET('/v1/{workspace_id}/billing/invoices', {
+      await this.client.GET('/v1/{workspace_id}/usage', {
         params: { path: { workspace_id: this.workspaceId }, query: params },
       }),
     )
   }
 
-  listInvoicesAutoPaging(params?: ListInvoicesParams) {
-    return this.iteratePaginatedList((pageParams) => this.listInvoices(pageParams), params)
-  }
-
-  /** Get invoice detail */
-  async getInvoice(invoiceId: string) {
+  /** Return simulation, playground, customer-test, Amigo-internal, and unresolved usage excluded from the customer's production-classified totals. The optional `service_id` filter is applied before aggregation. */
+  async getUsageCostExcluded(
+    params: paths['/v1/{workspace_id}/usage-cost/excluded']['get']['parameters']['query'],
+  ) {
     return extractData(
-      await this.client.GET('/v1/{workspace_id}/billing/invoices/{invoice_id}', {
-        params: { path: { workspace_id: this.workspaceId, invoice_id: invoiceId } },
+      await this.client.GET('/v1/{workspace_id}/usage-cost/excluded', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
       }),
     )
   }
 
-  /** Get presigned S3 URL for invoice PDF download */
-  async getInvoicePdf(invoiceId: string) {
+  /** Return customer-visible production-classified LLM usage and calculated model-provider cost grouped by model. The optional `service_id` filter is applied before aggregation. Rates and money are decimal strings. */
+  async getUsageCostModels(
+    params: paths['/v1/{workspace_id}/usage-cost/models']['get']['parameters']['query'],
+  ) {
     return extractData(
-      await this.client.GET('/v1/{workspace_id}/billing/invoices/{invoice_id}/pdf', {
-        params: { path: { workspace_id: this.workspaceId, invoice_id: invoiceId } },
+      await this.client.GET('/v1/{workspace_id}/usage-cost/models', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  /** Return customer-visible production-classified LLM usage and calculated model-provider cost for an inclusive UTC date range. The optional `service_id` filter is applied before aggregation. Unsupported v0 provenance and attribution fields remain null and successful responses report `data_status=partial`. */
+  async getUsageCostOverview(
+    params: paths['/v1/{workspace_id}/usage-cost/overview']['get']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/usage-cost/overview', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
       }),
     )
   }

@@ -1,3 +1,4 @@
+import type { components, operations, paths } from '../generated/api.js'
 import type { EntityId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
@@ -103,15 +104,6 @@ export class WorldResource extends WorkspaceScopedResource {
   }
 
   // ---- Connectors ----
-
-  /** Get connected data sources overview with entity counts and sync status */
-  async getConnectors() {
-    return extractData(
-      await this.client.GET('/v1/{workspace_id}/world/connectors', {
-        params: { path: { workspace_id: this.workspaceId } },
-      }),
-    )
-  }
 
   /** List entities from a specific connector / data source */
   async getConnectorEntities(
@@ -228,14 +220,47 @@ export class WorldResource extends WorkspaceScopedResource {
     )
   }
 
-  // ---- Sync ----
+  // ---- Enrichment ----
 
-  /** Get sync status grouped by sink (Lakebase, Delta, etc.) */
-  async getSyncStatusBySink() {
+  /**
+   * List an entity's current enrichment values, one per key with its provenance, sorted by
+   * key. Page with `limit` (default 200, max 500) and `offset`. A fresh write can take a moment
+   * to appear. A missing entity throws `NotFoundError`.
+   */
+  async listEnrichment(
+    entityId: EntityId | string,
+    params?: NonNullable<operations['list-entity-enrichment']['parameters']['query']>,
+  ) {
     return extractData(
-      await this.client.GET('/v1/{workspace_id}/world/sync/by-sink', {
-        params: { path: { workspace_id: this.workspaceId } },
+      await this.client.GET('/v1/{workspace_id}/world/entities/{entity_id}/enrichment', {
+        params: {
+          path: { workspace_id: this.workspaceId, entity_id: entityId },
+          query: params,
+        },
       }),
+    )
+  }
+
+  /**
+   * Get the audit trail of one enrichment key on an entity, newest first, up to `limit` entries
+   * (default 50, max 200). `dropped_count` counts entries left out for missing provenance. A
+   * missing entity throws `NotFoundError`.
+   */
+  async getEnrichmentHistory(
+    entityId: EntityId | string,
+    key: string,
+    params?: NonNullable<operations['get-entity-enrichment-history']['parameters']['query']>,
+  ) {
+    return extractData(
+      await this.client.GET(
+        '/v1/{workspace_id}/world/entities/{entity_id}/enrichment/{key}/history',
+        {
+          params: {
+            path: { workspace_id: this.workspaceId, entity_id: entityId, key },
+            query: params,
+          },
+        },
+      ),
     )
   }
 
@@ -255,6 +280,110 @@ export class WorldResource extends WorkspaceScopedResource {
     return extractData(
       await this.client.GET('/v1/{workspace_id}/world/source-breakdown', {
         params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Composite world health dashboard — entity counts by type, event velocity (24h/7d), average confidence, and source breakdown. All computation server-side. */
+  async getDashboard() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/dashboard', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Optionally filter by entity_type. */
+  async listEnrichmentKeys(
+    params?: paths['/v1/{workspace_id}/world/enrichment-keys']['get']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/enrichment-keys', {
+        params: { path: { workspace_id: this.workspaceId }, query: params },
+      }),
+    )
+  }
+
+  /** Registers a new (entity_type, key) in this workspace's enrichment key registry. Future writes against this key will pass validation. value_type governs what values are accepted; enum types require allowed_values. Tag a person key with 'memory_extract' (description required) to make it a workspace-custom memory dimension the conversation extractor infers from transcripts. */
+  async createEnrichmentKey(body: components['schemas']['EnrichmentKeyCreateBody']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/enrichment-keys', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Update allowed_values, source_hint, description, min_confidence, is_pii, or tags. key and value_type are immutable. */
+  async updateEnrichmentKey(keyId: string, body: components['schemas']['EnrichmentKeyPatchBody']) {
+    return extractData(
+      await this.client.PATCH('/v1/{workspace_id}/world/enrichment-keys/{key_id}', {
+        params: { path: { workspace_id: this.workspaceId, key_id: keyId } },
+        body,
+      }),
+    )
+  }
+
+  /** Existing entity.enriched events are not deleted (append-only); only future writes against this key will be rejected. */
+  async deleteEnrichmentKey(keyId: string): Promise<void> {
+    await this.client.DELETE('/v1/{workspace_id}/world/enrichment-keys/{key_id}', {
+      params: { path: { workspace_id: this.workspaceId, key_id: keyId } },
+    })
+  }
+
+  /** Polymorphic identifier → ranked entity candidates. Accepts any subset of {phone, email, canonical_id, external_id, entity_id} plus a required ``entity_type``. Served from the SDP serving surfaces: entity rows from the entity projection; canonical_id and external_id resolve through the canonical entity map by point reads. Returns matches ranked by confidence + number of identifiers matched. Summary narrowing: ``external_ids`` is always ``{}``, ``tags`` is always ``[]``, and ``canonical_id`` is the canonical-map value or the entity's MRN. */
+  async resolveEntity(body: components['schemas']['EntityResolveRequest']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/entities/resolve', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Write an enrichment value on an entity. Pass `idempotencyKey` to make a retry safe. */
+  async putEntityEnrichment(
+    entityId: EntityId | string,
+    key: string,
+    body: components['schemas']['EnrichmentWriteBody'],
+    idempotencyKey?: string,
+  ) {
+    return extractData(
+      await this.client.PUT('/v1/{workspace_id}/world/entities/{entity_id}/enrichment/{key}', {
+        params: {
+          path: { workspace_id: this.workspaceId, entity_id: entityId, key },
+          header: { 'Idempotency-Key': idempotencyKey },
+        },
+        body,
+      }),
+    )
+  }
+
+  /** Returns distinct event types in the workspace with counts, domains, and source breakdown. Enables the World Explorer to show what kinds of events flow through the world model. */
+  async listEventTypes() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/world/event-types', {
+        params: { path: { workspace_id: this.workspaceId } },
+      }),
+    )
+  }
+
+  /** Writes one terminal conversation record per v1 conversation (real dates, provider='v1-migration'), giving the returning-user greeting and the real conversation list. Admin-only, idempotent + correctable per (workspace, v1 conversation id), memory-safe (no world events emitted → the memory extractor never re-derives from these). Transcript content (turns) is a separate follow-up. Batch size <= 500. */
+  async importMigrationConversations(body: components['schemas']['MigrationConversationsBody']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/migration/conversations', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
+
+  /** Imports in-flight v1 text threads with their transcripts. Each thread resolves or creates the active conversation an inbound reply from the recipient would resolve to, stores the context on it, and appends the v1 messages in sent_at order. A re-run appends only messages not yet imported; threads that conflict with the live path or arrive out of order are reported, not written. Sends no message and ends no session. Admin-only; at most 100 threads of 500 messages each. */
+  async importMigrationTextThreads(body: components['schemas']['MigrationTextThreadsBody']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/migration/text-threads', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
       }),
     )
   }

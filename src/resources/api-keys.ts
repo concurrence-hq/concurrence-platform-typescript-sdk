@@ -7,7 +7,8 @@ import type { ListParams } from '../core/utils.js'
  * Manage API keys for a workspace.
  *
  * API keys are used to authenticate SDK/API requests. Each key has a role
- * and a set of permissions. Keys expire after 1-90 days.
+ * and a set of permissions. New and rotated keys expire after 1-90 days.
+ * Existing keys may have no expiry set; their expiry fields are null.
  */
 export class ApiKeysResource extends WorkspaceScopedResource {
   /**
@@ -54,6 +55,15 @@ export class ApiKeysResource extends WorkspaceScopedResource {
       await this.client.POST('/v1/{workspace_id}/api-keys/{key_id}/rotate', {
         params: { path: { workspace_id: this.workspaceId, key_id: keyId } },
         body,
+      }),
+    )
+  }
+
+  /** Return the authoritative role→permission model: each role's default permission set (what an API key of that role may carry) plus the full permission universe. Clients use this to build the create-key form instead of hard-coding the matrix. Requires `ApiKey.view` permission. */
+  async getPermissionCatalog() {
+    return extractData(
+      await this.client.GET('/v1/{workspace_id}/api-keys/permission-catalog', {
+        params: { path: { workspace_id: this.workspaceId } },
       }),
     )
   }

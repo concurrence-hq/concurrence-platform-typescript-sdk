@@ -1,4 +1,4 @@
-import type { components } from '../generated/api.js'
+import type { components, paths } from '../generated/api.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 
 /**
@@ -72,45 +72,6 @@ export class SettingsResource extends WorkspaceScopedResource {
       ),
   }
 
-  readonly gapScanner = {
-    get: async () =>
-      extractData(
-        await this.client.GET('/v1/{workspace_id}/settings/gap-scanner', {
-          params: { path: { workspace_id: this.workspaceId } },
-        }),
-      ),
-    update: async (body: components['schemas']['GapScannerSettingsRequest']) =>
-      extractData(
-        await this.client.PUT('/v1/{workspace_id}/settings/gap-scanner', {
-          params: { path: { workspace_id: this.workspaceId } },
-          body,
-        }),
-      ),
-    /**
-     * Preview which calls would be flagged by the current gap-scanner config.
-     *
-     * The spec types the body as `GapScannerPreviewRequest | null`, but the
-     * `null` branch only matters when the caller wants to *explicitly* clear
-     * the body. Modeling as `body?: GapScannerPreviewRequest` keeps the SDK
-     * surface consistent with every other POST wrapper; consumers who need
-     * to send the literal `null` can do so via `client.POST(...)` directly.
-     */
-    preview: async (body?: components['schemas']['GapScannerPreviewRequest']) =>
-      extractData(
-        await this.client.POST('/v1/{workspace_id}/settings/gap-scanner/preview', {
-          params: { path: { workspace_id: this.workspaceId } },
-          body,
-        }),
-      ),
-    /** Trigger an on-demand scan with the current gap-scanner config */
-    scan: async () =>
-      extractData(
-        await this.client.POST('/v1/{workspace_id}/settings/gap-scanner/scan', {
-          params: { path: { workspace_id: this.workspaceId } },
-        }),
-      ),
-  }
-
   readonly metrics = {
     get: async () =>
       extractData(
@@ -127,17 +88,89 @@ export class SettingsResource extends WorkspaceScopedResource {
       ),
   }
 
-  readonly environments = {
+  readonly dataResidency = {
+    /** Where this workspace's model calls may be processed. Any role. */
     get: async () =>
       extractData(
-        await this.client.GET('/v1/{workspace_id}/settings/environments', {
+        await this.client.GET('/v1/{workspace_id}/settings/data-residency', {
           params: { path: { workspace_id: this.workspaceId } },
         }),
       ),
-    update: async (body: components['schemas']['EnvironmentSettingsRequest']) =>
+
+    /** Set where this workspace's model calls may be processed: `any` (anywhere a BAA covers them) or `regional` (only routes that stay in the region's geography). Turning `regional` on answers 422 with code `data_residency_refused`, listing every saved choice the region's policy forbids. An admin or owner can turn it on or leave it as it is. Turning it off, from `regional` to `any`, takes an owner: an admin gets 403. */
+    update: async (body: components['schemas']['UpdateDataResidencyRequest']) =>
       extractData(
-        await this.client.PUT('/v1/{workspace_id}/settings/environments', {
+        await this.client.PUT('/v1/{workspace_id}/settings/data-residency', {
           params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+  }
+
+  readonly http = {
+    /** Get the origins that may call this workspace's API from a browser. */
+    get: async () =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/settings/http', {
+          params: { path: { workspace_id: this.workspaceId } },
+        }),
+      ),
+
+    /** Replace the origins that may call this workspace's API from a browser. */
+    update: async (body: components['schemas']['HttpSettings']) =>
+      extractData(
+        await this.client.PUT('/v1/{workspace_id}/settings/http', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+  }
+
+  /**
+   * Workspace safety defaults. `get()` returns each reply check's effective
+   * mode and the layer it comes from (`platform`, `workspace` or `service`).
+   */
+  readonly safety = {
+    get: async () =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/settings/safety', {
+          params: { path: { workspace_id: this.workspaceId } },
+        }),
+      ),
+    update: async (body: components['schemas']['SafetySettingsRequest']) =>
+      extractData(
+        await this.client.PUT('/v1/{workspace_id}/settings/safety', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+  }
+
+  readonly formTemplates = {
+    /** List all form templates for a workspace. */
+    list: async (
+      params?: paths['/v1/{workspace_id}/settings/form-templates']['get']['parameters']['query'],
+    ) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/settings/form-templates', {
+          params: { path: { workspace_id: this.workspaceId }, query: params },
+        }),
+      ),
+
+    /** Replace all form templates for a workspace. */
+    update: async (body: components['schemas']['FormTemplateUpdateRequest']) =>
+      extractData(
+        await this.client.PUT('/v1/{workspace_id}/settings/form-templates', {
+          params: { path: { workspace_id: this.workspaceId } },
+          body,
+        }),
+      ),
+
+    /** Resolve a form template with prefill values from entity state. */
+    resolve: async (templateId: string, body: components['schemas']['ResolveTemplateRequest']) =>
+      extractData(
+        await this.client.POST('/v1/{workspace_id}/settings/form-templates/{template_id}/resolve', {
+          params: { path: { workspace_id: this.workspaceId, template_id: templateId } },
           body,
         }),
       ),

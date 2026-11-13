@@ -1,4 +1,4 @@
-import type { components } from '../generated/api.js'
+import type { components, paths } from '../generated/api.js'
 import type { IntegrationId, IntegrationEndpointId } from '../core/branded-types.js'
 import { WorkspaceScopedResource, extractData } from './base.js'
 import type { ListParams } from '../core/utils.js'
@@ -233,6 +233,37 @@ export class IntegrationsResource extends WorkspaceScopedResource {
           body,
         },
       ),
+    )
+  }
+
+  /** Approve a pending human-in-the-loop integration-write approval for a conversation. Publishes `integration.approval_granted` to the workspace event channel; the subscribed text session fires the gated write. Requires `ReviewQueue.review` permission. */
+  async approveWrite(
+    conversationId: string,
+    params?: paths['/v1/{workspace_id}/integrations/approvals/{conversation_id}/approve']['post']['parameters']['query'],
+  ) {
+    return extractData(
+      await this.client.POST(
+        '/v1/{workspace_id}/integrations/approvals/{conversation_id}/approve',
+        {
+          params: {
+            path: { workspace_id: this.workspaceId, conversation_id: conversationId },
+            query: params,
+          },
+        },
+      ),
+    )
+  }
+
+  /** Reject a pending human-in-the-loop integration-write approval for a conversation. Publishes `integration.approval_rejected` to the workspace event channel; the subscribed text session declines the gated write. Requires `ReviewQueue.review` permission. */
+  async rejectWrite(
+    conversationId: string,
+    body: components['schemas']['IntegrationRejectRequest'],
+  ) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/integrations/approvals/{conversation_id}/reject', {
+        params: { path: { workspace_id: this.workspaceId, conversation_id: conversationId } },
+        body,
+      }),
     )
   }
 }

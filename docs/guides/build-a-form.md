@@ -234,7 +234,7 @@ import type { paths } from '@amigo-ai/platform-sdk'
 
 // Create an unauthenticated client for public token routes
 const publicApi = createClient<paths>({
-  baseUrl: 'https://api.platform.amigo.ai',
+  baseUrl: 'https://platform.api-us.concurrence.com',
 })
 
 const token = 'the-token-from-step-1'
