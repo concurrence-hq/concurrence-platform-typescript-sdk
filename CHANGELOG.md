@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.145.0] - 2026-11-13
+
+### Features
+
+- expose configuration promotion, simulation evidence and Insights APIs (#540)
+
 ## [0.144.1] - 2026-11-12
 
 ### Documentation
