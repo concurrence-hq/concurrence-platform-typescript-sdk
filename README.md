@@ -923,6 +923,60 @@ for await (const event of client.conversations.streamTurn(conversation.id, {
 }
 ```
 
+### Browser voice test calls
+
+Use `client.testCalls.connect()` to open a browser voice test call against the
+agent engine. The SDK builds `/agent/test-call`, authenticates through the
+WebSocket subprotocol, parses metadata frames, and carries audio in both
+directions.
+
+Audio on this socket is raw G.711 mu-law, 8 kHz, mono (one byte per sample, no
+container) in both directions. That is the only format the agent engine
+accepts, so the SDK always connects with `encoding=mulaw` and there is no
+format or sample-rate option. The SDK passes audio bytes through unchanged and
+does not transcode: your application captures the microphone, converts it to
+8 kHz mu-law before `sendAudio()`, and decodes the mu-law frames it receives in
+`onAudio` for playback.
+
+Use a short-lived identity access token in the browser. Keep workspace API keys
+on a trusted server, and configure the client with the documented voice endpoint
+as `agentBaseUrl`.
+
+```typescript
+const call = client.testCalls.connect({
+  serviceId: 'service-id',
+  token: accessToken,
+  callerId: '+15555550123', // optional simulated caller context
+  // Raw mu-law, 8 kHz, mono. Decode before playing.
+  onAudio: (mulaw) => playback.enqueue(mulaw),
+  onEvent: (event) => {
+    if (event.type === 'session_started') {
+      console.log('call started:', event.call_sid)
+    } else if (event.type === 'ready') {
+      // 'mulaw' at 8000 on this socket
+      playback.start(event.output_encoding, event.output_sample_rate)
+    } else if (event.type === 'interruption') {
+      playback.clear()
+    } else if (event.type === 'conversation_complete') {
+      console.log('conversation ended:', event.reason)
+    }
+  },
+})
+
+// Your capture pipeline must already produce mu-law, 8 kHz, mono frames.
+microphone.onMulawFrame = (mulaw) => call.sendAudio(mulaw)
+
+// Sends { type: 'stop' }, then closes normally.
+call.stop()
+await call.done
+```
+
+Test calls intentionally do not reconnect: losing the duplex
+media socket terminates the allocated voice session. The URL builder also
+supports `inbound`, `outbound`, and `silent` scenarios, version-set selection,
+and freeform prompt overrides. Live control helpers include `injectEvent()`,
+`injectGuidance()`, and `refreshContext()`.
+
 ### Real-time event streams
 
 For workspace-wide events (calls, surfaces, pipeline, operators, channels), use the typed SSE consumer:

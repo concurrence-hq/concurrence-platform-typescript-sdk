@@ -54,6 +54,8 @@ Notes:
 - Pagination and response helpers: `paginate`, `buildLastResponse`, `extractRequestId`
 - Conversation helpers: `sessionConnectAuthProtocols`
 - Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTag`, `ConversationTagsPatch`, `ConversationTagsResponse`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Test-call helpers: `TestCallsResource`, `testCallAuthProtocols`
+- Test-call types: `TestCallAuthProtocols`, `TestCallCloseEvent`, `TestCallConnectOptions`, `TestCallControlMessage`, `TestCallAgentTranscriptEvent`, `TestCallConversationCompleteEvent`, `TestCallEmotionEvent`, `TestCallEvent`, `TestCallHandle`, `TestCallInterruptionEvent`, `TestCallLatencyEvent`, `TestCallProgressEvent`, `TestCallReadyEvent`, `TestCallSessionStartedEvent`, `TestCallToolCallCompletedEvent`, `TestCallToolCallStartedEvent`, `TestCallUrlParams`, `TestCallUserTranscriptEvent`
 - Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_LANGUAGES`, `VOICE_SESSION_PROVIDERS`, `VoiceFamiliesResource`
 - Voice provider types: `AgentVoiceConfig`, `ListFamilyVoicesParams`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceFamily`, `VoiceFamilyListResponse`, `VoiceLanguage`, `VoiceListResponse`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
 - Response and hook types: `PaginatedList`, `ListParams`, `LastResponseInfo`, `ResponseMetadata`, `WithResponseMetadata`, `AmigoResponse`, `RetryOptions`, `RateLimitInfo`, `ClientHooks`, `RequestHookContext`, `ResponseHookContext`, `ErrorHookContext`
@@ -576,6 +578,12 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `observers`
 
 - `subscribe`
+
+### `testCalls`
+
+- `withOptions`
+- `url`
+- `connect`
 
 ### `fhir`
 

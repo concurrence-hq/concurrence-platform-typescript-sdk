@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- `client.testCalls` — first-class `/agent/test-call` WebSocket resource for browser voice testing, including safe URL and subprotocol-auth construction, typed session metadata (including the `ready` frame's `output_encoding` and `output_sample_rate`, and `conversation_complete`), duplex G.711 mu-law 8 kHz mono audio passed through without transcoding (every connect sends `encoding=mulaw`), stop/close lifecycle handling, and abort support.
+
 ## [0.145.0] - 2026-11-13
 
 ### Features
