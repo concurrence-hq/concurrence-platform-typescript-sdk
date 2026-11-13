@@ -291,7 +291,7 @@ export class AmigoClient {
    * {@link ObserversResource}.
    */
   readonly observers!: ObserversResource
-  /** Browser voice test calls over the agent-engine duplex PCM WebSocket. */
+  /** Browser voice test calls over the agent-engine duplex mu-law (8 kHz, mono) WebSocket. */
   readonly testCalls!: TestCallsResource
   /** FHIR / EHR data interop — sync status, imports, resources, patient views */
   readonly fhir!: FhirResource
@@ -1102,6 +1102,7 @@ export type {
   TestCallConnectOptions,
   TestCallControlMessage,
   TestCallAgentTranscriptEvent,
+  TestCallConversationCompleteEvent,
   TestCallEmotionEvent,
   TestCallEvent,
   TestCallHandle,

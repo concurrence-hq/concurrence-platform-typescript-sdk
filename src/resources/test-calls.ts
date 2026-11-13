@@ -6,14 +6,17 @@ import { scopePlatformClient, WorkspaceScopedResource } from './base.js'
 
 const MAX_AUTH_TOKEN_CHARS = 4096
 const WEB_SOCKET_PROTOCOL_TOKEN_RE = /^[!#$%&'*+\-.^_`|~A-Za-z0-9]+$/
-const DEFAULT_SAMPLE_RATE = 16_000
+const TEST_CALL_AUDIO_ENCODING = 'mulaw'
 const WEB_SOCKET_OPEN = 1
 
-/** Parameters used to build the browser voice test-call WebSocket URL. */
+/**
+ * Parameters used to build the browser voice test-call WebSocket URL.
+ *
+ * The audio format is not a parameter: the agent engine accepts only G.711
+ * mu-law, 8 kHz, mono on this socket, so every URL carries ``encoding=mulaw``.
+ */
 export interface TestCallUrlParams {
   serviceId: string
-  /** PCM16 microphone sample rate sent by the client. Defaults to 16 kHz. */
-  sampleRate?: number
   /** Optional caller phone number used to resolve simulated caller context. */
   callerId?: string
   /** Version-set name used for the session. The agent engine defaults to ``release``. */
@@ -65,10 +68,24 @@ export interface TestCallInterruptionEvent {
   type: 'interruption'
 }
 
-/** Output format announcement emitted when the underlying transport is ready. */
+/**
+ * Output format announcement emitted when the underlying transport is ready.
+ *
+ * The engine names the format of the audio it is about to send. On this socket
+ * that is always ``mulaw`` at ``8000`` Hz. A ``ready`` frame naming any other
+ * encoding is outside this contract and is not delivered as an event.
+ */
 export interface TestCallReadyEvent {
   type: 'ready'
+  output_encoding: 'mulaw'
   output_sample_rate: number
+}
+
+/** Sent just before the engine closes a call whose conversation has ended. */
+export interface TestCallConversationCompleteEvent {
+  type: 'conversation_complete'
+  /** Why the conversation ended, for example ``terminal_state``. */
+  reason: string
 }
 
 export interface TestCallUserTranscriptEvent {
@@ -116,6 +133,7 @@ export type TestCallEvent =
   | TestCallProgressEvent
   | TestCallInterruptionEvent
   | TestCallReadyEvent
+  | TestCallConversationCompleteEvent
   | TestCallUserTranscriptEvent
   | TestCallAgentTranscriptEvent
   | TestCallToolCallStartedEvent
@@ -140,7 +158,10 @@ export interface TestCallCloseEvent {
 export interface TestCallConnectOptions extends TestCallUrlParams {
   /** Bearer token sent as ``Sec-WebSocket-Protocol: auth, <token>``. */
   token: string
-  /** Receives PCM16 agent audio frames. */
+  /**
+   * Receives agent audio frames as raw G.711 mu-law, 8 kHz, mono: one byte per
+   * sample, no container. The SDK does not decode them.
+   */
   onAudio: (audio: ArrayBuffer) => void
   /** Receives recognized JSON metadata frames. Unknown frames are ignored. */
   onEvent?: (event: TestCallEvent) => void
@@ -158,7 +179,13 @@ export interface TestCallHandle {
   readonly done: Promise<void>
   /** Current native WebSocket ready state. */
   readonly readyState: number
-  /** Send one PCM16 microphone audio frame. */
+  /**
+   * Send one microphone audio frame as raw G.711 mu-law, 8 kHz, mono.
+   *
+   * The bytes are forwarded unchanged and the engine does not transcode them,
+   * so audio captured in another format must be resampled and mu-law encoded
+   * by the caller first.
+   */
   sendAudio(audio: ArrayBuffer | ArrayBufferView): void
   /** Send a typed test-call control frame. */
   sendControl(message: TestCallControlMessage): void
@@ -201,10 +228,12 @@ export class TestCallsResource extends WorkspaceScopedResource {
   }
 
   /**
-   * Open a duplex PCM16 voice test call.
+   * Open a duplex voice test call carrying G.711 mu-law, 8 kHz, mono audio in
+   * both directions.
    *
    * The SDK owns URL construction, authentication, and metadata parsing. The
-   * consumer remains responsible for microphone capture and audio playback.
+   * consumer remains responsible for microphone capture, mu-law encoding and
+   * decoding, and audio playback.
    * Test calls are intentionally not reconnected because a dropped media
    * socket terminates its allocated voice session.
    */
@@ -316,7 +345,6 @@ function buildTestCallUrl({
   baseUrl,
   workspaceId,
   serviceId,
-  sampleRate = DEFAULT_SAMPLE_RATE,
   callerId,
   versionSet,
   scenario,
@@ -326,9 +354,6 @@ function buildTestCallUrl({
 }: BuildTestCallUrlArgs): URL {
   if (!workspaceId.trim()) throw new ConfigurationError('workspaceId is required')
   if (!serviceId.trim()) throw new ConfigurationError('serviceId is required')
-  if (!Number.isInteger(sampleRate) || sampleRate <= 0) {
-    throw new ConfigurationError('sampleRate must be a positive integer')
-  }
   if (scenario && !['inbound', 'outbound', 'silent'].includes(scenario)) {
     throw new ConfigurationError('scenario must be inbound, outbound, or silent')
   }
@@ -339,7 +364,7 @@ function buildTestCallUrl({
   const url = testCallUrl ? parseTestCallUrlOverride(testCallUrl) : deriveFromBase(baseUrl)
   url.searchParams.set('workspace_id', workspaceId)
   url.searchParams.set('service_id', serviceId)
-  url.searchParams.set('sample_rate', String(sampleRate))
+  url.searchParams.set('encoding', TEST_CALL_AUDIO_ENCODING)
   const normalizedCallerId = callerId?.trim()
   if (normalizedCallerId) url.searchParams.set('caller_id', normalizedCallerId)
   if (versionSet) url.searchParams.set('version_set', versionSet)
@@ -439,8 +464,19 @@ function parseTestCallEvent(value: string): TestCallEvent | null {
     return { type: parsed.type, phase: parsed.phase }
   }
   if (parsed.type === 'interruption') return { type: parsed.type }
-  if (parsed.type === 'ready' && typeof parsed.output_sample_rate === 'number') {
-    return { type: parsed.type, output_sample_rate: parsed.output_sample_rate }
+  if (
+    parsed.type === 'ready' &&
+    parsed.output_encoding === TEST_CALL_AUDIO_ENCODING &&
+    typeof parsed.output_sample_rate === 'number'
+  ) {
+    return {
+      type: parsed.type,
+      output_encoding: parsed.output_encoding,
+      output_sample_rate: parsed.output_sample_rate,
+    }
+  }
+  if (parsed.type === 'conversation_complete' && typeof parsed.reason === 'string') {
+    return { type: parsed.type, reason: parsed.reason }
   }
   if (parsed.type === 'user_transcript' && typeof parsed.text === 'string') {
     return {
