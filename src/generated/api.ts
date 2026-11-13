@@ -5518,7 +5518,7 @@ export interface paths {
         put?: never;
         /**
          * Create a service
-         * @description Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`. Every change to `allow_unverified_integration_results` is audited.
+         * @description Create a new service linking an agent and, for one that runs workflow agent versions, a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). A service created without context_graph_id binds no context graph: every version set of it has to run an agent version whose program is direct and pin no context graph version, or the create is refused with 422 `context_graph_required`. Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`. Every change to `allow_unverified_integration_results` is audited.
          */
         post: operations["create-service"];
         delete?: never;
@@ -13211,9 +13211,11 @@ export interface components {
             contact_lines?: components["schemas"]["ContactLineInput"][];
             /**
              * Context Graph Id
-             * Format: uuid
+             * @description The context graph the service's workflow agent versions run: one of this workspace's. Leave it out, or send
+             *     null, for a service that binds no graph. Every version set of such a service runs an agent version whose program
+             *     is direct and pins no context graph version.
              */
-            context_graph_id: string;
+            context_graph_id?: string | null;
             /** @description The post-call transcript quality audit. Left out, it is off. See `ConversationAuditSettings`. */
             conversation_audit?: components["schemas"]["ConversationAuditSettings"] | null;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
@@ -24916,11 +24918,8 @@ export interface components {
             channel_type?: "voice" | "text";
             /** Contact Lines */
             contact_lines?: components["schemas"]["ContactLine"][];
-            /**
-             * Context Graph Id
-             * Format: uuid
-             */
-            context_graph_id: string;
+            /** Context Graph Id */
+            context_graph_id: string | null;
             /** Created At */
             created_at?: string | null;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
@@ -25614,9 +25613,9 @@ export interface components {
             contact_lines?: components["schemas"]["ContactLine"][];
             /**
              * Context Graph Id
-             * Format: uuid
+             * @description The context graph the service binds. Null on a service that binds none: it runs direct programs only.
              */
-            context_graph_id: string;
+            context_graph_id: string | null;
             /** Context Graph Name */
             context_graph_name?: string | null;
             /** @description The post-call transcript quality audit, off unless the service turns it on. */
@@ -28938,9 +28937,11 @@ export interface components {
             contact_lines?: components["schemas"]["ContactLineInput"][];
             /**
              * Context Graph Id
-             * Format: uuid
+             * @description The context graph the service's workflow agent versions run: one of this workspace's. Leave it out, or send
+             *     null, for a service that binds no graph. Every version set of such a service runs an agent version whose program
+             *     is direct and pins no context graph version.
              */
-            context_graph_id: string;
+            context_graph_id?: string | null;
             crisis_call_911_reply?: components["schemas"]["CrisisCall911Reply"] | null;
             /**
              * Demo Mode
@@ -32408,7 +32409,11 @@ export interface components {
              * @description Replace declared contact lines. Omit to keep them; an empty list clears them.
              */
             contact_lines?: components["schemas"]["ContactLineInput"][] | null;
-            /** Context Graph Id */
+            /**
+             * Context Graph Id
+             * @description Binds the service to this context graph, one of this workspace's. Leaving it out, or sending null, keeps what
+             *     is stored. Setting it on a service that binds none is how the service comes to run workflow agent versions.
+             */
             context_graph_id?: string | null;
             /** @description Replace the audit settings. Omit to keep them; send `enabled: false` to turn the audit off. */
             conversation_audit?: components["schemas"]["ConversationAuditSettings"] | null;

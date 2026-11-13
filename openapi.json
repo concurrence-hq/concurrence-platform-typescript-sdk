@@ -11419,9 +11419,17 @@
             "type": "array"
           },
           "context_graph_id": {
-            "format": "uuid",
-            "title": "Context Graph Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The context graph the service's workflow agent versions run: one of this workspace's. Leave it out, or send\nnull, for a service that binds no graph. Every version set of such a service runs an agent version whose program\nis direct and pins no context graph version.",
+            "title": "Context Graph Id"
           },
           "conversation_audit": {
             "anyOf": [
@@ -11583,8 +11591,7 @@
         },
         "required": [
           "name",
-          "agent_id",
-          "context_graph_id"
+          "agent_id"
         ],
         "title": "CreateServiceRequest",
         "type": "object"
@@ -38942,9 +38949,16 @@
             "type": "array"
           },
           "context_graph_id": {
-            "format": "uuid",
-            "title": "Context Graph Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Graph Id"
           },
           "created_at": {
             "anyOf": [
@@ -40302,9 +40316,17 @@
             "type": "array"
           },
           "context_graph_id": {
-            "format": "uuid",
-            "title": "Context Graph Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The context graph the service binds. Null on a service that binds none: it runs direct programs only.",
+            "title": "Context Graph Id"
           },
           "context_graph_name": {
             "anyOf": [
@@ -47792,9 +47814,17 @@
             "type": "array"
           },
           "context_graph_id": {
-            "format": "uuid",
-            "title": "Context Graph Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The context graph the service's workflow agent versions run: one of this workspace's. Leave it out, or send\nnull, for a service that binds no graph. Every version set of such a service runs an agent version whose program\nis direct and pins no context graph version.",
+            "title": "Context Graph Id"
           },
           "crisis_call_911_reply": {
             "anyOf": [
@@ -47895,8 +47925,7 @@
         },
         "required": [
           "name",
-          "agent_id",
-          "context_graph_id"
+          "agent_id"
         ],
         "title": "StagingServiceConfiguration",
         "type": "object"
@@ -55885,6 +55914,7 @@
                 "type": "null"
               }
             ],
+            "description": "Binds the service to this context graph, one of this workspace's. Leaving it out, or sending null, keeps what\nis stored. Setting it on a service that binds none is how the service comes to run workflow agent versions.",
             "title": "Context Graph Id"
           },
           "conversation_audit": {
@@ -88790,7 +88820,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`. Every change to `allow_unverified_integration_results` is audited.",
+        "description": "Create a new service linking an agent and, for one that runs workflow agent versions, a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). A service created without context_graph_id binds no context graph: every version set of it has to run an agent version whose program is direct and pin no context graph version, or the create is refused with 422 `context_graph_required`. Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`. Every change to `allow_unverified_integration_results` is audited.",
         "operationId": "create-service",
         "parameters": [
           {
