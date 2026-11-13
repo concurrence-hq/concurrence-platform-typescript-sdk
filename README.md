@@ -938,10 +938,14 @@ does not transcode: your application captures the microphone, converts it to
 8 kHz mu-law before `sendAudio()`, and decodes the mu-law frames it receives in
 `onAudio` for playback.
 
+Use a short-lived identity access token in the browser. Keep workspace API keys
+on a trusted server, and configure the client with the documented voice endpoint
+as `agentBaseUrl`.
+
 ```typescript
 const call = client.testCalls.connect({
   serviceId: 'service-id',
-  token: apiKey,
+  token: accessToken,
   callerId: '+15555550123', // optional simulated caller context
   // Raw mu-law, 8 kHz, mono. Decode before playing.
   onAudio: (mulaw) => playback.enqueue(mulaw),
