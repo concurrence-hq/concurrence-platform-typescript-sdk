@@ -843,6 +843,7 @@ export type {
 export type MetricValueResponse = MetricValueAlias
 
 export type { FireTriggerRequest, ListTriggersParams } from './resources/triggers.js'
+export type { DeleteInsightPinParams, ListInsightPinsParams } from './resources/insights.js'
 
 export type {
   CallEvalResult,
@@ -1015,6 +1016,16 @@ export type {
   UploadIntakeFileParams,
 } from './resources/intake.js'
 
+export type InsightsChatRequest = components['schemas']['ChatRequest']
+export type InsightSelection = components['schemas']['InsightSelection']
+export type InsightResult = components['schemas']['InsightResultResponse']
+export type InsightPublishedSource = components['schemas']['DemoSource']
+export type InsightDemoHome = components['schemas']['DemoHomeResponse']
+export type InsightPin = components['schemas']['SharedPin']
+export type InsightPinEvidence = components['schemas']['PinEvidence']
+export type InsightPinList = components['schemas']['PinListResponse']
+export type CreateInsightPinRequest = components['schemas']['CreatePinRequest']
+export type InsightPinRevisionRequest = components['schemas']['PinRevisionRequest']
 export type CallSummary = components['schemas']['CallSummary']
 export type CallDetail = components['schemas']['CallDetailResponse']
 export type CallTurn = components['schemas']['Turn']

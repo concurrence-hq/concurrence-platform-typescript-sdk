@@ -3075,6 +3075,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/{workspace_id}/insights/demo-home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Demo Home Facts
+         * @description Complete fixed Home facts from one approved r2 synthetic publication. IDs are synthetic.
+         */
+        get: operations["get_demo_home_facts_v1__workspace_id__insights_demo_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/{workspace_id}/insights/digest": {
         parameters: {
             query?: never;
@@ -14572,6 +14592,136 @@ export interface components {
             /** Url */
             url?: string | null;
         };
+        /** DemoDefinition */
+        DemoDefinition: {
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            /** Population */
+            population: string;
+            /** Time Basis */
+            time_basis: string;
+            /** Units */
+            units: string;
+        };
+        /** DemoHomeAgent */
+        DemoHomeAgent: {
+            id: components["schemas"]["FactId"];
+            name: components["schemas"]["FactLabel"];
+        };
+        /** DemoHomeCheck */
+        DemoHomeCheck: {
+            check_key: components["schemas"]["FactLabel"];
+            conversation_id: components["schemas"]["FactId"];
+            definition_id: components["schemas"]["FactId"];
+            id: components["schemas"]["FactId"];
+            /** Passed */
+            passed: boolean;
+        };
+        /** DemoHomeConversation */
+        DemoHomeConversation: {
+            agent_id: components["schemas"]["FactId"] | null;
+            channel_kind: components["schemas"]["FactLabel"] | null;
+            id: components["schemas"]["FactId"];
+            /** Is Production */
+            is_production: boolean;
+            safety_status: components["schemas"]["FactLabel"] | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+        };
+        /** DemoHomeResponse */
+        DemoHomeResponse: {
+            /** Agents */
+            agents: components["schemas"]["DemoHomeAgent"][];
+            /** Checks */
+            checks: components["schemas"]["DemoHomeCheck"][];
+            /** Conversations */
+            conversations: components["schemas"]["DemoHomeConversation"][];
+            source: components["schemas"]["DemoSource"];
+        };
+        /**
+         * DemoSource
+         * @description Captured provenance, safe to expose with authorized selected evidence.
+         */
+        DemoSource: {
+            /**
+             * As Of Date
+             * Format: date
+             */
+            as_of_date: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Data Through
+             * Format: date
+             */
+            data_through: string;
+            /** Dataset Version */
+            dataset_version: string;
+            /**
+             * Definition Records
+             * @default []
+             */
+            definition_records?: components["schemas"]["DemoDefinition"][];
+            /** Definitions */
+            definitions: {
+                [key: string]: string;
+            };
+            /**
+             * Event Window End
+             * Format: date-time
+             */
+            event_window_end: string;
+            /** Event Window Scope */
+            event_window_scope?: "conversations" | null;
+            /**
+             * Event Window Start
+             * Format: date-time
+             */
+            event_window_start: string;
+            /**
+             * Kind
+             * @default published_demo
+             * @constant
+             */
+            kind?: "published_demo";
+            /** Logical Table */
+            logical_table: string;
+            /**
+             * Observed Before
+             * Format: date-time
+             */
+            observed_before: string;
+            /** Recipe Version */
+            recipe_version: string;
+            /** Snapshot Table */
+            snapshot_table: string;
+            /**
+             * Synthetic
+             * @default true
+             * @constant
+             */
+            synthetic?: true;
+            /** Table Map */
+            table_map?: {
+                [key: string]: components["schemas"]["DemoTable"];
+            };
+        };
+        /** DemoTable */
+        DemoTable: {
+            /** Columns */
+            columns: components["schemas"]["SqlColumn"][];
+            /** Description */
+            description: string;
+            /** Physical Table */
+            physical_table: string;
+            /** Row Count */
+            row_count: number;
+        };
         DescriptionString: string;
         /**
          * DestinationHours
@@ -16940,6 +17090,8 @@ export interface components {
             /** Items */
             items: components["schemas"]["ExternalWriteProposal"][];
         };
+        FactId: string;
+        FactLabel: string;
         /**
          * FailureClass
          * @description Why a tool result is a failure — produced by the executor at RUN time.
@@ -18687,6 +18839,8 @@ export interface components {
         InsightResultResponse: {
             /** Columns */
             columns: components["schemas"]["EvidenceColumn"][];
+            /** Logical Sql */
+            logical_sql?: string | null;
             /**
              * Queried At
              * Format: date-time
@@ -18699,6 +18853,7 @@ export interface components {
             result_id: string;
             /** Rows */
             rows: (string | null)[][];
+            source?: components["schemas"]["DemoSource"] | null;
             /** Sql */
             sql: string;
             /** Truncated */
@@ -22047,6 +22202,7 @@ export interface components {
         PinEvidence: {
             /** Columns */
             columns: components["schemas"]["SqlColumn"][];
+            dataset_source?: components["schemas"]["DemoSource"] | null;
             /**
              * Queried At
              * Format: date-time
@@ -25873,6 +26029,7 @@ export interface components {
             created_at?: string | null;
             /** Id */
             id: string;
+            source?: components["schemas"]["DemoSource"] | null;
         };
         /** SessionStartEvent */
         SessionStartEvent: {
@@ -44042,6 +44199,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_demo_home_facts_v1__workspace_id__insights_demo_home_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoHomeResponse"];
+                };
             };
         };
     };
