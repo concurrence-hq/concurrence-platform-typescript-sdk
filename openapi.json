@@ -11306,7 +11306,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -11397,7 +11397,7 @@
           },
           "demo_mode": {
             "default": false,
-            "description": "Internal. Only a platform admin can set this.",
+            "description": "Voice calls on this service open with only the recording notice, without the AI disclosure. For demos only,\nnever for a service that takes real callers.",
             "title": "Demo Mode",
             "type": "boolean"
           },
@@ -40056,7 +40056,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -40156,7 +40156,7 @@
           },
           "demo_mode": {
             "default": false,
-            "description": "Internal. Only a platform admin can set this.",
+            "description": "Voice calls on this service open with only the recording notice, without the AI disclosure. For demos only,\nnever for a service that takes real callers.",
             "title": "Demo Mode",
             "type": "boolean"
           },
@@ -47542,7 +47542,7 @@
           },
           "allow_unverified_integration_results": {
             "default": false,
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Every change is audited.",
             "title": "Allow Unverified Integration Results",
             "type": "boolean"
           },
@@ -47594,7 +47594,7 @@
           },
           "demo_mode": {
             "default": false,
-            "description": "Internal. Only a platform admin can set this.",
+            "description": "Voice calls on this service open with only the recording notice, without the AI disclosure. For demos only,\nnever for a service that takes real callers.",
             "title": "Demo Mode",
             "type": "boolean"
           },
@@ -55614,7 +55614,7 @@
                 "type": "null"
               }
             ],
-            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Only a platform admin (`platform:admin`) turns it on; turning it\noff needs `Service.update`. Every change is audited.",
+            "description": "A dangerous bypass, off by default. On, results from the service's integration endpoints, reads and\nwrites, never count as a patient record for the output checker's unverified-caller check\n(`output_checks.phi_unverified`, which runs only on a service that sets it to `cut`), so the agent may read\nthem back to any caller, verified or not. Writes are still held to everything else, the platform's own\npatient reads still refuse until the caller verifies, and data queries and skills still count. Never on\nbeside `caller_verification_endpoint_id`. Every change is audited.",
             "title": "Allow Unverified Integration Results"
           },
           "caller_verification_endpoint_id": {
@@ -55732,7 +55732,7 @@
                 "type": "null"
               }
             ],
-            "description": "Internal. Only a platform admin can set this.",
+            "description": "Voice calls on this service open with only the recording notice, without the AI disclosure. For demos only,\nnever for a service that takes real callers.",
             "title": "Demo Mode"
           },
           "description": {
@@ -88562,7 +88562,7 @@
         ]
       },
       "post": {
-        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`, and `platform:admin` scope to turn on `allow_unverified_integration_results`.",
+        "description": "Create a new service linking an agent and a context graph. Validates that agent_id and context_graph_id exist in the workspace and that every version set name and pinned version is valid, dynamic behavior pins included (see the version set upsert). Requires `Service.create` permission, `Service.update` to name a `caller_verification_endpoint_id`, to set any `output_checks` or `emergency_floor` key away from what it would inherit, to declare `declared_languages` or to turn on `conversation_audit`. Every change to `allow_unverified_integration_results` is audited.",
         "operationId": "create-service",
         "parameters": [
           {
@@ -88789,7 +88789,7 @@
         ]
       },
       "put": {
-        "description": "Update a service's configuration. A field left out keeps what is stored. An explicit `null` clears `voice_config`, `output_checks`, `emergency_floor`, `caller_verification_endpoint_id` and `declared_languages`, and is refused (422) on `version_sets`, which replaces the whole map and always needs `release`. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Turning on `allow_unverified_integration_results` needs `platform:admin` scope, and every change to it is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. A service's harness pins are checked again as `PUT .../harness-pins` checks them, so a `channel_type`, family, agent or version set change that leaves a pin that no longer fits, or a stored pin that no longer validates, is refused with 422, with the same `code` and `fields` in its plan. An update that changes the harness pins or what their fit depends on lands only on the service as this request read it: a change by another writer in between is a 409 and nothing is stored. Every other update is last-write-wins, except that it stores the harness pins as the service holds them when it writes, so it never reverts a pin set after this request read the service. Requires `Service.update` permission.",
+        "description": "Update a service's configuration. A field left out keeps what is stored. An explicit `null` clears `voice_config`, `output_checks`, `emergency_floor`, `caller_verification_endpoint_id` and `declared_languages`, and is refused (422) on `version_sets`, which replaces the whole map and always needs `release`. A `caller_verification_endpoint_id` has to be an endpoint of one of the workspace's integrations that declares `declarations.verifies` and never waits for approval, on a service with `platform_caller_verification` and `allow_unverified_integration_results` false. Every change to `allow_unverified_integration_results` is audited. A version set sent without `dynamic_behavior_sets` keeps the pins the stored version set of that name has, and `[]` clears them. channel-manager decides which numbers a call can be transferred to; the service names which of them the agent uses. A save that adds a number a call can dial to `voice_config.forwarding` (`forward_to`, `fallback_to`, an approved destination or a test line) holds every such number of the block to the voice use cases bound to the service: each has to be on the use case's `allowed_forwarding_numbers` in channel-manager, read fresh, and none may be one of its own numbers. A service bound to both its inbound and its outbound voice use case is held to both lists, since a transfer is gated by the list of its call's own direction. The 422 names the use case, its `channel` and the destinations' labels, never a number, with a `message` saying to add the numbers to the use case in channel-manager first, and the write is refused with 503 when channel-manager cannot be read. A service's harness pins are checked again as `PUT .../harness-pins` checks them, so a `channel_type`, family, agent or version set change that leaves a pin that no longer fits, or a stored pin that no longer validates, is refused with 422, with the same `code` and `fields` in its plan. An update that changes the harness pins or what their fit depends on lands only on the service as this request read it: a change by another writer in between is a 409 and nothing is stored. Every other update is last-write-wins, except that it stores the harness pins as the service holds them when it writes, so it never reverts a pin set after this request read the service. Requires `Service.update` permission.",
         "operationId": "update-service",
         "parameters": [
           {
@@ -100143,7 +100143,7 @@
     },
     "/v1/{workspace_id}/world/migration/text-threads": {
       "post": {
-        "description": "For each sms thread, resolves or creates the active conversation an inbound reply from the recipient on the use case resolves to, under the service the use case is bound to, stores the context on it, and appends the v1 messages to its transcript in sent_at order (source v1_migration). A re-run appends only messages not yet imported. A thread whose conversation already holds a turn from the live v2 path is left alone and reported as conflict; one whose new message is older than its imported tail is left alone and reported as out_of_order. Recipient and use case are unique per batch. Sends no message and ends no session. Admin-only with platform:admin scope; at most 100 threads of 500 messages each.",
+        "description": "For each sms thread, resolves or creates the active conversation an inbound reply from the recipient on the use case resolves to, under the service the use case is bound to, stores the context on it, and appends the v1 messages to its transcript in sent_at order (source v1_migration). A re-run appends only messages not yet imported; imports of one thread never overlap: a request that reaches a thread another request is still importing is refused with 503, and its retry dedupes what landed. The user-message count is written only when the stored one is behind. A thread whose conversation already holds a turn from the live v2 path is left alone and reported as conflict; one whose new message is older than its imported tail is left alone and reported as out_of_order. Recipient and use case are unique per batch. Sends no message and ends no session. Admin-only with platform:admin scope; at most 100 threads of 500 messages each.",
         "operationId": "import-migration-text-threads",
         "parameters": [
           {
@@ -100196,6 +100196,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "A thread in the batch is being imported by another request, or conversation creation timed out; retry the batch."
           }
         },
         "summary": "Import in-flight v1 text threads with their transcripts",
