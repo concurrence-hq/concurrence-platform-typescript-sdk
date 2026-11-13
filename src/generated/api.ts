@@ -8426,7 +8426,7 @@ export interface paths {
         put?: never;
         /**
          * Import in-flight v1 text threads with their transcripts
-         * @description For each sms thread, resolves or creates the active conversation an inbound reply from the recipient on the use case resolves to, under the service the use case is bound to, stores the context on it, and appends the v1 messages to its transcript in sent_at order (source v1_migration). A re-run appends only messages not yet imported. A thread whose conversation already holds a turn from the live v2 path is left alone and reported as conflict; one whose new message is older than its imported tail is left alone and reported as out_of_order. Recipient and use case are unique per batch. Sends no message and ends no session. Admin-only with platform:admin scope; at most 100 threads of 500 messages each.
+         * @description For each sms thread, resolves or creates the active conversation an inbound reply from the recipient on the use case resolves to, under the service the use case is bound to, stores the context on it, and appends the v1 messages to its transcript in sent_at order (source v1_migration). A re-run appends only messages not yet imported; imports of one thread never overlap: a request that reaches a thread another request is still importing is refused with 503, and its retry dedupes what landed. The user-message count is written only when the stored one is behind. A thread whose conversation already holds a turn from the live v2 path is left alone and reported as conflict; one whose new message is older than its imported tail is left alone and reported as out_of_order. Recipient and use case are unique per batch. Sends no message and ends no session. Admin-only with platform:admin scope; at most 100 threads of 500 messages each.
          */
         post: operations["import-migration-text-threads"];
         delete?: never;
@@ -58132,6 +58132,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description A thread in the batch is being imported by another request, or conversation creation timed out; retry the batch. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
