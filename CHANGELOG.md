@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.147.0] - 2026-11-13
+
+### Features
+
+- allocate and validate a hosted voice runner before connecting (#542)
+
 ## [0.146.0] - 2026-11-13
 
 ### Features
