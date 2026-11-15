@@ -1,6 +1,9 @@
 /**
  * Refresh the committed OpenAPI snapshot at repo root.
  *
+ * The input may be the full internal spec or the public spec a deployed Platform API serves.
+ * Published compatibility operations the input leaves out come from the committed snapshot.
+ *
  * Sources (in priority order):
  *   1. Explicit --spec path/to/spec.json within this repo or ../platform-v2
  *   2. Local sibling repo: ../platform-v2/services/platform-api/openapi.json
@@ -58,7 +61,11 @@ const specSource = resolveSpecSource()
 console.log(`Syncing OpenAPI snapshot from: ${specSource}`)
 
 const OUT_FILE = resolveRepoPath(getArgValue('--output') ?? 'openapi.json')
-const document = projectPublicOpenApi(await loadSpec(specSource))
+const committedSpec = resolveRepoPath('openapi.json')
+const committed = fs.existsSync(committedSpec)
+  ? JSON.parse(fs.readFileSync(committedSpec, 'utf-8'))
+  : undefined
+const document = projectPublicOpenApi(await loadSpec(specSource), committed)
 fs.writeFileSync(OUT_FILE, `${JSON.stringify(document, null, 2)}\n`)
 
 console.log(`Wrote ${OUT_FILE}`)

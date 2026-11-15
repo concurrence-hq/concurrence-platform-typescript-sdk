@@ -156,7 +156,10 @@ function patchOpenApiDocument(input) {
 const specSource = resolveSpecSource()
 console.log(`Generating types from: ${specSource}`)
 
-const input = patchOpenApiDocument(projectPublicOpenApi(await loadSpec(specSource)))
+const committed = fs.existsSync(REPO_SPEC)
+  ? JSON.parse(fs.readFileSync(REPO_SPEC, 'utf-8'))
+  : undefined
+const input = patchOpenApiDocument(projectPublicOpenApi(await loadSpec(specSource), committed))
 
 // Recursive "arbitrary JSON" schemas (a union whose array/object members
 // `$ref` the schema itself) are emitted by openapi-typescript as a member that

@@ -161,12 +161,20 @@ Go to **Actions → Release → Run workflow**, select the version type, and run
 
 ### Auto-Release (Spec Sync)
 
-When the platform API spec changes on `main`, the `spec-sync.yml` workflow:
+The `spec-sync.yml` workflow compares the committed `openapi.json` with the public OpenAPI document of the production Platform API (`https://platform.api-us.concurrence.com/v1/openapi.json`, served without authentication). It starts:
 
-1. Detects spec differences
-2. Opens a PR with regenerated types
-3. After that PR is merged, `spec-auto-release.yml` waits for the Test workflow on `main` to pass
+- every day at 06:23 UTC (the schedule),
+- on a manual run (**Actions → Spec Sync → Run workflow**), with an optional `spec_url` input for another HTTPS spec, and
+- on a `spec-updated` repository dispatch, whose payload carries `spec_url`.
+
+A run downloads the spec and projects it with `npm run openapi:sync`. The served spec leaves out every internal operation, including the published compatibility operations the SDK keeps for existing clients; the projection takes those from the committed `openapi.json`, so a run on an unchanged API reproduces the committed file exactly and prints "Spec unchanged — nothing to do". When the spec differs, the workflow:
+
+1. Regenerates `src/generated/api.ts`, then runs typecheck, build and tests
+2. Opens or updates the one rolling PR on `chore/sync-api-types`, titled `chore: sync API types from platform (...)`
+3. After a maintainer merges that PR, `spec-auto-release.yml` waits for the Test workflow on `main` to pass
 4. Dispatches a minor release automatically
+
+Review the generated type diff for breaking changes before merging a sync PR: the merge is what publishes. Nothing is released while the API is unchanged. To check the setup, run the workflow once by hand: on an unchanged API it must end with "Spec unchanged".
 
 ### Repository Secrets
 

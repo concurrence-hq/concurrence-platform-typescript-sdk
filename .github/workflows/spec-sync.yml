@@ -3,6 +3,15 @@ name: Spec Sync (Platform API changes)
 on:
   repository_dispatch:
     types: [spec-updated]
+  workflow_dispatch:
+    inputs:
+      spec_url:
+        description: 'HTTPS URL of the OpenAPI document to sync from (default: the production Platform API public spec)'
+        required: false
+        type: string
+  schedule:
+    # Daily, off the hour. Syncs from the production Platform API public spec.
+    - cron: '23 6 * * *'
 
 permissions:
   # `contents: write` is required for the `git push --force-with-lease` of
@@ -37,8 +46,17 @@ jobs:
         run: npm ci
 
       - name: Download latest spec
+        env:
+          # The unauthenticated public OpenAPI document of the production Platform API.
+          DEFAULT_SPEC_URL: https://platform.api-us.concurrence.com/v1/openapi.json
+          DISPATCH_SPEC_URL: ${{ github.event.client_payload.spec_url }}
+          INPUT_SPEC_URL: ${{ inputs.spec_url }}
         run: |
-          SPEC_URL="${{ github.event.client_payload.spec_url }}"
+          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
+            SPEC_URL="$DISPATCH_SPEC_URL"
+          else
+            SPEC_URL="${INPUT_SPEC_URL:-$DEFAULT_SPEC_URL}"
+          fi
           if [ -z "$SPEC_URL" ]; then
             echo "::error::No spec_url in client_payload"
             exit 1
