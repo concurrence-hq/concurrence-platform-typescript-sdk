@@ -204,6 +204,39 @@ describe('public OpenAPI projection of a spec that leaves out the published comp
     expect(JSON.stringify(served)).toBe(before)
   })
 
+  // A deployed API serves its document in definition order, not sorted. Reverse
+  // every object's key order (arrays keep their order): deterministic, and never
+  // the sorted order the committed file has.
+  const reversedKeys = (value) => {
+    if (Array.isArray(value)) return value.map(reversedKeys)
+    if (value === null || typeof value !== 'object') return value
+    return Object.fromEntries(
+      Object.keys(value)
+        .reverse()
+        .map((key) => [key, reversedKeys(value[key])]),
+    )
+  }
+
+  it('gives the committed bytes for a served document in another key order, with operations restored', () => {
+    const { served } = servedDocument()
+    const shuffled = reversedKeys(served)
+    // A path item that stays, an operation of it and a schema of it all change order.
+    const stayingPath = Object.keys(served.paths)[0]
+    expect(Object.keys(shuffled.paths[stayingPath])).toEqual(
+      Object.keys(served.paths[stayingPath]).reverse(),
+    )
+    expect(JSON.stringify(shuffled)).not.toBe(JSON.stringify(served))
+    const output = projectPublicOpenApi(shuffled, committed)
+    expect(JSON.stringify(output, null, 2)).toBe(JSON.stringify(committed, null, 2))
+  })
+
+  it('gives the committed bytes for a document in another key order, with nothing restored', () => {
+    const shuffled = reversedKeys(committed)
+    expect(JSON.stringify(shuffled)).not.toBe(JSON.stringify(committed))
+    const output = projectPublicOpenApi(shuffled, committed)
+    expect(JSON.stringify(output, null, 2)).toBe(JSON.stringify(committed, null, 2))
+  })
+
   it('refuses a published compatibility operation under another operationId', () => {
     const { served } = servedDocument()
     const [method, path] = firstCompatibility[0].split(' ')
