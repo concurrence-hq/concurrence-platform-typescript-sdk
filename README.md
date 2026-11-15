@@ -345,7 +345,7 @@ Public builds are generated from the committed [`openapi.json`](./openapi.json) 
 npm run openapi:sync
 ```
 
-Sync and type generation use the same public-contract projection. Internal-only operations and their exclusive schema dependencies are omitted; shared types and the explicitly preserved, already-published workspace-copy API remain compatible. The committed snapshot must be unchanged by a second projection, which CI verifies before publication.
+Sync and type generation use the same public-contract projection, and accept either the full spec or the public spec a deployed Platform API serves (the published workspace-copy operations that the latter leaves out are taken from the committed snapshot). Internal-only operations and their exclusive schema dependencies are omitted; shared types and the explicitly preserved, already-published workspace-copy API remain compatible. The committed snapshot must be unchanged by a second projection, which CI verifies before publication.
 
 For a repo-local overview of the exported client surface, see the generated [api.md](./api.md).
 

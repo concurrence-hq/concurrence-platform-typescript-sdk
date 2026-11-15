@@ -120,4 +120,4 @@ Response field removal, rename, or type change breaks this SDK and all consumers
 
 ## Cross-Repo Contract
 
-The SDK types are generated from the committed OpenAPI spec. When the spec changes upstream, the `spec-sync` workflow auto-opens a PR with regenerated types. Breaking changes are detected by `oasdiff` CI in `concurrence-hq/platform-v2`.
+The SDK types are generated from the committed OpenAPI spec. The `spec-sync` workflow runs daily (and on manual or `spec-updated` dispatch), downloads the production Platform API's public spec and, when it differs from the committed one, auto-opens a PR with regenerated types. The projection takes the published compatibility operations, which the served spec leaves out, from the committed `openapi.json`. Breaking changes are detected by `oasdiff` CI in `concurrence-hq/platform-v2`.

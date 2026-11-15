@@ -83,16 +83,79 @@ function reachableSchemas(roots, schemas) {
 }
 
 /**
+ * The committed public spec orders object keys by code unit at every depth (it
+ * descends from an exporter that writes sorted keys), while a deployed API
+ * serves its document in definition order. Arrays keep their order.
+ */
+function canonicalKeyOrder(value) {
+  if (Array.isArray(value)) return value.map(canonicalKeyOrder)
+  if (!isObject(value)) return value
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map((key) => [key, canonicalKeyOrder(value[key])]),
+  )
+}
+
+/**
+ * A Platform API serves only its public operations, so the published
+ * compatibility operations it keeps internal are absent from its document.
+ * Take each absent one from the committed public spec, with every schema it
+ * reaches that the input does not have. A schema the input has keeps the
+ * input's version.
+ */
+function restorePublishedOperations(document, committed) {
+  const pending = []
+  for (const [key, operationId] of Object.entries(publishedCompatibilityOperations)) {
+    const [method, path] = key.split(' ')
+    if (isObject(document.paths[path]?.[method])) continue
+    const source = committed.paths?.[path]
+    // Not restorable: the compatibility check below reports it as missing.
+    if (!isObject(source?.[method]) || source[method].operationId !== operationId) continue
+    const clone = JSON.parse(JSON.stringify(source))
+    if (!isObject(document.paths[path])) {
+      document.paths[path] = Object.fromEntries(
+        Object.entries(clone).filter(([name]) => !methods.has(name)),
+      )
+    }
+    document.paths[path][method] = clone[method]
+    pending.push(...schemaReferences(clone[method], committed.components?.schemas ?? {}))
+    pending.push(...schemaReferences(clone.parameters, committed.components?.schemas ?? {}))
+  }
+  if (pending.length === 0) return
+  const committedSchemas = committed.components?.schemas ?? {}
+  document.components ??= {}
+  document.components.schemas ??= {}
+  const schemas = document.components.schemas
+  while (pending.length) {
+    const name = pending.pop()
+    if (Object.hasOwn(schemas, name)) continue
+    if (!Object.hasOwn(committedSchemas, name)) {
+      throw new Error(`Unresolved local OpenAPI reference: #/components/schemas/${name}`)
+    }
+    schemas[name] = JSON.parse(JSON.stringify(committedSchemas[name]))
+    pending.push(...schemaReferences(schemas[name], committedSchemas))
+  }
+}
+
+/**
  * Derive the publishable contract without modifying the canonical input.
  * Retain independently exported schemas; prune only dependencies exclusive to
  * excluded operations. A shared or recursive schema must never become dangling.
+ * `committed` is the SDK's public spec: it supplies the published compatibility
+ * operations that an input already limited to public operations leaves out.
+ * The result's keys are in canonical order, so an unchanged API serializes to
+ * the committed file's bytes.
  */
-export function projectPublicOpenApi(input) {
+export function projectPublicOpenApi(input, committed) {
   if (!isObject(input) || typeof input.openapi !== 'string' || !isObject(input.paths)) {
     throw new Error('An OpenAPI document with paths is required')
   }
   const document = JSON.parse(JSON.stringify(input))
   assertLocalReferences(document)
+  if (isObject(committed) && isObject(committed.paths)) {
+    restorePublishedOperations(document, committed)
+  }
   for (const [key, operationId] of Object.entries(publishedCompatibilityOperations)) {
     const [method, path] = key.split(' ')
     if (document.paths[path]?.[method]?.operationId !== operationId) {
@@ -146,5 +209,5 @@ export function projectPublicOpenApi(input) {
       throw new Error('An unsupported internal operation surface remains in the public contract')
     }
   })
-  return document
+  return canonicalKeyOrder(document)
 }
