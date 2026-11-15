@@ -109,7 +109,7 @@ jobs:
 
           PLATFORM_REPO="${{ github.event.client_payload.platform_repo }}"
           if [ -z "$PLATFORM_REPO" ]; then
-            PLATFORM_REPO="amigo-ai/amigo-platform"
+            PLATFORM_REPO="concurrence-hq/platform-v2"
           fi
           # Sanitize: strip newlines/CR and reject characters not valid in a
           # GitHub `owner/repo` slug so a malformed dispatch payload can't
@@ -117,7 +117,7 @@ jobs:
           PLATFORM_REPO="${PLATFORM_REPO//[$'\n\r']/}"
           if ! printf '%s' "$PLATFORM_REPO" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
             echo "::warning::Invalid platform_repo payload (${PLATFORM_REPO}); falling back to default."
-            PLATFORM_REPO="amigo-ai/amigo-platform"
+            PLATFORM_REPO="concurrence-hq/platform-v2"
           fi
           # Fall back to SHORT_SHA (which already collapses to GITHUB_RUN_ID
           # if SPEC_SHA was empty) so the link is never .../commit/ with an
