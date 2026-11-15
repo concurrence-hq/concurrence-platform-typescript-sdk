@@ -11,6 +11,62 @@ const response = (schema) => ({
 })
 const firstCompatibility = Object.entries(publishedCompatibilityOperations)[0]
 
+const committedPath = new URL('../openapi.json', import.meta.url)
+const committedText = fs.readFileSync(committedPath, 'utf8')
+const committed = JSON.parse(committedText)
+const schemaNames = (value, into = new Set()) => {
+  const text = JSON.stringify(value)
+  for (const [, token] of text.matchAll(/"#\/components\/schemas\/([^"]+)"/g)) {
+    into.add(token.replace(/~1/g, '/').replace(/~0/g, '~'))
+  }
+  return into
+}
+const closure = (roots, schemas) => {
+  const reached = new Set()
+  const pending = [...roots]
+  while (pending.length) {
+    const name = pending.pop()
+    if (reached.has(name) || !schemas[name]) continue
+    reached.add(name)
+    for (const next of schemaNames(schemas[name])) pending.push(next)
+  }
+  return reached
+}
+
+// The served document: the committed one without the nine operations and the
+// schemas that only they reach (the same rule the projection prunes by).
+function servedDocument() {
+  const served = JSON.parse(JSON.stringify(committed))
+  const removed = {}
+  for (const key of Object.keys(publishedCompatibilityOperations)) {
+    const [method, path] = key.split(' ')
+    removed[`${method} ${path}`] = served.paths[path][method]
+    delete served.paths[path][method]
+    if (Object.keys(served.paths[path]).length === 0) delete served.paths[path]
+  }
+  const schemas = served.components.schemas
+  const reachedByRemoved = closure(schemaNames(Object.values(removed)), schemas)
+  const roots = schemaNames(served.paths)
+  for (const name of Object.keys(schemas)) if (!reachedByRemoved.has(name)) roots.add(name)
+  const retained = closure(roots, schemas)
+  const exclusive = [...reachedByRemoved].filter((name) => !retained.has(name))
+  for (const name of exclusive) delete schemas[name]
+  return { served, exclusive }
+}
+
+// A deployed API serves its document in definition order, not sorted. Reverse
+// every object's key order (arrays keep their order): deterministic, and never
+// the sorted order the committed file has.
+const reversedKeys = (value) => {
+  if (Array.isArray(value)) return value.map(reversedKeys)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.keys(value)
+      .reverse()
+      .map((key) => [key, reversedKeys(value[key])]),
+  )
+}
+
 function fixture() {
   const paths = {}
   for (const [key, operationId] of Object.entries(publishedCompatibilityOperations)) {
@@ -149,47 +205,6 @@ describe('public OpenAPI projection', () => {
 })
 
 describe('public OpenAPI projection of a spec that leaves out the published compatibility operations', () => {
-  const committed = JSON.parse(fs.readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'))
-  const schemaNames = (value, into = new Set()) => {
-    const text = JSON.stringify(value)
-    for (const [, token] of text.matchAll(/"#\/components\/schemas\/([^"]+)"/g)) {
-      into.add(token.replace(/~1/g, '/').replace(/~0/g, '~'))
-    }
-    return into
-  }
-  const closure = (roots, schemas) => {
-    const reached = new Set()
-    const pending = [...roots]
-    while (pending.length) {
-      const name = pending.pop()
-      if (reached.has(name) || !schemas[name]) continue
-      reached.add(name)
-      for (const next of schemaNames(schemas[name])) pending.push(next)
-    }
-    return reached
-  }
-
-  // The served document: the committed one without the nine operations and the
-  // schemas that only they reach (the same rule the projection prunes by).
-  function servedDocument() {
-    const served = JSON.parse(JSON.stringify(committed))
-    const removed = {}
-    for (const key of Object.keys(publishedCompatibilityOperations)) {
-      const [method, path] = key.split(' ')
-      removed[`${method} ${path}`] = served.paths[path][method]
-      delete served.paths[path][method]
-      if (Object.keys(served.paths[path]).length === 0) delete served.paths[path]
-    }
-    const schemas = served.components.schemas
-    const reachedByRemoved = closure(schemaNames(Object.values(removed)), schemas)
-    const roots = schemaNames(served.paths)
-    for (const name of Object.keys(schemas)) if (!reachedByRemoved.has(name)) roots.add(name)
-    const retained = closure(roots, schemas)
-    const exclusive = [...reachedByRemoved].filter((name) => !retained.has(name))
-    for (const name of exclusive) delete schemas[name]
-    return { served, exclusive }
-  }
-
   it('restores the nine operations and their exclusive schemas from the committed spec', () => {
     const { served, exclusive } = servedDocument()
     expect(exclusive.length).toBeGreaterThan(0)
@@ -203,19 +218,6 @@ describe('public OpenAPI projection of a spec that leaves out the published comp
     expect(JSON.stringify(output, null, 2)).toBe(JSON.stringify(committed, null, 2))
     expect(JSON.stringify(served)).toBe(before)
   })
-
-  // A deployed API serves its document in definition order, not sorted. Reverse
-  // every object's key order (arrays keep their order): deterministic, and never
-  // the sorted order the committed file has.
-  const reversedKeys = (value) => {
-    if (Array.isArray(value)) return value.map(reversedKeys)
-    if (value === null || typeof value !== 'object') return value
-    return Object.fromEntries(
-      Object.keys(value)
-        .reverse()
-        .map((key) => [key, reversedKeys(value[key])]),
-    )
-  }
 
   it('gives the committed bytes for a served document in another key order, with operations restored', () => {
     const { served } = servedDocument()
@@ -267,6 +269,191 @@ describe('public OpenAPI projection of a spec that leaves out the published comp
     const { served } = servedDocument()
     expect(() => projectPublicOpenApi(served)).toThrow(
       'Published compatibility operation changed or is missing',
+    )
+  })
+})
+
+// What a deployed Platform API does to its full spec before it serves it, applied here to the
+// committed public spec so that the expected result of projecting it back is known: the committed
+// file itself.
+function deployedDocument() {
+  const { served } = servedDocument()
+  const schemas = served.components.schemas
+
+  // Every schema property marked internal goes, with its name in `required`; a schema that loses
+  // its last reference goes with it.
+  const removedProperties = []
+  const strip = (node) => {
+    if (Array.isArray(node)) return node.forEach(strip)
+    if (node === null || typeof node !== 'object') return
+    if (node.properties !== null && typeof node.properties === 'object') {
+      for (const [name, property] of Object.entries(node.properties)) {
+        if (property?.['x-internal'] !== true) continue
+        removedProperties.push(property)
+        delete node.properties[name]
+        if (Array.isArray(node.required)) node.required = node.required.filter((n) => n !== name)
+      }
+    }
+    Object.values(node).forEach(strip)
+  }
+  strip(schemas)
+  const candidates = closure(schemaNames(removedProperties), schemas)
+  const roots = schemaNames(served.paths)
+  for (const name of Object.keys(schemas)) if (!candidates.has(name)) roots.add(name)
+  const retained = closure(roots, schemas)
+  const pruned = [...candidates].filter((name) => !retained.has(name))
+  for (const name of pruned) delete schemas[name]
+
+  // A tag with only a name for every operation tag that is not declared.
+  const declared = new Set((served.tags ?? []).map((tag) => tag.name))
+  const operationTags = new Set()
+  for (const item of Object.values(served.paths)) {
+    for (const operation of Object.values(item)) {
+      for (const tag of operation?.tags ?? []) if (!declared.has(tag)) operationTags.add(tag)
+    }
+  }
+  served.tags = [...(served.tags ?? []), ...[...operationTags].map((name) => ({ name }))]
+
+  // The serving deployment's own URL first, with only a url.
+  served.servers = [{ url: served.servers[0].url }, ...served.servers.slice(1)]
+
+  return { served: reversedKeys(served), removedProperties, pruned }
+}
+
+describe('public OpenAPI projection of the document a deployed API serves', () => {
+  it('has the differences the deployed API makes', () => {
+    const { served, removedProperties, pruned } = deployedDocument()
+    expect(removedProperties.length).toBeGreaterThan(0)
+    expect(pruned.length).toBeGreaterThan(0)
+    expect(served.tags.length).toBeGreaterThan(committed.tags.length)
+    expect(served.tags.some((tag) => Object.keys(tag).join() === 'name')).toBe(true)
+    expect(Object.keys(served.servers[0])).toEqual(['url'])
+    expect(JSON.stringify(served)).not.toContain('"x-internal"')
+  })
+
+  it('reproduces the committed bytes', () => {
+    const { served } = deployedDocument()
+    const before = JSON.stringify(served)
+    const output = projectPublicOpenApi(served, committed)
+    expect(`${JSON.stringify(output, null, 2)}\n`).toBe(committedText)
+    expect(JSON.stringify(served)).toBe(before)
+  })
+
+  it('does not restore an internal field to a parent the input does not have', () => {
+    const input = fixture()
+    const reference = fixture()
+    reference.components.schemas.Absent = {
+      properties: { hidden: { type: 'string', 'x-internal': true } },
+    }
+    const output = projectPublicOpenApi(input, reference)
+    expect(output.components.schemas.Absent).toBeUndefined()
+  })
+
+  it('restores a field the committed spec marks internal with its required entry and schemas', () => {
+    const input = fixture()
+    const reference = fixture()
+    reference.components.schemas.Parent = {
+      required: ['hidden', 'plain', 'stays'],
+      properties: {
+        hidden: { ...schemaRef('HiddenType'), 'x-internal': true },
+        plain: { type: 'string' },
+        stays: { type: 'string' },
+      },
+    }
+    reference.components.schemas.HiddenType = { properties: { leaf: schemaRef('HiddenLeaf') } }
+    reference.components.schemas.HiddenLeaf = { type: 'string' }
+    input.components.schemas.Parent = {
+      required: ['stays', 'extra'],
+      properties: { stays: { type: 'string' }, extra: { type: 'string' } },
+    }
+    const before = JSON.stringify(input)
+    const output = projectPublicOpenApi(input, reference)
+    const { Parent, HiddenType, HiddenLeaf } = output.components.schemas
+    expect(Object.keys(Parent.properties)).toEqual(['extra', 'hidden', 'stays'])
+    expect(Parent.properties.hidden).toEqual(reference.components.schemas.Parent.properties.hidden)
+    // The committed order, then what only the input requires. `plain` was never in the input.
+    expect(Parent.required).toEqual(['hidden', 'stays', 'extra'])
+    expect(Parent.properties.plain).toBeUndefined()
+    expect(HiddenType).toEqual(reference.components.schemas.HiddenType)
+    expect(HiddenLeaf).toEqual(reference.components.schemas.HiddenLeaf)
+    expect(JSON.stringify(input)).toBe(before)
+  })
+
+  it('never adds a field the committed spec does not mark internal', () => {
+    // The API newly marks `newly` internal and removes it from what it serves: the committed spec
+    // still has it without the marker, so the marker is not there to restore it by.
+    const input = fixture()
+    const reference = fixture()
+    reference.components.schemas.Parent = {
+      properties: { old: { type: 'string' }, newly: { type: 'string' } },
+    }
+    input.components.schemas.Parent = { properties: { old: { type: 'string' } } }
+    expect(projectPublicOpenApi(input, reference).components.schemas.Parent).toEqual(
+      input.components.schemas.Parent,
+    )
+  })
+
+  it('drops tags that have only a name and keeps a declared one', () => {
+    const input = fixture()
+    const reference = fixture()
+    input.tags = [
+      { name: 'Bare' },
+      { name: 'Declared', description: 'Described' },
+      { name: 'Other' },
+    ]
+    expect(projectPublicOpenApi(input, reference).tags).toEqual([
+      { description: 'Described', name: 'Declared' },
+    ])
+    input.tags = [{ name: 'Bare' }]
+    expect(Object.hasOwn(projectPublicOpenApi(input, reference), 'tags')).toBe(false)
+    // Without the committed spec nothing is dropped.
+    input.tags = [{ name: 'Bare' }]
+    expect(projectPublicOpenApi(input).tags).toEqual([{ name: 'Bare' }])
+  })
+
+  it('takes a url-only server from the committed list, keeps a new URL, drops an old one', () => {
+    const [a, b, c] = ['a', 'b', 'c'].map((host) => ({
+      url: `https://${host}.example.test`,
+      description: `Server ${host}`,
+    }))
+    const reference = fixture()
+    reference.servers = [a, b, c]
+    const input = fixture()
+    input.servers = [{ url: 'https://new.example.test' }, { url: c.url }, { url: a.url }]
+    expect(projectPublicOpenApi(input, reference).servers).toEqual([
+      a,
+      c,
+      { url: 'https://new.example.test' },
+    ])
+    // An entry that has more than a url is the input's own.
+    input.servers = [{ url: a.url, description: 'Changed' }]
+    expect(projectPublicOpenApi(input, reference).servers).toEqual([
+      { description: 'Changed', url: a.url },
+    ])
+  })
+
+  it('projects a full spec to the same bytes with and without the committed spec', () => {
+    const full = JSON.parse(JSON.stringify(committed))
+    for (const key of Object.keys(publishedCompatibilityOperations)) {
+      const [method, path] = key.split(' ')
+      full.paths[path][method]['x-internal'] = true
+    }
+    full.paths['/future-private'] = {
+      get: {
+        operationId: 'future-private',
+        'x-internal': true,
+        ...response(schemaRef('FutureOnly')),
+      },
+    }
+    full.components.schemas.FutureOnly = { type: 'string' }
+    const without = JSON.stringify(projectPublicOpenApi(full), null, 2)
+    const given = JSON.stringify(projectPublicOpenApi(full, committed), null, 2)
+    expect(given).toBe(without)
+    expect(`${given}\n`).toBe(committedText)
+
+    const small = fixture()
+    expect(JSON.stringify(projectPublicOpenApi(small, fixture()))).toBe(
+      JSON.stringify(projectPublicOpenApi(small)),
     )
   })
 })
