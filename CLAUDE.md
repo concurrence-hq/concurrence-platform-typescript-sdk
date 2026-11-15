@@ -37,10 +37,15 @@ src/
   index.ts              -- AmigoClient class, config validation, public re-exports
   core/
     auth.ts             -- API key auth middleware
-    errors.ts           -- Error hierarchy (AmigoError base), error factory, error middleware
+    errors.ts           -- Error hierarchy (AmigoError base), error factory, is*Error guards
     retry.ts            -- Exponential backoff with jitter, Retry-After header support
     openapi-client.ts   -- Creates openapi-fetch Client with auth + error + retry middleware
     utils.ts            -- Response helpers
+    device-code.ts      -- RFC 8628 device code login
+    idempotency.ts      -- Idempotency key helper
+    reconnecting-websocket.ts -- Reconnecting WebSocket primitive for realtime helpers
+    request-options.ts  -- Per-request option types
+    url.ts              -- URL helpers
     branded-types.ts    -- Branded type aliases (WorkspaceId, AgentId, ActionId, etc.)
     rate-limit.ts       -- RateLimitInfo type, parseRateLimitHeaders()
     webhooks.ts         -- HMAC-SHA256 webhook verification, parseWebhookEvent()
@@ -77,7 +82,7 @@ scripts/
 - **Strict TypeScript** -- `strict: true`, `noUncheckedIndexedAccess: true` in tsconfig.
 - **Runtime dependencies** -- `openapi-fetch` and its aligned `openapi-typescript-helpers` range support the runtime and published declarations.
 - **Dual ESM/CJS output** -- esbuild produces `dist/index.mjs` (ESM) and `dist/index.cjs` (CJS). Declarations go to `dist/types/`.
-- **Vitest** -- Test runner with coverage thresholds (85% lines, 80% branches).
+- **Vitest** -- Test runner with coverage thresholds (80% lines, 75% branches, 80% functions and statements).
 - **ESLint** -- Lint runs with `--max-warnings 0` (zero tolerance).
 - **Skills rebranded to Actions** -- `client.actions.*` (API paths still `/skills/` for backward compat).
 
@@ -85,7 +90,7 @@ scripts/
 
 ### Error Hierarchy
 
-`AmigoError` is the base class. Subclasses map to HTTP status codes (e.g., `AuthenticationError` for 401, `NotFoundError` for 404, `RateLimitError` for 429). `createApiError()` maps response status to the right error class. `createErrorMiddleware()` plugs into openapi-fetch middleware.
+`AmigoError` is the base class. Subclasses map to HTTP status codes (e.g., `AuthenticationError` for 401, `NotFoundError` for 404, `RateLimitError` for 429). `createApiError()` maps response status to the right error class. The inline error middleware in `createPlatformClient()` plugs into openapi-fetch middleware.
 
 ### Retry with Jitter
 

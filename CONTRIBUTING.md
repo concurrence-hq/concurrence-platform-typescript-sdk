@@ -116,7 +116,7 @@ scripts/
 1. **Start**: `npm ci`
 2. **Write code**: Edit `src/resources/` or `src/core/`
 3. **Write tests**: Add tests in `tests/`
-4. **Validate**: `npm run lint && npm run typecheck && npm run typecheck:examples && npm test && npm run build && npm run test:dist`
+4. **Validate**: `npm run lint && npm run typecheck && npm run typecheck:examples && npm test && npm run build && npm run test:dist && npm run test:tarball`
 5. **Submit PR**: See Pull Request Guidelines below
 
 ## Adding a New Resource
