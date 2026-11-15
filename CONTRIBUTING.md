@@ -163,10 +163,11 @@ Go to **Actions → Release → Run workflow**, select the version type, and run
 
 The `spec-sync.yml` workflow compares the committed `openapi.json` with the public OpenAPI document of the production Platform API (`https://platform.api-us.concurrence.com/v1/openapi.json`, served without authentication). It starts:
 
+- every day at 06:23 UTC, on a schedule (`cron: '23 6 * * *'`), which always syncs from the default URL above,
 - on a manual run (**Actions → Spec Sync → Run workflow**), with an optional `spec_url` input for another HTTPS spec, and
 - on a `spec-updated` repository dispatch, whose payload carries `spec_url`.
 
-It has **no schedule yet**. A daily schedule returns in a later pull request, after one manual run on the served document has shown the expected result (see below). Until then only a manual run or a `spec-updated` repository dispatch (sent from outside this repository) starts the workflow.
+No scheduled run has happened yet: the schedule was added after a manual run (43753707636, see below) had shown the whole workflow working on the served document. The first scheduled run is the next 06:23 UTC after the pull request that adds it is merged.
 
 A run downloads the spec and projects it with `npm run openapi:sync`. The served document is a documentation projection of the full spec and differs from the committed `openapi.json` in more than the operations it leaves out. The projection restores or normalises three things, each only when the committed spec is given. The three differences below were established by reading the Platform API's code, not by downloading the served document:
 
@@ -176,18 +177,22 @@ A run downloads the spec and projects it with `npm run openapi:sync`. The served
 
 The projection also writes every object's keys in sorted order, the order of the committed file, whatever order the API serves.
 
-What has been shown so far: a test on a fixture built from the committed spec by applying what a deployed API does (`tests/public-openapi.test.js`) projects back to the committed bytes. A manual run on the served document (run 43751715977) reported exactly the three differences that were expected, three description strings of the promotions operation, regenerated the types and passed typecheck, build and tests; its last step then failed, which is what the branch preparation described below replaces.
+What has been shown so far: a test on a fixture built from the committed spec by applying what a deployed API does (`tests/public-openapi.test.js`) projects back to the committed bytes. A manual run on the served document (run 43751715977) reported exactly the three differences that were expected, three description strings of the promotions operation, regenerated the types and passed typecheck, build and tests; its last step then failed, which is what the branch preparation described below replaces. A later manual run (43753707636) went through the whole workflow on the served document: it found exactly the three expected differences, regenerated and checked the types, found no pause and no open pull request, pushed the branch `chore/sync-api-types` with one commit holding `openapi.json` and `src/generated/api.ts`, wrote the summary with the compare link and the title, and ended red as designed. While a pull request from that branch is open and the API does not change again, a run ends green with "already carries this spec".
 
 When the projection differs from the committed file, the workflow prints where (the JSON pointers that differ, at most 200, names only, also in the run's summary), regenerates `src/generated/api.ts`, runs typecheck, build and tests, and then prepares the branch. **The workflow does not open a pull request**: this repository does not let workflows create them, and a pull request opened by the workflow token would get no checks. It reads the pull requests whose head is the rolling branch `chore/sync-api-types` and whose base is `main`, pushes the branch, and reports what a maintainer does next.
 
 The branch holds one commit on top of `main` with `openapi.json` and `src/generated/api.ts`. A run pushes it (with `--force-with-lease`) only when the remote branch does not already hold the same two files, so an open pull request keeps its checks while the spec does not change.
 
-What a run ends with:
+What a run ends with (a scheduled run ends the same way as a manual one):
 
-- **Spec unchanged**: green, nothing else happens.
-- **Spec changed and no pull request from the branch is open**: the run **ends red** with an error saying the SDK is behind the public API, and the run summary gives the link `https://github.com/<repo>/compare/main...chore/sync-api-types?expand=1` and the title to use. A failed run is the only signal this repository can send without a secret.
-- **Spec changed and an open pull request from the branch already holds the same content**: green, and the summary names the pull request.
-- **Spec changed and an open pull request holds an older spec**: the branch is updated, and the run ends red, because a push made with the workflow token starts no checks on the pull request and a maintainer has to get them to run on the new head before merging.
+- **Green, in step**: the spec is unchanged ("Spec unchanged"), nothing else happens.
+- **Green, already carried**: the spec changed, and an open pull request from the branch already holds the same content. The summary names the pull request; there is nothing to do but review and merge it.
+- **Red, a person must act**: the run's summary and its error say what to do.
+  - Spec changed and no pull request from the branch is open: the error says the SDK is behind the public API, and the summary gives the link `https://github.com/<repo>/compare/main...chore/sync-api-types?expand=1` and the title to use.
+  - Spec changed and an open pull request holds an older spec: the branch is updated, and the run ends red, because a push made with the workflow token starts no checks on the pull request and a maintainer has to get them to run on the new head before merging.
+  - The sync is paused (see Pause below), or a step failed (download, validation, types, build, tests, push).
+
+A failed scheduled run is how this repository tells its maintainers that the SDK is behind the public API: it is the only signal the repository can send without a secret. Maintainers watch the failed runs of Spec Sync.
 
 What a maintainer does after a red run:
 
