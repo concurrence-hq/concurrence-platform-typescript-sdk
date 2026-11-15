@@ -207,10 +207,11 @@ describe('public OpenAPI projection of a spec that leaves out the published comp
   it('refuses a published compatibility operation under another operationId', () => {
     const { served } = servedDocument()
     const [method, path] = firstCompatibility[0].split(' ')
-    const clone = JSON.parse(JSON.stringify(committed.paths[path][method]))
-    clone.operationId = 'replacement'
     served.paths[path] ??= {}
-    served.paths[path][method] = clone
+    served.paths[path][method] = {
+      operationId: 'replacement',
+      responses: { 200: { description: 'OK' } },
+    }
     expect(() => projectPublicOpenApi(served, committed)).toThrow(
       'Published compatibility operation changed or is missing',
     )
