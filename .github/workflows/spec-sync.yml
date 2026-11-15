@@ -1,5 +1,7 @@
 name: Spec Sync (Platform API changes)
 
+# There is no `schedule` yet. It returns after one manual run on the served spec has shown the
+# expected result (see CONTRIBUTING.md, "Auto-Release (Spec Sync)").
 on:
   repository_dispatch:
     types: [spec-updated]
@@ -9,9 +11,6 @@ on:
         description: 'HTTPS URL of the OpenAPI document to sync from (default: the production Platform API public spec)'
         required: false
         type: string
-  schedule:
-    # Daily, off the hour. Syncs from the production Platform API public spec.
-    - cron: '23 6 * * *'
 
 permissions:
   # `contents: write` is required for the `git push --force-with-lease` of
@@ -88,6 +87,18 @@ jobs:
             NEW_SCHEMAS=$(jq -r '(.components.schemas // {}) | keys | length' openapi-public.json)
             echo "Paths: $OLD_PATHS -> $NEW_PATHS"
             echo "Schemas: $OLD_SCHEMAS -> $NEW_SCHEMAS"
+
+            # Where the committed spec and the new projection differ: JSON pointers, at most 200,
+            # names only. Printed before the types are regenerated.
+            node scripts/spec-diff-summary.mjs openapi.json openapi-public.json > spec-diff.txt
+            cat spec-diff.txt
+            {
+              echo "## Spec changed"
+              echo ""
+              echo '```'
+              cat spec-diff.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Spec unchanged — nothing to do"

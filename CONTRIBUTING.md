@@ -163,11 +163,22 @@ Go to **Actions → Release → Run workflow**, select the version type, and run
 
 The `spec-sync.yml` workflow compares the committed `openapi.json` with the public OpenAPI document of the production Platform API (`https://platform.api-us.concurrence.com/v1/openapi.json`, served without authentication). It starts:
 
-- every day at 06:23 UTC (the schedule),
 - on a manual run (**Actions → Spec Sync → Run workflow**), with an optional `spec_url` input for another HTTPS spec, and
 - on a `spec-updated` repository dispatch, whose payload carries `spec_url`.
 
-A run downloads the spec and projects it with `npm run openapi:sync`. The served spec leaves out every internal operation, including the published compatibility operations the SDK keeps for existing clients; the projection takes those from the committed `openapi.json` and writes every object's keys in sorted order (the order of the committed file, whatever order the API serves), so a run on an unchanged API reproduces the committed file exactly and prints "Spec unchanged — nothing to do". When the spec differs, the workflow:
+It has **no schedule yet**. A daily schedule returns in a later pull request, after one manual run on the served document has shown the expected result (see below). Until then nothing starts the workflow by itself, and a new API change reaches the SDK only when a maintainer runs it.
+
+A run downloads the spec and projects it with `npm run openapi:sync`. The served document is a documentation projection of the full spec and differs from the committed `openapi.json` in more than the operations it leaves out. The projection restores or normalises three things, each only when the committed spec is given:
+
+1. **Published compatibility operations.** The served spec leaves out every internal operation, including the nine the SDK keeps for existing clients. The projection takes them, and the schemas only they reach, from the committed spec.
+2. **Internal fields.** The API removes every schema property marked `"x-internal": true`, takes its name out of `required` and prunes a schema that loses its last reference. The SDK keeps such fields on purpose, with the marker. Wherever the committed spec marks a property internal and the served document has the parent schema but not the property, the projection copies the property back, restores its `required` entry in the committed order and copies the schemas it reaches. The markers in the committed spec are the list. **A field the API newly marks internal never enters the SDK through this path**: it is absent from the served document and not marked in the committed spec, so it is not restored.
+3. **`tags` and `servers`.** The served document appends a name-only `tags` entry for every undeclared operation tag, which the projection drops (a declared tag stays), and it puts its own URL first as a url-only `servers` entry, for which the projection uses the committed entry with the same URL, ordered as the committed list orders the URLs and followed by any URL the committed list does not have.
+
+The projection also writes every object's keys in sorted order, the order of the committed file, whatever order the API serves.
+
+What has been shown so far: a test on a fixture built from the committed spec by applying what a deployed API does (`tests/public-openapi.test.js`) projects back to the committed bytes. That is a test of the projection on a stand-in. **No run on the real served document has yet shown the same**, so do not treat "an unchanged API reproduces the committed file" as established until the check below has passed once.
+
+When the projection differs from the committed file, the workflow prints where (the JSON pointers that differ, at most 200, names only, also in the run's summary) and then:
 
 1. Regenerates `src/generated/api.ts`, then runs typecheck, build and tests
 2. Opens or updates the one rolling PR on `chore/sync-api-types`, titled `chore: sync API types from platform (...)`
@@ -176,7 +187,9 @@ A run downloads the spec and projects it with `npm run openapi:sync`. The served
 
 The rolling PR is opened and force-pushed with the workflow's default `GITHUB_TOKEN`, and GitHub does not start `pull_request` workflows for what that token does. The Test workflow, whose checks the PR needs, therefore does not run by itself on the PR, and not after a later update of it either. The repository has no other mechanism for this and the workflow uses no extra token. A maintainer starts the checks by closing the PR and reopening it at once: the reopen is a user action and runs Test on the current head. Do it quickly: a sync run that finds the PR closed and unmerged stops and reports that syncing is paused until it is reopened. The workflow's own "Verify types compile" step has already run typecheck, build and tests on the same commit, but lint, the docs check and the other Test steps run only through that reopen.
 
-Review the generated type diff for breaking changes before merging a sync PR: the merge is what publishes. Nothing is released while the API is unchanged. To check the setup, run the workflow once by hand: on an unchanged API it must end with "Spec unchanged".
+Review the rolling PR before merging: read the printed pointers and the generated type diff for breaking changes. The merge is what publishes. Nothing is released while the API is unchanged.
+
+To check the setup, run the workflow once by hand. The expected result depends on what has changed since the committed spec was last synced: if nothing public changed it must end with "Spec unchanged"; if something did, it must report exactly the pointers of that change, pass "Verify types compile" and open the rolling PR. Any pointer under `/tags`, `/servers` or a schema property you did not expect means the projection does not yet reproduce the served document. Do not merge that PR; fix the projection instead.
 
 ### Repository Secrets
 
