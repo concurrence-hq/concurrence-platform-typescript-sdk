@@ -5666,7 +5666,7 @@ export interface paths {
         put?: never;
         /**
          * Promote a reviewed configuration of a service
-         * @description Store a candidate version set as `target_version_set`, with the service's harness pins and settings when the request names them, in one write of the service. The write lands only while the service is at `expected_updated_at` and every version set in `reviewed_base` still has the `service_config_digest` the caller reviewed (`GET .../configuration-identity`): a change to the service, a workspace default, an agent, a context graph, a dynamic behavior set or a harness default since the review refuses it with 409, and nothing is stored. `reviewed_base` names the target when the service has it, and every version set of the service when the request names `harness_pins` or `settings`, which change what a session of each of them loads. A target the service does not have is created and is not named in `reviewed_base`. The candidate names its agent version and context graph version, and gets every check a version set, harness pin or settings write of the service gets. The answer is the promotion's receipt, stored with the write, whose `service_config_digest` is the digest a session of `target_version_set` loaded from the configuration the promotion committed. It records that configuration, not what a session ran since. The same request with the same `request_id` from the same credential is answered that receipt again with 200 and writes nothing, whatever the service stores by then, while the workspace is active and that credential may still promote the service. After a timeout or a lost response, that retry is how a caller learns whether the promotion was stored. Only Amigo administrators promote a system service. Requires `Service.update` permission.
+         * @description Store a candidate version set as `target_version_set`, with the service's harness pins and settings when the request names them, in one write of the service. The write lands only while the service is at `expected_updated_at` and every version set in `reviewed_base` still has the `service_config_digest` the caller reviewed (`GET .../configuration-identity`): a change to the service, a workspace default, an agent, a context graph, a dynamic behavior set or a harness default since the review refuses it with 409, and nothing is stored. `reviewed_base` names the target when the service has it, and every version set of the service when the request names `harness_pins` or `settings`, which change what a session of each of them loads. A target the service does not have is created and is not named in `reviewed_base`. The candidate names its agent version, and its context graph version when the service binds a context graph, and gets every check a version set, harness pin or settings write of the service gets. The answer is the promotion's receipt, stored with the write, whose `service_config_digest` is the digest a session of `target_version_set` loaded from the configuration the promotion committed. It records that configuration, not what a session ran since. The same request with the same `request_id` from the same credential is answered that receipt again with 200 and writes nothing, whatever the service stores by then, while the workspace is active and that credential may still promote the service. After a timeout or a lost response, that retry is how a caller learns whether the promotion was stored. Only Amigo administrators promote a system service. Requires `Service.update` permission.
          */
         post: operations["promote-service-configuration"];
         delete?: never;
@@ -22730,8 +22730,9 @@ export interface components {
              */
             target_version_set: string;
             /**
-             * @description The candidate. It names its agent version and its context graph version: a set that follows the latest
-             *     version of either is refused.
+             * @description The candidate. It names its agent version, and its context graph version when the service binds a context
+             *     graph: a set that follows the latest version of either is refused. A service that binds no context graph has no
+             *     graph version to name.
              */
             version_set: components["schemas"]["VersionSet-Input"];
         };
@@ -50749,7 +50750,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A candidate that follows the latest agent or context graph version (`promotion_versions_not_explicit`), a `reviewed_base` that does not name every version set the promotion replaces (`promotion_base_incomplete`), or a version set, pin or setting a write of the service refuses. */
+            /** @description A candidate that follows the latest agent version, or the latest context graph version on a service that binds a context graph (`promotion_versions_not_explicit`), a `reviewed_base` that does not name every version set the promotion replaces (`promotion_base_incomplete`), or a version set, pin or setting a write of the service refuses, such as a context graph version on a service that binds no context graph (`context_graph_required`). */
             422: {
                 headers: {
                     [name: string]: unknown;
