@@ -282,7 +282,7 @@ credential.
 | `retry`           | `RetryOptions` | No       | Retry configuration for transient failures                                                                    |
 | `maxRetries`      | `number`       | No       | Convenience alias for retry count                                                                             |
 | `timeout`         | `number`       | No       | Default request timeout in milliseconds                                                                       |
-| `headers`         | `HeadersInit`  | No       | Default headers added to every request                                                                        |
+| `headers`         | `HeadersOptions`  | No       | Default headers added to every request                                                                        |
 | `hooks`           | `ClientHooks`  | No       | Request/response lifecycle hooks for tracing or logging                                                       |
 | `fetch`           | `typeof fetch` | No       | Custom fetch for BFF proxy, cookie forwarding, or test mocking                                                |
 
@@ -336,7 +336,7 @@ The SDK ships with generated OpenAPI types and re-exports them for direct use:
 import type { components, operations, paths } from '@amigo-ai/platform-sdk'
 
 type Agent = components['schemas']['AgentResponse']
-type ListAgentsQuery = operations['list_agents_v1__workspace_id__agents_get']['parameters']['query']
+type ListAgentsQuery = operations['list-agents']['parameters']['query']
 ```
 
 Public builds are generated from the committed [`openapi.json`](./openapi.json) snapshot in this repo so type output stays deterministic across machines and CI runs. When you need to refresh that snapshot, run:
@@ -854,7 +854,7 @@ const { history } = await client.world.getEnrichmentHistory('entity-id', 'prefer
 
 ### Calls
 
-Calls are read-only — they are created by the voice pipeline.
+Calls are created by the voice pipeline or by `client.calls.createOutbound()`. The other methods read calls.
 
 ```typescript
 const { items: calls } = await client.calls.list({
@@ -1106,7 +1106,7 @@ const observerHandle = client.observers.subscribe({
 
 Both helpers are built on the shared `ReconnectingWebSocket` primitive, which
 maps platform-specific WebSocket close codes (4001 client error, 4029 rate
-limit, 4403 auth, 4100 token expired) to a typed reason taxonomy and applies an
+limit, 4403 auth, 4100 not authenticated) to a typed reason taxonomy and applies an
 idle watchdog (default 45s) so a half-dead socket forces a reconnect rather
 than hanging indefinitely. Compose it directly via `createReconnectingWebSocket`
 when you need a managed WebSocket outside these resources.
@@ -1244,7 +1244,7 @@ await client.settings.retention.update({ call_recordings_days: 90 })
 
 ### Surfaces (Patient Forms)
 
-Surfaces are workspace-scoped form specs for collecting patient data. Create a form, deliver it via SMS or email, and track completion. See the full guide: [Build a Custom Patient Form](./docs/guides/build-a-form.md).
+Surfaces are workspace-scoped form specs for collecting patient data. Create a form, deliver it by email or as a web link, and track completion. See the full guide: [Build a Custom Patient Form](./docs/guides/build-a-form.md).
 
 ```typescript
 // Create a patient intake form
@@ -1252,7 +1252,7 @@ const surface = await client.POST('/v1/{workspace_id}/surfaces', {
   body: {
     entity_id: patientId,
     title: 'New Patient Intake',
-    channel: 'sms',
+    channel: 'web',
     fields: [
       { key: 'full_name', label: 'Full Name', field_type: 'text', required: true },
       { key: 'date_of_birth', label: 'Date of Birth', field_type: 'date', required: true },
@@ -1267,10 +1267,10 @@ const surface = await client.POST('/v1/{workspace_id}/surfaces', {
 })
 console.log(surface.data.url) // Patient-facing token URL
 
-// Deliver via SMS
+// Deliver to the patient by email
 await client.POST('/v1/{workspace_id}/surfaces/{surface_id}/deliver', {
   params: { path: { surface_id: surface.data.id } },
-  body: { channel_address: '+15551234567' },
+  body: { channel_address: 'patient@example.com' },
 })
 
 // Track completion
@@ -1413,7 +1413,7 @@ const trigger = await client.triggers.create({
   schedule: '0 9 * * 1-5',
   timezone: 'America/New_York',
   action_id: 'skill-id',
-  event_type: 'trigger.scheduled',
+  event_type: 'amigo.trigger.cron',
   input_template: { campaign: 'follow-up' },
 })
 
@@ -1432,9 +1432,9 @@ const hipaa = await client.compliance.getHipaa()
 ### Audit
 
 ```typescript
-const { items: events } = await client.audit.list({ limit: 50 })
+const { events } = await client.audit.list({ limit: 50 })
 const summary = await client.audit.getSummary()
-await client.audit.createExport({ start_date: '2026-01-01', end_date: '2026-03-31' })
+await client.audit.createExport({ date_from: '2026-01-01T00:00:00Z', date_to: '2026-03-31T23:59:59Z' })
 ```
 
 ### Recordings
