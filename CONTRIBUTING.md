@@ -176,20 +176,28 @@ A run downloads the spec and projects it with `npm run openapi:sync`. The served
 
 The projection also writes every object's keys in sorted order, the order of the committed file, whatever order the API serves.
 
-What has been shown so far: a test on a fixture built from the committed spec by applying what a deployed API does (`tests/public-openapi.test.js`) projects back to the committed bytes. That is a test of the projection on a stand-in. **No run on the real served document has yet shown the same**, so do not treat "an unchanged API reproduces the committed file" as established until the check below has passed once.
+What has been shown so far: a test on a fixture built from the committed spec by applying what a deployed API does (`tests/public-openapi.test.js`) projects back to the committed bytes. A manual run on the served document (run 43751715977) reported exactly the three differences that were expected, three description strings of the promotions operation, regenerated the types and passed typecheck, build and tests; its last step then failed, which is what the branch preparation described below replaces.
 
-When the projection differs from the committed file, the workflow prints where (the JSON pointers that differ, at most 200, names only, also in the run's summary) and then:
+When the projection differs from the committed file, the workflow prints where (the JSON pointers that differ, at most 200, names only, also in the run's summary), regenerates `src/generated/api.ts`, runs typecheck, build and tests, and then prepares the branch. **The workflow does not open a pull request**: this repository does not let workflows create them, and a pull request opened by the workflow token would get no checks. It reads the pull requests whose head is the rolling branch `chore/sync-api-types` and whose base is `main`, pushes the branch, and reports what a maintainer does next.
 
-1. Regenerates `src/generated/api.ts`, then runs typecheck, build and tests
-2. Opens or updates the one rolling PR on `chore/sync-api-types`, titled `chore: sync API types from platform (...)`
-3. After a maintainer merges that PR, `spec-auto-release.yml` waits for the Test workflow on `main` to pass
-4. Dispatches a minor release automatically
+The branch holds one commit on top of `main` with `openapi.json` and `src/generated/api.ts`. A run pushes it (with `--force-with-lease`) only when the remote branch does not already hold the same two files, so an open pull request keeps its checks while the spec does not change.
 
-The rolling PR is opened and force-pushed with the workflow's default `GITHUB_TOKEN`, and GitHub does not start `pull_request` workflows for what that token does. The Test workflow, whose checks the PR needs, therefore does not run by itself on the PR, and not after a later update of it either. The repository has no other mechanism for this and the workflow uses no extra token. A maintainer starts the checks by closing the PR and reopening it at once: the reopen is a user action and runs Test on the current head. Do it quickly: a sync run that finds the PR closed and unmerged stops and reports that syncing is paused until it is reopened. The workflow's own "Verify types compile" step has already run typecheck, build and tests on the same commit, but lint, the docs check and the other Test steps run only through that reopen.
+What a run ends with:
 
-Review the rolling PR before merging: read the printed pointers and the generated type diff for breaking changes. The merge is what publishes. Nothing is released while the API is unchanged.
+- **Spec unchanged**: green, nothing else happens.
+- **Spec changed and no pull request from the branch is open**: the run **ends red** with an error saying the SDK is behind the public API, and the run summary gives the link `https://github.com/<repo>/compare/main...chore/sync-api-types?expand=1` and the title to use. A failed run is the only signal this repository can send without a secret.
+- **Spec changed and an open pull request from the branch already holds the same content**: green, and the summary names the pull request.
+- **Spec changed and an open pull request holds an older spec**: the branch is updated, and the run ends red, because a push made with the workflow token starts no checks on the pull request and a maintainer has to get them to run on the new head before merging.
 
-To check the setup, run the workflow once by hand. The expected result depends on what has changed since the committed spec was last synced: if nothing public changed it must end with "Spec unchanged"; if something did, it must report exactly the pointers of that change, pass "Verify types compile" and open the rolling PR. Any pointer under `/tags`, `/servers` or a schema property you did not expect means the projection does not yet reproduce the served document. Do not merge that PR; fix the projection instead.
+What a maintainer does after a red run:
+
+1. Open the pull request from `chore/sync-api-types` into `main` with the title `chore: sync API types from platform (<id>)` (the id is in the prepared commit's subject; the release automation reads the subject `chore: sync API types from platform`, so keep that prefix).
+2. Read the printed pointers and the generated type diff for breaking changes. A pull request opened by a person gets its checks normally.
+3. Merge it. **The merge publishes a minor release**: `spec-auto-release.yml` waits for the Test workflow on `main` to pass and then dispatches the release. Nothing is released while the API is unchanged.
+
+**Pause.** The sync is paused when the most recently closed pull request from the branch (head `chore/sync-api-types`, base `main`) was closed without merging and no pull request from the branch is open. A paused run pushes nothing and ends red naming that pull request. A pull request from the branch that is open, or one merged after it, ends the pause: closed-and-unmerged history older than a merged pull request does not count. To lift a pause, reopen the closed pull request. The rule is `scripts/lib/spec-sync-pause.mjs`, tested in `tests/spec-sync-pause.test.js`.
+
+To check the setup, run the workflow once by hand. The expected result depends on what has changed since the committed spec was last synced: if nothing public changed it must end with "Spec unchanged"; if something did, it must report exactly the pointers of that change, pass "Verify types compile", push the branch and end red with the link to open the pull request. Any pointer under `/tags`, `/servers` or a schema property you did not expect means the projection does not yet reproduce the served document. Do not merge that pull request; fix the projection instead.
 
 ### Repository Secrets
 
