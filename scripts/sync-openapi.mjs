@@ -2,8 +2,8 @@
  * Refresh the committed OpenAPI snapshot at repo root.
  *
  * Sources (in priority order):
- *   1. Explicit --spec path/to/spec.json within this repo or ../platform
- *   2. Local sibling repo: ../platform/services/platform-api/openapi.json
+ *   1. Explicit --spec path/to/spec.json within this repo or ../platform-v2
+ *   2. Local sibling repo: ../platform-v2/services/platform-api/openapi.json
  */
 
 import fs from 'node:fs'
@@ -16,7 +16,7 @@ import {
   resolveRepoPath,
 } from './lib/repo-paths.mjs'
 
-const PLATFORM_ROOT = path.resolve(REPO_ROOT, '../platform')
+const PLATFORM_ROOT = path.resolve(REPO_ROOT, '../platform-v2')
 const SIBLING_SPEC = path.resolve(PLATFORM_ROOT, 'services/platform-api/openapi.json')
 const ALLOWED_SPEC_ROOTS = [REPO_ROOT, PLATFORM_ROOT]
 
@@ -39,7 +39,7 @@ function resolveSpecSource() {
   }
 
   throw new Error(
-    'No OpenAPI spec source found. Provide --spec with a file inside this repo or ../platform/services/platform-api/openapi.json.',
+    'No OpenAPI spec source found. Provide --spec with a file inside this repo or ../platform-v2/services/platform-api/openapi.json.',
   )
 }
 

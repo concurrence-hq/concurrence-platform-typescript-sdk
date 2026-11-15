@@ -20,7 +20,7 @@ The `build` script runs type generation, esbuild bundling, and `tsc` declaration
 ## Architecture
 
 ```
-platform/services/platform-api/openapi.json  (committed, CI-checked)
+platform-v2/services/platform-api/openapi.json  (public projection committed here as openapi.json, CI-checked)
        |  scripts/gen-types.mjs (openapi-typescript)
        v
 src/generated/api.ts  (auto-generated -- DO NOT EDIT)
@@ -44,25 +44,22 @@ src/
     branded-types.ts    -- Branded type aliases (WorkspaceId, AgentId, ActionId, etc.)
     rate-limit.ts       -- RateLimitInfo type, parseRateLimitHeaders()
     webhooks.ts         -- HMAC-SHA256 webhook verification, parseWebhookEvent()
-  resources/
-    actions.ts          -- Action (skill) CRUD and testing
-    agents.ts           -- Agent CRUD and versioning
-    analytics.ts        -- Call stats, event breakdown, data quality
-    api-keys.ts         -- API key management
-    tokens.ts           -- Exchange API key for identity-issued JWT (POST /token)
-    audit.ts            -- Audit log queries
-    calls.ts            -- Call list, detail, intelligence, trace analysis
-    context-graphs.ts   -- Context graph (HSM) CRUD and versioning
-    data-sources.ts     -- Connected data source management
-    integrations.ts     -- Integration CRUD, endpoint testing, health check
-    operators.ts        -- Operator CRUD, dashboard, queue, escalations, call actions
-    recordings.ts       -- Call recording access
-    services.ts         -- Service CRUD
-    settings.ts         -- Workspace settings (voice, branding, outreach, security, retention, workflows)
-    simulations.ts      -- Call simulation management
-    triggers.ts         -- Trigger CRUD, fire, pause, resume, runs
-    workspaces.ts       -- Workspace CRUD
-    world.ts            -- World model entities, events, relationships
+  resources/            -- One typed resource class per API area (list: `ls src/resources`)
+    actions.ts, agent-runs.ts, agents.ts, analytics.ts, api-keys.ts, audit.ts, base.ts,
+    billing.ts, briefs.ts, calls.ts, client-config.ts, command-center.ts, compliance.ts,
+    context-graphs.ts, conversations.ts, dashboards.ts, data-query.ts, data-sources.ts,
+    dynamic-behavior-sets.ts, events.ts, external-auth-claim-mappings.ts,
+    external-identity-bindings.ts, external-integrations.ts, external-role-assignments.ts,
+    external-roles.ts, fhir.ts, functions.ts, harnesses.ts, identity-credentials.ts,
+    identity/base.ts, insights.ts, intake.ts, integrations.ts, m42.ts, me.ts,
+    memory-dimensions.ts, metering.ts, metric-store.ts, metrics.ts, models.ts, network.ts,
+    observers.ts, operation-grants.ts, operators.ts, pipeline.ts, production-evals.ts,
+    prompt-logs.ts, recordings.ts, review-queue.ts, role-grants.ts, runs.ts,
+    scheduling-rule-sets.ts, sensorium.ts, services.ts, sessions.ts, settings.ts,
+    simulations.ts, skills.ts, sso-grants.ts, sso-group-grants.ts, sso-lifecycle.ts,
+    staging-clones.ts, surfaces.ts, test-calls.ts, tokens.ts, tools.ts, traces.ts, triggers.ts,
+    use-cases.ts, voice.ts, workspace-authentication.ts, workspace-data-queries.ts,
+    workspace-tables.ts, workspaces.ts, world.ts
   generated/
     api.ts              -- Auto-generated OpenAPI types (DO NOT EDIT)
 tests/
@@ -114,8 +111,8 @@ The codegen script uses this repository's committed `openapi.json` by default. A
 
 ## Breaking Changes
 
-Response field removal, rename, or type change breaks this SDK and all consumers (developer-console). Coordinate with `amigo-ai/platform` (spec change) and `amigo-ai/developer-console` (UI updates) before releasing a version with breaking type changes.
+Response field removal, rename, or type change breaks this SDK and all consumers (developer-console). Coordinate with `concurrence-hq/platform-v2` (spec change) and `concurrence-hq/developer-console` (UI updates) before releasing a version with breaking type changes.
 
 ## Cross-Repo Contract
 
-The SDK types are generated from the committed OpenAPI spec. When the spec changes upstream, the `spec-sync` workflow auto-opens a PR with regenerated types. Breaking changes are detected by `oasdiff` CI in the API repo.
+The SDK types are generated from the committed OpenAPI spec. When the spec changes upstream, the `spec-sync` workflow auto-opens a PR with regenerated types. Breaking changes are detected by `oasdiff` CI in `concurrence-hq/platform-v2`.
