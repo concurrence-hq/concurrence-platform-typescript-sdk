@@ -1,8 +1,11 @@
 name: Spec Sync (Platform API changes)
 
-# There is no `schedule` yet. It returns after one manual run of the last step has pushed the sync
-# branch and ended as designed (see CONTRIBUTING.md, "Auto-Release (Spec Sync)").
+# Runs every day at 06:23 UTC, on a manual run and on a `spec-updated` dispatch. A scheduled run
+# has no input and no payload, so it syncs from the default spec URL below. A red run means the SDK
+# is behind the public API or a maintainer must act (see CONTRIBUTING.md, "Auto-Release (Spec Sync)").
 on:
+  schedule:
+    - cron: '23 6 * * *'
   repository_dispatch:
     types: [spec-updated]
   workflow_dispatch:
