@@ -397,7 +397,7 @@ export interface paths {
         };
         /**
          * List harness defaults
-         * @description The release each harness runs on every service that does not pin one, one entry per harness. A default the platform may no longer run says why (`refusal`). Read from a copy at most 30 seconds old. Requires `platform:harnesses` or `platform:admin` scope.
+         * @description The release each harness runs on every service that does not pin one, one entry per harness, and the policy release it names (`policy`, null for none). A default the platform may no longer run says why (`refusal` for its release, `policy_refusal` for its policy). Read from a copy at most 30 seconds old. Requires `platform:harnesses` or `platform:admin` scope.
          */
         get: operations["list-harness-defaults"];
         put?: never;
@@ -418,7 +418,7 @@ export interface paths {
         get?: never;
         /**
          * Set a harness default
-         * @description Set the release a harness runs on every service that does not pin one: `{tag: "in-tree"}` or a registered release named exactly, `{repo, tag, asset, sha256}`. A release is validated as a pin is: it matches its registry entry on repo, tag, asset and sha256, its contract is supported, it is not revoked, the entry is this kind and harness, and the running agent-engine image carries it. Unpinned services move on the sessions that start from 30 seconds after it; pinned services never move. Audited as `harness_default.update`. Requires `platform:harnesses` or `platform:admin` scope.
+         * @description Set the release a harness runs on every service that does not pin one: `{tag: "in-tree"}` or a registered release named exactly, `{repo, tag, asset, sha256}`. A release is validated as a pin is: it matches its registry entry on repo, tag, asset and sha256, its contract is supported, it is not revoked, the entry is this kind and harness, and the running agent-engine image carries it. The body can also name a policy release, `policy: {repo, tag, asset, sha256}`, the values the harness runs, checked the same way against platform-v2's `policy_releases.json`; `in-tree` can name one. The body is the whole default: a body without `policy` clears the default's policy. Unpinned services move on the sessions that start from 30 seconds after it. A pinned service keeps its pinned release, and its pinned policy if the pin names one; a pin without a policy runs the default's. Audited as `harness_default.update`. Requires `platform:harnesses` or `platform:admin` scope.
          */
         put: operations["set-harness-default"];
         post?: never;
@@ -5613,7 +5613,7 @@ export interface paths {
         get?: never;
         /**
          * Set a service's harness pins
-         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the pins are checked and even when they already match, so a stale review stores and drops nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. Requires `Service.update` permission.
+         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin can also name a policy release, `policy: {repo, tag, asset, sha256}`, the values the harness runs, registered in platform-v2's `policy_releases.json` for the pin's kind and harness and carried by the running agent-engine image (`harness_policy_unregistered`, `harness_policy_not_deployed`); an `in-tree` pin can name one, and a pin without one runs the harness default's policy. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the pins are checked and even when they already match, so a stale review stores and drops nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. Requires `Service.update` permission.
          */
         put: operations["set-service-harness-pins"];
         post?: never;
@@ -15263,13 +15263,18 @@ export interface components {
             /**
              * Error
              * @description Why the harness has nothing to run on the service: its stored pin is invalid, or its pin or default names a
-             *     release the platform may no longer run (revoked, unregistered, or off the supported contract range). Set, the
-             *     entry names no release, so the harness has nothing to run. None otherwise.
+             *     release or a policy the platform may no longer run (revoked, unregistered, or off the supported contract range).
+             *     Set, the entry names no release and no policy, so the harness has nothing to run. None otherwise.
              */
             error: string | null;
             /** Harness */
             harness: string;
             kind: components["schemas"]["HarnessKind"];
+            /**
+             * @description The policy release the harness runs the values of: the pin's, else the default's. None when neither names one,
+             *     and when ``error`` is set.
+             */
+            policy: components["schemas"]["PolicyRef"] | null;
             /** Repo */
             repo: string | null;
             /** Sha256 */
@@ -17233,6 +17238,12 @@ export interface components {
             options: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Standing
+             * @description current, or to_be_deprecated: the family stays in service and gets fixes and improvements only.
+             * @enum {string}
+             */
+            standing: "current" | "to_be_deprecated";
             summary: components["schemas"]["DescriptionString"];
             voices: components["schemas"]["Voices"] | null;
         };
@@ -18617,6 +18628,15 @@ export interface components {
             /** Harness */
             harness: string;
             kind: components["schemas"]["HarnessKind"];
+            /** @description The policy release this default names, the values its harness runs, or None. */
+            policy?: components["schemas"]["PolicyRef"] | null;
+            /**
+             * Policy Refusal
+             * @description Why the platform may not run this default's policy now (revoked, unregistered, an unsupported contract), so
+             *     every unpinned service's sessions of this harness fail closed until it is set again. None without a policy and
+             *     for a policy the platform may run.
+             */
+            policy_refusal?: string | null;
             /**
              * Refusal
              * @description Why the platform may not run this default's release now (revoked, unregistered, an unsupported contract), so
@@ -18653,6 +18673,12 @@ export interface components {
              */
             harness: string;
             kind: components["schemas"]["HarnessKind"];
+            /**
+             * @description A policy release registered in `policy_releases.json`, named exactly by `repo`, `tag`, `asset` and `sha256`:
+             *     the values the harness runs. Independent of the release, so `in-tree` can name one. Left out, a pin runs the
+             *     default's policy, and a default names none. Stored and audited without the key when left out.
+             */
+            policy?: components["schemas"]["PolicyRef"] | null;
             /** Repo */
             repo?: string | null;
             sha256?: components["schemas"]["Sha256"] | null;
@@ -22564,6 +22590,21 @@ export interface components {
             warm_transfer_on_queue: "hand_over" | "treat_as_miss";
         };
         /**
+         * PolicyRef
+         * @description A policy release registered in ``policy_releases.json``, named exactly: one family's values for the settings
+         *     Core declares. The image bakes it at ``/opt/harness-policies/<sha256>.json``.
+         */
+        PolicyRef: {
+            /** Asset */
+            asset: string;
+            /** Repo */
+            repo: string;
+            /** Sha256 */
+            sha256: string;
+            /** Tag */
+            tag: string;
+        };
+        /**
          * PriorityQueueItem
          * @description An active call ranked by operator priority.
          */
@@ -23530,6 +23571,12 @@ export interface components {
              * @description The wheel's file name on the release.
              */
             asset?: string | null;
+            /**
+             * @description A policy release registered in `policy_releases.json`, named exactly by `repo`, `tag`, `asset` and `sha256`:
+             *     the values the harness runs. Independent of the release, so `in-tree` can name one. Left out, a pin runs the
+             *     default's policy, and a default names none. Stored and audited without the key when left out.
+             */
+            policy?: components["schemas"]["PolicyRef"] | null;
             /** Repo */
             repo?: string | null;
             sha256?: components["schemas"]["Sha256"] | null;
@@ -36716,7 +36763,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The release is not registered as named, the platform may not run it, or it is not in the running agent-engine image (`detail.code` `harness_release_not_deployed`). `detail` says why. */
+            /** @description The release or the policy is not registered as named, the platform may not run it, or it is not in the running agent-engine image (`detail.code` `harness_release_not_deployed`, `harness_policy_unregistered`, `harness_policy_not_deployed`). `detail` says why. */
             422: {
                 headers: {
                     [name: string]: unknown;
