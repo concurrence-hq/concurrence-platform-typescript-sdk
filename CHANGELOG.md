@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.149.0] - 2026-11-16
+
+### Bug Fixes
+
+- the spec sync prepares the branch and a maintainer opens the pull request (#552)
+- make the spec sync reproduce the committed spec from the served one (#551)
+- let the spec sync run on the public spec (#550)
+
+### Documentation
+
+- correct statements that main contradicts (ALL-2763) (#548)
+- point SDK tooling and CLAUDE.md at platform-v2 (#546)
+
+### Maintenance
+
+- Refresh generated SDK types from the committed Platform API spec (#553)
+- run the spec sync every day (#554)
+- delete stale Everlab demo and historical audit doc (#545)
+- drop no-op integration-test job and tokenless Codecov upload (#547)
+
 ## [0.148.0] - 2026-11-13
 
 ### Features
