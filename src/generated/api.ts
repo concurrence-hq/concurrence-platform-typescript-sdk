@@ -1776,7 +1776,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create or start a conversation (web inbound, or outbound on a channel) */
+        /**
+         * Create or start a conversation (web inbound, or outbound on a channel)
+         * @description Create a web conversation, or start one on sms or imessage with the agent's first message.
+         *
+         *     Where the workspace's start check is on, a service that takes no text start (readiness ``starts``) is refused
+         *     with 422 before a conversation is created or an opener is sent: ``detail`` is ``{"code", "message", "fields"}``
+         *     and the code is ``start_kind_not_taken``, or ``start_family_unknown`` when the family the service runs cannot be
+         *     read.
+         */
         post: operations["create_conversation_v1__workspace_id__conversations_post"];
         delete?: never;
         options?: never;
@@ -5961,7 +5969,7 @@ export interface paths {
         put?: never;
         /**
          * Start a web text conversation session with an entity
-         * @description Start a web text session with a world model entity. Materializes the conversation and returns conversation_id for subsequent turns via POST /v1/{ws}/conversations/{id}/turns.
+         * @description Start a web text session with a world model entity. Materializes the conversation and returns conversation_id for subsequent turns via POST /v1/{ws}/conversations/{id}/turns. Where the workspace's start check is on, a service that takes no text start (readiness ``starts``) is refused with 422 before a conversation is created (a session that resumes its conversation is not asked): ``detail`` is ``{"code", "message", "fields"}`` and the code is ``start_kind_not_taken``, or ``start_family_unknown`` when the family the service runs cannot be read.
          */
         post: operations["start_text_session_v1__workspace_id__sessions_start_post"];
         delete?: never;
