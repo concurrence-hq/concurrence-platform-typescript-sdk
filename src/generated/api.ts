@@ -18664,7 +18664,7 @@ export interface components {
             items: components["schemas"]["src__routes__harness_platform__HarnessReleaseListResponse__Item"][];
         };
         /** @enum {string} */
-        HarnessSettingSource: "harness_default" | "service";
+        HarnessSettingSource: "harness_default" | "service" | "policy";
         HarnessSettingValue: boolean | number | string | string[];
         /**
          * HarnessSettings
