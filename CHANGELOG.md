@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.150.0] - 2026-11-16
+
+### Documentation
+
+- describe unknown event pass-through (#519)
+
+### Maintenance
+
+- Refresh generated SDK types from the committed Platform API spec (#555)
+
 ## [0.149.0] - 2026-11-16
 
 ### Bug Fixes
