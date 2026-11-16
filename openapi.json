@@ -24513,7 +24513,8 @@
       "HarnessSettingSource": {
         "enum": [
           "harness_default",
-          "service"
+          "service",
+          "policy"
         ],
         "type": "string"
       },
