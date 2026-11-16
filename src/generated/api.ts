@@ -5538,7 +5538,7 @@ export interface paths {
         put?: never;
         /**
          * Plan a service create
-         * @description Plan `POST /v1/{workspace_id}/services` with the body it takes, under its permission (`Service.create`) and scope. A permission the create would need for a field it sets (`Service.update`, `platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.
+         * @description Plan `POST /v1/{workspace_id}/services` with the body it takes, under its permission (`Service.create`) and scope. A permission the create would need for a field it sets (`Service.update`, `platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Each family lists what the voice family contract refuses it for in `family_refusals` (`family_judgement` `judged`), or is `not_judged` with a code, which is never a pass; its messages have digits redacted, where `problems[].message` keeps the exact text. Read rate limit; audited as `service.plan.read`.
          */
         post: operations["plan-service-create"];
         delete?: never;
@@ -5646,7 +5646,7 @@ export interface paths {
         put?: never;
         /**
          * Plan a service update
-         * @description Plan `PUT /v1/{workspace_id}/services/{service_id}` with the body it takes, under its permission (`Service.update`) and scope. A permission the update would need for a field it sets (`platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Read rate limit; audited as `service.plan.read`.
+         * @description Plan `PUT /v1/{workspace_id}/services/{service_id}` with the body it takes, under its permission (`Service.update`) and scope. A permission the update would need for a field it sets (`platform:admin`) is a problem, not a 403. Writes nothing: it runs the save's own checks and lists each refusal the save would answer with in `problems` (`status`, `code`, `message`, `where` and the save's exact `detail`), in the order the save meets them, where the save stops at the first. A check the save only reaches past an earlier refusal is skipped where it would read through what that refusal named: the version pins and the realtime pairing of an agent or a context graph the workspace lacks, the behavior pins of a version set whose versions don't resolve, and every check after the service config when what the save would store does not validate. A refusal only the write itself can raise, such as a pinned set archived since, is not listed. `changes` is the field diff against the stored service, `families` each version set's family with its capability row and the family's delivery rules held to the whole config, and `readiness` the readiness readback of what the save would store. Each family lists what the voice family contract refuses it for in `family_refusals` (`family_judgement` `judged`), or is `not_judged` with a code, which is never a pass; its messages have digits redacted, where `problems[].message` keeps the exact text. Read rate limit; audited as `service.plan.read`.
          */
         post: operations["plan-service-update"];
         delete?: never;
@@ -5717,6 +5717,13 @@ export interface paths {
          *     Family capabilities are the catalog's declarations, not evidence from a call. An unset family uses the engine's
          *     concurrence default. A missing agent version remains unavailable. An inbound use case reports whether it has a fallback
          *     forwarding number; this is informational and the number is not returned.
+         *     Each version set on a family of the voice family contract lists what a save refuses it for (family_refusals):
+         *     the admission, the family's delivery rules and the contract's rules on the program it runs. A version set that
+         *     could not be judged is not_judged with a code: a family off the contract, a missing agent version (even where a
+         *     save would still judge the graph), a voice_config or a graph version that no longer validates, or no graph to
+         *     run. not_judged is never a pass.
+         *     starts lists, for each version set, the kinds of start its service takes (text, test_call, app_session): a client
+         *     offers those and no other.
          */
         get: operations["get-service-readiness"];
         put?: never;
@@ -10008,10 +10015,28 @@ export interface components {
             /** Family */
             family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
+             * Family Judgement
+             * @description judged: family_refusals is every refusal the voice family contract and the family's delivery rules find for this version set, empty when the family runs it as authored. not_judged: the version set could not be judged (family_not_judged says why), so family_refusals may be incomplete and an empty one is never a pass.
+             * @enum {string}
+             */
+            family_judgement: "judged" | "not_judged";
+            /** @description Why the version set was not judged, when family_judgement is not_judged; null otherwise. */
+            family_not_judged: components["schemas"]["FamilyNotJudged"] | null;
+            /**
+             * Family Refusals
+             * @description Each reason the family cannot run this version set as stored, with the code, message and fields a save refuses it with: the family's admission for the workspace when the service names the family, its delivery rules held to the whole config, then the contract's rules on the program the set's agent version runs. A client shows each one's code, message and fields and computes none. Messages have every digit redacted; a save plan's problems keep the exact text.
+             */
+            family_refusals: components["schemas"]["FamilyRefusal"][];
+            /**
              * Ignored Settings
-             * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves.
+             * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves, and a setting listed here may still be refused (see family_refusals). Empty, and not known, when ignored_settings_known is false.
              */
             ignored_settings: string[];
+            /**
+             * Ignored Settings Known
+             * @description Whether ignored_settings was read: false when the version set's family is unknown or the stored service no longer validates, so an empty list says nothing.
+             */
+            ignored_settings_known: boolean;
             /**
              * Source
              * @enum {string}
@@ -17215,14 +17240,34 @@ export interface components {
             /** Family */
             family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
             /**
+             * Family Judgement
+             * @description judged: family_refusals is every refusal the voice family contract and the family's delivery rules find for this version set, empty when the family runs it as authored. not_judged: the version set could not be judged (family_not_judged says why), so family_refusals may be incomplete and an empty one is never a pass.
+             * @enum {string}
+             */
+            family_judgement: "judged" | "not_judged";
+            /** @description Why the version set was not judged, when family_judgement is not_judged; null otherwise. */
+            family_not_judged: components["schemas"]["FamilyNotJudged"] | null;
+            /**
+             * Family Refusals
+             * @description Each reason the family cannot run this version set as stored, with the code, message and fields a save refuses it with: the family's admission for the workspace when the service names the family, its delivery rules held to the whole config, then the contract's rules on the program the set's agent version runs. A client shows each one's code, message and fields and computes none. Messages have every digit redacted; a save plan's problems keep the exact text.
+             */
+            family_refusals: components["schemas"]["FamilyRefusal"][];
+            /**
              * Ignored Settings
-             * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves.
+             * @description The service settings, as dotted paths from the service (keyterms, voice_config.max_buffer_delay_ms), that the service sets to a non-default value and this family does not read. Advisory: the config is valid and saves, and a setting listed here may still be refused (see family_refusals). Empty, and not known, when ignored_settings_known is false.
              */
             ignored_settings: string[];
             /**
+             * Ignored Settings Known
+             * @description Whether ignored_settings was read: false when the version set's family is unknown or the stored service no longer validates, so an empty list says nothing.
+             */
+            ignored_settings_known: boolean;
+            /**
              * Refusals
              * @description What the config the save would store asks of the family that it can't deliver (warm transfer,
-             *     service-written lines), whether or not this save moves the version set. Empty when it delivers it all.
+             *     service-written lines), whether or not this save moves the version set. Empty when it delivers it all. Kept as
+             *     it was for a family off the voice family contract; for a family on it, `family_refusals` is the list a client
+             *     shows, which holds these findings with the contract's.
              */
             refusals: components["schemas"]["FamilyPolicyRefusal"][];
             /**
@@ -17232,6 +17277,18 @@ export interface components {
             source: "service" | "agent" | "engine_default" | "agent_missing";
             version_set: components["schemas"]["ReadinessLabel"];
         };
+        /** FamilyNotJudged */
+        FamilyNotJudged: {
+            code: components["schemas"]["FamilyNotJudgedCode"];
+            /**
+             * Fields
+             * @description Where the author looks, as dotted paths.
+             */
+            fields: components["schemas"]["ReadinessLabel"][];
+            message: components["schemas"]["ReadinessLabel"];
+        };
+        /** @enum {string} */
+        FamilyNotJudgedCode: "agent_version_missing" | "family_not_on_contract" | "voice_config_unreadable" | "graph_missing" | "graph_version_missing" | "graph_version_unreadable";
         /** FamilyPolicyRefusal */
         FamilyPolicyRefusal: {
             /**
@@ -17244,6 +17301,20 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** FamilyRefusal */
+        FamilyRefusal: {
+            /** Code */
+            code: components["schemas"]["FamilyRefusalCode"] | ("family_warm_transfer_unsupported" | "family_cannot_speak_service_lines");
+            /**
+             * Fields
+             * @description What the author changes, as dotted paths.
+             */
+            fields: components["schemas"]["ReadinessLabel"][];
+            /** @description Names the family and the fix, with every digit redacted. */
+            message: components["schemas"]["ReadinessLabel"];
+        };
+        /** @enum {string} */
+        FamilyRefusalCode: "voice_family_not_served" | "voice_family_residency" | "voice_family_agent_version" | "voice_family_direct_program" | "voice_family_graph_shape" | "voice_family_guardrails" | "voice_family_dynamic_behaviors" | "voice_family_completion_navigation" | "voice_family_warm_transfer" | "voice_family_service_lines" | "voice_family_outbound" | "voice_family_settings";
         /** FhirAppointmentListResponse */
         FhirAppointmentListResponse: {
             /** Appointments */
@@ -25501,6 +25572,11 @@ export interface components {
              *     read. Null when it is read.
              */
             readiness_unavailable: components["schemas"]["Unavailable"] | null;
+            /**
+             * Starts
+             * @description The starts each version set takes, as `readiness.starts` lists them. Null exactly when `families` is null.
+             */
+            starts: components["schemas"]["VersionSetStarts"][] | null;
         };
         /**
          * ServicePromotionReceipt
@@ -25571,6 +25647,11 @@ export interface components {
             /** Lines */
             lines: components["schemas"]["Line"][];
             policies: components["schemas"]["Policies"];
+            /**
+             * Starts
+             * @description Each version set, release first, with the starts its service takes: a client offers these and no other. A kind listed is one the platform runs for this service's channel and family; it is not a judgement that the start succeeds (families[].family_judgement and family_refusals say that). Every service has an entry per version set, a text one too.
+             */
+            starts: components["schemas"]["VersionSetStarts"][];
             /** Voice Use Cases */
             voice_use_cases: components["schemas"]["VoiceUseCase"][];
         };
@@ -29040,6 +29121,8 @@ export interface components {
              */
             source_workspace_id: string;
         };
+        /** @enum {string} */
+        StartKind: "text" | "test_call" | "app_session";
         /** StartSessionRequest */
         StartSessionRequest: {
             /** @description World model canonical_id of the form 'source:resource_type:id' (e.g. 'charmhealth:Patient:67890'). The structural regex on CanonicalIdString blocks spaces, names, DOBs, and similar regulated content. Resolved against the SDP-projected entity table; a freshly-created entity may not be visible yet if the projection is lagging. Provide either entity_id or canonical_id, not both. */
@@ -33499,6 +33582,17 @@ export interface components {
              * @description The version of the set the service runs. A later version of the set changes nothing until the pin moves.
              */
             version: number;
+        };
+        /** VersionSetStarts */
+        VersionSetStarts: {
+            /** Kinds */
+            kinds: components["schemas"]["StartKind"][];
+            /**
+             * Kinds Known
+             * @description False when the version set's family is unknown (families[].source is agent_missing): kinds is then empty and says nothing; a client offers no start from it and shows why.
+             */
+            kinds_known: boolean;
+            version_set: components["schemas"]["ReadinessLabel"];
         };
         /** Voice */
         Voice: {
@@ -50833,7 +50927,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Stored service configuration is incompatible */
+            /** @description Stored service configuration is incompatible. The detail is {code, message, fields}: code config_incompatible for the stored service, or agent_version_incompatible for the voice_config of an agent version a version set runs, and fields the dotted paths that do not validate. Every digit is redacted. */
             409: {
                 headers: {
                     [name: string]: unknown;
