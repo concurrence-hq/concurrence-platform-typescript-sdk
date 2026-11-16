@@ -282,7 +282,7 @@ credential.
 | `retry`           | `RetryOptions` | No       | Retry configuration for transient failures                                                                    |
 | `maxRetries`      | `number`       | No       | Convenience alias for retry count                                                                             |
 | `timeout`         | `number`       | No       | Default request timeout in milliseconds                                                                       |
-| `headers`         | `HeadersInit`  | No       | Default headers added to every request                                                                        |
+| `headers`         | `HeadersOptions`  | No       | Default headers added to every request                                                                        |
 | `hooks`           | `ClientHooks`  | No       | Request/response lifecycle hooks for tracing or logging                                                       |
 | `fetch`           | `typeof fetch` | No       | Custom fetch for BFF proxy, cookie forwarding, or test mocking                                                |
 
@@ -336,7 +336,7 @@ The SDK ships with generated OpenAPI types and re-exports them for direct use:
 import type { components, operations, paths } from '@amigo-ai/platform-sdk'
 
 type Agent = components['schemas']['AgentResponse']
-type ListAgentsQuery = operations['list_agents_v1__workspace_id__agents_get']['parameters']['query']
+type ListAgentsQuery = operations['list-agents']['parameters']['query']
 ```
 
 Public builds are generated from the committed [`openapi.json`](./openapi.json) snapshot in this repo so type output stays deterministic across machines and CI runs. When you need to refresh that snapshot, run:
@@ -345,7 +345,7 @@ Public builds are generated from the committed [`openapi.json`](./openapi.json) 
 npm run openapi:sync
 ```
 
-Sync and type generation use the same public-contract projection. Internal-only operations and their exclusive schema dependencies are omitted; shared types and the explicitly preserved, already-published workspace-copy API remain compatible. The committed snapshot must be unchanged by a second projection, which CI verifies before publication.
+Sync and type generation use the same public-contract projection, and accept either the full spec or the public spec a deployed Platform API serves. The latter leaves out the published workspace-copy operations and the schema fields marked internal, appends name-only `tags` and rewrites `servers`; the projection takes those operations, and the fields the committed snapshot marks internal, from the committed snapshot, drops the name-only tags and rewrites `servers` (a url-only entry is replaced by the committed entry with the same URL, a new URL is kept after those, and a dropped URL is removed). A field newly marked internal is not added to the SDK this way. A test on a fixture shows this reproduces the committed snapshot, and one run on the served document reported only the three differences expected, three description strings of one operation. Internal-only operations and their exclusive schema dependencies are omitted; shared types and the explicitly preserved, already-published workspace-copy API remain compatible. The committed snapshot must be unchanged by a second projection, which CI verifies before publication. The `spec-sync` workflow uses this projection, prepares the branch `chore/sync-api-types` when the spec changed and ends red until a maintainer opens the pull request from it. It runs every day at 06:23 UTC (no scheduled run has happened yet), on a manual run and on a `spec-updated` dispatch; it ends green when the spec is unchanged or an open pull request from the branch already carries the change, and a red run means a person must act, so a failed scheduled run is how the repository tells its maintainers the SDK is behind the public API. A manual run (43753707636) showed the whole workflow on the served document, ending red as designed after pushing the branch; see [CONTRIBUTING.md](./CONTRIBUTING.md#auto-release-spec-sync).
 
 For a repo-local overview of the exported client surface, see the generated [api.md](./api.md).
 
@@ -619,7 +619,7 @@ const version = await client.agents.createVersion(agent.id, {
   },
   voice_config: {
     voice_id: 'voice-abc123',
-    session_provider: 'inhouse' satisfies VoiceSessionProvider,
+    session_provider: 'concurrence' satisfies VoiceSessionProvider,
   },
 })
 
@@ -669,7 +669,7 @@ console.log(service.agent_name, service.channel_type, service.version_sets)
 await client.services.update(service.id, {
   voice_config: {
     ...(service.voice_config ?? {}),
-    session_provider: 'inhouse' satisfies VoiceSessionProvider,
+    session_provider: 'concurrence' satisfies VoiceSessionProvider,
   },
 })
 
@@ -682,6 +682,100 @@ await client.services.upsertVersionSet(service.id, 'canary', {
 // verify, and every platform tool that reads a patient record refuses.
 await client.services.update(service.id, { platform_caller_verification: false })
 ```
+
+#### Harness settings, pins and releases
+
+The settings schema lists every setting available for each harness a service runs. That is the
+settings the harness release declares and the platform's Core-owned settings, which stay available
+when the service pins an external release. The schema does not say which of the two a setting is,
+so read it, not a release's own declaration, for what a service can store. Then replace the
+service's values. A key left out runs the harness default.
+
+```typescript
+const schema = await client.services.getSettingsSchema(service.id)
+const current = await client.services.getSettings(service.id)
+await client.services.setSettings(service.id, { settings: { ...current.settings } })
+
+// Pin a harness to a registered release; setting the pin back to its default is the rollback
+const { effective_harnesses } = await client.services.getHarnesses(service.id)
+await client.services.setHarnessPins(service.id, {
+  pins: [{ kind: 'voice', harness: 'concurrence', tag: 'in-tree' }],
+})
+
+// Platform-level (scope `platform:harnesses` or `platform:admin`)
+const { items: releases } = await client.harnesses.listReleases({ kind: 'voice' })
+const defaults = await client.harnesses.listDefaults()
+await client.harnesses.setDefault('voice', 'concurrence', { tag: 'in-tree' })
+```
+
+#### Promote a reviewed configuration
+
+`promoteConfiguration` stores a reviewed candidate version set, with the service's harness pins
+and settings when the request names them, in one write. The flow is review, promotion, receipt,
+and an exact retry when the outcome is not known.
+
+```typescript
+import { randomUUID } from 'node:crypto'
+import {
+  ConflictError,
+  ServiceUnavailableError,
+  type PromoteServiceConfigurationRequest,
+} from '@amigo-ai/platform-sdk'
+
+// 1. Review: read the identity of each version set the promotion replaces. Keep `updated_at`
+//    as the string the API returned.
+const reviewed = await client.services.getConfigurationIdentity(service.id, {
+  version_set: 'release',
+})
+
+// 2. Build the request once and keep it. `request_id` is yours: one UUID per promotion.
+const request: PromoteServiceConfigurationRequest = {
+  request_id: randomUUID(),
+  expected_updated_at: reviewed.updated_at,
+  reviewed_base: [
+    { version_set: 'release', service_config_digest: reviewed.service_config_digest },
+  ],
+  target_version_set: 'release',
+  version_set: { agent_version_number: 3, context_graph_version_number: 7 },
+}
+
+// 3. Promote. The receipt comes back for a first promotion (201) and for a repeat (200).
+try {
+  const receipt = await client.services.promoteConfiguration(service.id, request)
+  console.log(receipt.promotion_id, receipt.service_config_digest, receipt.lastResponse.statusCode)
+} catch (error) {
+  if (error instanceof ConflictError) {
+    // Nothing was stored. `errorBody.detail.code` is `promotion_base_changed` (with `changed`)
+    // or `promotion_request_mismatch`. Review again and send a new request with a new id.
+  } else if (error instanceof ServiceUnavailableError) {
+    // `errorBody.detail.code` and, for `promotion_transaction_timeout`, `detail.outcome`:
+    // `not_stored`, or `unknown` when the deadline passed during the commit.
+    // 4. Resolve it by sending `request` again, unchanged.
+  } else {
+    throw error
+  }
+}
+```
+
+- **Reviewed base.** `reviewed_base` names the target version set when the service has it, and
+  every version set of the service when the request names `harness_pins` or `settings`. Leaving
+  `harness_pins` or `settings` out keeps what the service has; `[]` and `{}` clear them. The
+  candidate names its agent version and its context graph version.
+- **Receipt.** The receipt is historical configuration evidence. Its `service_config_digest` is
+  the digest of the target configuration that promotion committed. It
+  is not proof of what the service stores now, and it is not proof that any session loaded or
+  ran that configuration. A simulation's `harness_execution` or a run's own receipt is the
+  evidence of what ran.
+- **Exact retry.** The SDK never creates or changes `request_id`. Its normal POST retry policy
+  still applies to 429 with `Retry-After`; it does not automatically retry 409, 422 or 503.
+  After a `promotion_transaction_timeout` with `outcome: 'unknown'`, a client
+  timeout or a lost response, the promotion may have been stored. Send the same request object
+  again with the same credential: a stored promotion answers its receipt with 200 and writes
+  nothing, and one that was not stored runs as a new attempt. The same `request_id` with a
+  different request is refused with `promotion_request_mismatch`, so do not rebuild the request
+  from a new read before retrying.
+- **Refusals.** 409, 422 and 503 keep the API's `detail` on `errorBody`. Apart from the
+  `unknown` outcome above, a refusal stored nothing.
 
 ### Runs
 
@@ -760,7 +854,7 @@ const { history } = await client.world.getEnrichmentHistory('entity-id', 'prefer
 
 ### Calls
 
-Calls are read-only — they are created by the voice pipeline.
+Calls are created by the voice pipeline or by `client.calls.createOutbound()`. The other methods read calls.
 
 ```typescript
 const { items: calls } = await client.calls.list({
@@ -829,6 +923,124 @@ for await (const event of client.conversations.streamTurn(conversation.id, {
 }
 ```
 
+### Browser voice test calls
+
+Use `client.testCalls.start()` to run a browser voice test call against a
+deployed agent engine. Every call runs on its own voice runner, so the SDK
+first asks the agent engine to allocate one (`POST /agent/test-call/start` on
+`agentBaseUrl`) and then opens the actor URL the engine returns. It
+authenticates the socket through the WebSocket subprotocol, parses metadata
+frames, and carries audio in both directions.
+
+Audio on this socket is raw G.711 mu-law, 8 kHz, mono (one byte per sample, no
+container) in both directions. That is the only format the agent engine
+accepts, and there is no format or sample-rate option. The SDK passes audio
+bytes through unchanged and does not transcode: your application captures the
+microphone, converts it to 8 kHz mu-law before `sendAudio()`, and decodes the
+mu-law frames it receives in `onAudio` for playback.
+
+Do not put a workspace API key in the browser. Have your server mint a
+short-lived identity access token (for example with `client.tokens`), and use
+that one token both as the browser client's credential and as the call's
+`token`. The agent engine ties the allocation to the credential that requested
+it, so the two must match. `agentBaseUrl` is required: the allocation is sent
+only to that origin, over `https`, and never to the platform API origin.
+
+```typescript
+const client = new AmigoClient({
+  apiKey: accessToken, // short-lived identity access token from your server
+  workspaceId,
+  agentBaseUrl, // the documented agent-engine origin for your region
+})
+
+let liveCallSid: string | undefined
+
+const call = await client.testCalls.start({
+  serviceId: 'service-id',
+  token: accessToken,
+  // Required: the approved actor ingress domain for that region.
+  actorHostSuffixes: ['actors-us.concurrence.com'],
+  callerId: '+15555550123', // optional simulated caller context
+  context: { member_id: 'm-123' }, // optional, validated by the service
+  // Raw mu-law, 8 kHz, mono. Decode before playing.
+  onAudio: (mulaw) => playback.enqueue(mulaw),
+  onEvent: (event) => {
+    if (event.type === 'session_started') {
+      // The live call id. Use it for observers and call lookups.
+      liveCallSid = event.call_sid
+    } else if (event.type === 'ready') {
+      // 'mulaw' at 8000 on this socket
+      playback.start(event.output_encoding, event.output_sample_rate)
+    } else if (event.type === 'interruption') {
+      playback.clear()
+    } else if (event.type === 'conversation_complete') {
+      console.log('conversation ended:', event.reason)
+    }
+  },
+})
+
+// Your capture pipeline must already produce mu-law, 8 kHz, mono frames.
+microphone.onMulawFrame = (mulaw) => call.sendAudio(mulaw)
+
+// Sends { type: 'stop' }, then closes normally.
+call.stop()
+await call.done
+```
+
+Starting a call is not idempotent: each request reserves a runner. The SDK
+therefore sends it once and never retries it, whatever retry settings the
+client has. `RateLimitError` (429) means the workspace is at its concurrent
+test-call limit and `ServiceUnavailableError` (503) means no runner was
+available; let the user try again. Pass `signal` to cancel the allocation or
+end the call.
+
+`actorHostSuffixes` is required and has no default. It lists the actor ingress
+domains your application approves, and the token is sent only to a host on
+that list. The SDK never derives actor hosts from `agentBaseUrl`, guesses a
+parent domain, or accepts wildcards; without the list, `start()` throws a
+`ConfigurationError` before anything is allocated. Amigo production regions
+issue actor URLs under these domains, so list the one for your region:
+
+| Region | Actor ingress domain        |
+| ------ | --------------------------- |
+| US     | `actors-us.concurrence.com` |
+| AU     | `actors-au.concurrence.com` |
+| EU     | `actors-eu.concurrence.com` |
+| CA     | `actors-ca.concurrence.com` |
+
+A domain entry accepts that host and its subdomains, so name the actor ingress
+domain itself and never a shared parent such as `concurrence.com`. A custom or
+self-hosted agent engine issues actor URLs under its own configured actor
+ingress suffix; pass that approved suffix. For a local engine, `localhost` and
+IP literals such as `127.0.0.1` are accepted as exact hosts only.
+
+Before the token is sent anywhere, the SDK checks the returned actor URL: it
+must be a `wss` `/agent/test-call` URL on an approved actor host, for this
+workspace and service, mu-law at 8 kHz, with an allocation, and without a
+credential-named query parameter (`token`, `access_token`, `api_key`,
+`authorization`). A URL that fails any check is refused with a `ParseError`
+and no socket is opened. The URL is then used exactly as issued, including
+any other parameters the engine added, so do not rebuild it.
+
+The live call id is the `call_sid` in the `session_started` event, which the
+allocated runner assigns when the socket attaches. Use that value for
+`client.observers.subscribe()` and call lookups. `call.allocationCallSid` only
+names the allocation request in agent-engine logs and is not a call id.
+
+Test calls intentionally do not reconnect: losing the duplex media socket
+terminates the allocated voice session. Live control helpers include
+`injectEvent()`, `injectGuidance()`, and `refreshContext()`.
+
+#### Direct connections to a dedicated runner
+
+`client.testCalls.connect()` skips allocation and opens `/agent/test-call`
+directly on `agentBaseUrl` (or `testCallUrl`). Only a voice runner serves that
+route, so this works against a dedicated runner or a local engine. It does not
+work against the standard deployed agent ingress, which routes to a dispatcher
+that refuses the socket; use `start()` there. `connect()` takes the same token
+and callbacks, plus `inbound`, `outbound`, and `silent` scenarios, version-set
+selection, and freeform prompt overrides.
+
 ### Real-time event streams
 
 For workspace-wide events (calls, surfaces, pipeline, operators, channels), use the typed SSE consumer:
@@ -894,7 +1106,7 @@ const observerHandle = client.observers.subscribe({
 
 Both helpers are built on the shared `ReconnectingWebSocket` primitive, which
 maps platform-specific WebSocket close codes (4001 client error, 4029 rate
-limit, 4403 auth, 4100 token expired) to a typed reason taxonomy and applies an
+limit, 4403 auth, 4100 not authenticated) to a typed reason taxonomy and applies an
 idle watchdog (default 45s) so a half-dead socket forces a reconnect rather
 than hanging indefinitely. Compose it directly via `createReconnectingWebSocket`
 when you need a managed WebSocket outside these resources.
@@ -1032,7 +1244,7 @@ await client.settings.retention.update({ call_recordings_days: 90 })
 
 ### Surfaces (Patient Forms)
 
-Surfaces are workspace-scoped form specs for collecting patient data. Create a form, deliver it via SMS or email, and track completion. See the full guide: [Build a Custom Patient Form](./docs/guides/build-a-form.md).
+Surfaces are workspace-scoped form specs for collecting patient data. Create a form, deliver it by email or as a web link, and track completion. See the full guide: [Build a Custom Patient Form](./docs/guides/build-a-form.md).
 
 ```typescript
 // Create a patient intake form
@@ -1040,7 +1252,7 @@ const surface = await client.POST('/v1/{workspace_id}/surfaces', {
   body: {
     entity_id: patientId,
     title: 'New Patient Intake',
-    channel: 'sms',
+    channel: 'web',
     fields: [
       { key: 'full_name', label: 'Full Name', field_type: 'text', required: true },
       { key: 'date_of_birth', label: 'Date of Birth', field_type: 'date', required: true },
@@ -1055,10 +1267,10 @@ const surface = await client.POST('/v1/{workspace_id}/surfaces', {
 })
 console.log(surface.data.url) // Patient-facing token URL
 
-// Deliver via SMS
+// Deliver to the patient by email
 await client.POST('/v1/{workspace_id}/surfaces/{surface_id}/deliver', {
   params: { path: { surface_id: surface.data.id } },
-  body: { channel_address: '+15551234567' },
+  body: { channel_address: 'patient@example.com' },
 })
 
 // Track completion
@@ -1201,7 +1413,7 @@ const trigger = await client.triggers.create({
   schedule: '0 9 * * 1-5',
   timezone: 'America/New_York',
   action_id: 'skill-id',
-  event_type: 'trigger.scheduled',
+  event_type: 'amigo.trigger.cron',
   input_template: { campaign: 'follow-up' },
 })
 
@@ -1220,9 +1432,9 @@ const hipaa = await client.compliance.getHipaa()
 ### Audit
 
 ```typescript
-const { items: events } = await client.audit.list({ limit: 50 })
+const { events } = await client.audit.list({ limit: 50 })
 const summary = await client.audit.getSummary()
-await client.audit.createExport({ start_date: '2026-01-01', end_date: '2026-03-31' })
+await client.audit.createExport({ date_from: '2026-01-01T00:00:00Z', date_to: '2026-03-31T23:59:59Z' })
 ```
 
 ### Recordings

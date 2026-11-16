@@ -14,6 +14,15 @@ export type MetricValueResponse = MetricValue
 export type MetricListParams = NonNullable<operations['list-metrics']['parameters']['query']>
 export type MetricValuesParams = NonNullable<operations['get-metric-values']['parameters']['query']>
 export type MetricTrendParams = NonNullable<operations['get-metric-trend']['parameters']['query']>
+export type MetricDefinition = components['schemas']['MetricDefinitionItem']
+export type MetricDefinitionRevision = components['schemas']['MetricDefinitionRevisionDetail']
+export type PutMetricDefinitionRequest = components['schemas']['PutMetricDefinitionRequest']
+export type MetricDefinitionListParams = NonNullable<
+  operations['list-metric-definitions']['parameters']['query']
+>
+export type MetricDefinitionRevisionListParams = NonNullable<
+  operations['list-metric-definition-revisions']['parameters']['query']
+>
 
 /**
  * Metrics — computed metric catalog and typed metric values.
@@ -71,5 +80,57 @@ export class MetricsResource extends WorkspaceScopedResource {
         },
       }),
     )
+  }
+
+  /**
+   * Metric definitions by key: search them, create or replace a custom one, read its revisions,
+   * and delete it.
+   */
+  readonly definitions = {
+    /** Search metric definitions. Page with `limit` and the returned `continuation_token`. */
+    list: async (params?: MetricDefinitionListParams) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/metric-definitions', {
+          params: { path: { workspace_id: this.workspaceId }, query: params },
+        }),
+      ),
+
+    get: async (key: string) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/metric-definitions/{key}', {
+          params: { path: { workspace_id: this.workspaceId, key } },
+        }),
+      ),
+
+    /** Create or replace a custom metric definition. Each write adds a revision. */
+    put: async (key: string, body: PutMetricDefinitionRequest) =>
+      extractData(
+        await this.client.PUT('/v1/{workspace_id}/metric-definitions/{key}', {
+          params: { path: { workspace_id: this.workspaceId, key } },
+          body,
+        }),
+      ),
+
+    /** Delete a custom metric definition. */
+    delete: async (key: string) =>
+      extractData(
+        await this.client.DELETE('/v1/{workspace_id}/metric-definitions/{key}', {
+          params: { path: { workspace_id: this.workspaceId, key } },
+        }),
+      ),
+
+    listRevisions: async (key: string, params?: MetricDefinitionRevisionListParams) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/metric-definitions/{key}/revisions', {
+          params: { path: { workspace_id: this.workspaceId, key }, query: params },
+        }),
+      ),
+
+    getRevision: async (key: string, revision: number) =>
+      extractData(
+        await this.client.GET('/v1/{workspace_id}/metric-definitions/{key}/revisions/{revision}', {
+          params: { path: { workspace_id: this.workspaceId, key, revision } },
+        }),
+      ),
   }
 }

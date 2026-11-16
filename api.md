@@ -53,13 +53,14 @@ Notes:
 - Webhooks: `verifyWebhookSignature`, `parseWebhookEvent`, `WebhookVerificationError`
 - Pagination and response helpers: `paginate`, `buildLastResponse`, `extractRequestId`
 - Conversation helpers: `sessionConnectAuthProtocols`
-- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Conversation types: `ChannelKind`, `ConversationDetail`, `ConversationSource`, `ConversationTag`, `ConversationTagsPatch`, `ConversationTagsResponse`, `ConversationTurn`, `ConversationTurnAvailableAction`, `ConversationTurnStateTransition`, `CreateConversationRequest`, `SessionConnectUrlParams`, `SwitchChannelRequest`, `TurnArtifactEvent`, `TurnDoneEvent`, `TurnErrorEvent`, `TurnMessageEvent`, `TurnRequest`, `TurnResponse`, `TurnConversationSnapshot`, `TurnStateEvent`, `TurnStateTransitionEvent`, `TurnStreamEvent`, `TurnThinkingEvent`, `TurnTokenEvent`, `TurnToolCallCompletedEvent`, `TurnToolCallStartedEvent`
+- Test-call helpers: `TestCallsResource`, `testCallAuthProtocols`
+- Test-call types: `TestCallAuthProtocols`, `TestCallCloseEvent`, `TestCallConnectOptions`, `TestCallControlMessage`, `TestCallAgentTranscriptEvent`, `TestCallConversationCompleteEvent`, `TestCallEmotionEvent`, `TestCallEvent`, `TestCallHandle`, `TestCallInterruptionEvent`, `TestCallLatencyEvent`, `TestCallProgressEvent`, `TestCallReadyEvent`, `TestCallSession`, `TestCallSessionStartedEvent`, `TestCallSocketOptions`, `TestCallStartOptions`, `TestCallToolCallCompletedEvent`, `TestCallToolCallStartedEvent`, `TestCallUrlParams`, `TestCallUserTranscriptEvent`
 - Voice provider constants: `STT_PROVIDERS`, `TTS_PROVIDERS`, `VOICE_LANGUAGES`, `VOICE_SESSION_PROVIDERS`, `VoiceFamiliesResource`
 - Voice provider types: `AgentVoiceConfig`, `ListFamilyVoicesParams`, `ServiceVoiceConfigInput`, `ServiceVoiceConfigOutput`, `SttProvider`, `TtsProvider`, `VoiceFamily`, `VoiceFamilyListResponse`, `VoiceLanguage`, `VoiceListResponse`, `VoiceSessionProvider`, `VoiceSettingsRequest`, `VoiceSettingsResponse`
 - Response and hook types: `PaginatedList`, `ListParams`, `LastResponseInfo`, `ResponseMetadata`, `WithResponseMetadata`, `AmigoResponse`, `RetryOptions`, `RateLimitInfo`, `ClientHooks`, `RequestHookContext`, `ResponseHookContext`, `ErrorHookContext`
 - Generated OpenAPI types: `paths`, `components`, `operations`
 - Generated API types are produced with `npm run gen-types` from the committed `openapi.json` snapshot.
-- The generated OpenAPI types may include spec-only endpoints that do not yet have resource wrappers; use the low-level `GET`/`POST`/`PUT`/`PATCH`/`DELETE` helpers for those operations until a dedicated resource is added. Current spec-only groups include `/use-cases`, `/cost-to-serve`, and `/metric-store`.
 
 ## Resources
 
@@ -255,12 +256,20 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `list`
 - `listAutoPaging`
 - `get`
+- `getConfigurationIdentity`
+- `promoteConfiguration`
+- `getSafety`
 - `update`
 - `planCreate`
 - `planUpdate`
 - `upsertVersionSet`
 - `setDynamicBehaviorPin`
 - `clearDynamicBehaviorPin`
+- `getSettings`
+- `setSettings`
+- `getSettingsSchema`
+- `getHarnesses`
+- `setHarnessPins`
 - `delete`
 - `listVoiceJudgeResults`
 - `previewPrompt`
@@ -337,12 +346,14 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `putEntityEnrichment`
 - `listEventTypes`
 - `importMigrationConversations`
+- `importMigrationTextThreads`
 
 ### `calls`
 
 - `list`
 - `listAutoPaging`
 - `get`
+- `getVoiceQuality`
 - `getTimeline`
 - `getIntelligence`
 - `getBenchmarks`
@@ -365,6 +376,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `sessionConnectUrl`
 - `decideApproval`
 - `listTurns`
+- `updateTags`
 - `acknowledgeTurnDelivery`
 
 ### `integrations`
@@ -470,6 +482,12 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `getCatalog`
 - `getValues`
 - `getTrend`
+- `definitions.list`
+- `definitions.get`
+- `definitions.put`
+- `definitions.delete`
+- `definitions.listRevisions`
+- `definitions.getRevision`
 
 ### `voiceFamilies`
 
@@ -504,6 +522,8 @@ All workspace-scoped resources also expose `withOptions(options)`.
 - `dataResidency.update`
 - `http.get`
 - `http.update`
+- `safety.get`
+- `safety.update`
 - `formTemplates.list`
 - `formTemplates.update`
 - `formTemplates.resolve`
@@ -511,6 +531,7 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `recordings`
 
 - `get`
+- `getClip`
 
 ### `audit`
 
@@ -557,6 +578,13 @@ All workspace-scoped resources also expose `withOptions(options)`.
 
 - `subscribe`
 
+### `testCalls`
+
+- `withOptions`
+- `start`
+- `url`
+- `connect`
+
 ### `fhir`
 
 - `getStatus`
@@ -579,12 +607,21 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `insights`
 
 - `getDigest`
+- `getDemoHome`
 - `getSchema`
 - `getSuggestions`
 - `runSql`
 - `sessions.create`
 - `sessions.get`
 - `sessions.chat`
+- `sessions.getResult`
+- `pins.list`
+- `pins.listAutoPaging`
+- `pins.get`
+- `pins.create`
+- `pins.refresh`
+- `pins.delete`
+- `pins.undo`
 
 ### `commandCenter`
 
@@ -771,6 +808,12 @@ All workspace-scoped resources also expose `withOptions(options)`.
 ### `metering`
 
 - `emit`
+
+### `harnesses`
+
+- `listDefaults`
+- `setDefault`
+- `listReleases`
 
 ### `metricStore`
 

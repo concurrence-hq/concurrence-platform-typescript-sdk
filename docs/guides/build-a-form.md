@@ -38,7 +38,7 @@ When you create a surface, the API returns a signed **token URL** (`/s/{token}`)
 ```
 created --> delivered --> opened --> partial --> completed
                                                    |
-                                            pending_review --> approved / rejected
+                                            pending_review --> created (approve) / expired (reject)
 ```
 
 Surfaces can also expire (configurable, default 7 days) or be archived.
@@ -71,7 +71,7 @@ const surface = await client.POST('/v1/{workspace_id}/surfaces', {
     entity_id: patientId,
     title: 'New Patient Intake',
     description: 'Please complete this form before your appointment.',
-    channel: 'sms',
+    channel: 'web',
     expires_in_hours: 72,
     fields: [
       {
@@ -114,8 +114,7 @@ const surface = await client.POST('/v1/{workspace_id}/surfaces', {
         // Only show when reason is "New Concern" or "Urgent"
         condition: {
           field: 'reason_for_visit',
-          operator: 'in',
-          value: ['New Concern', 'Urgent'],
+          in: ['New Concern', 'Urgent'],
         },
       },
       {
@@ -198,13 +197,13 @@ The response includes:
 
 ## Step 2: Deliver the surface
 
-Deliver the form via SMS, email, or any channel. The platform handles SMS and email delivery natively.
+Deliver the form by email, or record a handoff you completed outside the platform. The platform sends email itself, and phone-shaped addresses return 422.
 
 ```typescript
 const delivery = await client.POST('/v1/{workspace_id}/surfaces/{surface_id}/deliver', {
   params: { path: { surface_id: surface.data.id } },
   body: {
-    channel_address: '+15551234567',
+    channel_address: 'jane.doe@example.com',
   },
 })
 
@@ -240,16 +239,16 @@ const publicApi = createClient<paths>({
 const token = 'the-token-from-step-1'
 
 // Fetch the form spec (fields, sections, branding, saved values)
-const { data: spec } = await publicApi.GET('/s/{token}/spec', {
+const { data: bundle } = await publicApi.GET('/s/{token}/spec', {
   params: { path: { token } },
 })
 
-console.log('Form title:', spec.title)
-console.log('Fields:', spec.fields.length)
-console.log('Branding:', spec.branding)
+console.log('Form title:', bundle.spec.title)
+console.log('Fields:', bundle.spec.fields.length)
+console.log('Branding:', bundle.spec.branding)
 
 // Render each field based on its type
-for (const field of spec.fields) {
+for (const field of bundle.spec.fields) {
   console.log(`  ${field.key}: ${field.field_type} - "${field.label}"`)
   if (field.prefill_value) {
     console.log(`    Saved value: ${field.prefill_value}`)
@@ -283,9 +282,9 @@ const { data: healed } = await publicApi.POST('/s/{token}/heal', {
   },
 })
 
-console.log('Corrected value:', healed.value)
+console.log('Corrected value:', healed.corrected_value)
 console.log('Confidence:', healed.confidence)
-// healed.value might be: "metformin 500mg, lisinopril 10mg"
+// healed.corrected_value might be: "metformin 500mg, lisinopril 10mg"
 ```
 
 ### OCR extraction
@@ -293,15 +292,14 @@ console.log('Confidence:', healed.confidence)
 Extract structured data from an uploaded image (e.g., an insurance card photo):
 
 ```typescript
-const formData = new FormData()
-formData.append('file', insuranceCardFile)
+const image = 'data:image/jpeg;base64,...' // PNG, JPEG, WebP or HEIC, at most 7 MB
 
 const { data: extracted } = await publicApi.POST('/s/{token}/ocr', {
   params: { path: { token } },
-  body: formData as never,
+  body: { image },
 })
 
-console.log('Extracted fields:', extracted)
+console.log('Extracted fields:', extracted.extracted_fields)
 // { member_id: "ABC123", group_number: "GRP456", ... }
 ```
 
@@ -347,7 +345,6 @@ const { data: booking } = await publicApi.POST('/s/{token}/book', {
   params: { path: { token } },
   body: {
     slot_id: slots[0].id,
-    patient_name: 'Jane Doe',
   },
 })
 
@@ -450,7 +447,7 @@ const { data: detail } = await client.GET('/v1/{workspace_id}/surfaces/{surface_
   params: { path: { surface_id: 'surface-id' } },
 })
 
-// Update a surface spec (before delivery)
+// Update a surface spec (while created or delivered)
 await client.PATCH('/v1/{workspace_id}/surfaces/{surface_id}', {
   params: { path: { surface_id: 'surface-id' } },
   body: {
@@ -488,13 +485,12 @@ Fields can be shown or hidden based on other field values using the `condition` 
   required: true,
   condition: {
     field: 'reason_for_visit',
-    operator: 'eq',
-    value: 'Other',
+    equals: 'Other',
   },
 }
 ```
 
-Supported operators: `eq`, `neq`, `in`, `not_in`, `contains`.
+Supported keys: `equals`, `not_equals`, `in`, `not_in`, `has_value`, `is_empty`, `contains`.
 
 ## Public token routes reference
 

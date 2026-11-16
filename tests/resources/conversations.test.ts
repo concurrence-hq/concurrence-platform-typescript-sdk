@@ -4,6 +4,7 @@ import {
   AmigoClient,
   BadRequestError,
   ConfigurationError,
+  createIdempotencyKey,
   NotFoundError,
   PermissionError,
   ValidationError,
@@ -1194,5 +1195,96 @@ describe('ConversationsResource', () => {
     expect(events).toHaveLength(2)
     expect(events[0]).toMatchObject({ event: 'token', text: 'streamed' })
     expect(events[1]).toMatchObject({ event: 'done', conversation_id: 'x' })
+  })
+  describe('turn idempotency and delivery ack', () => {
+    const conversationId = '00000000-0000-4000-8000-000000000001'
+    const deliveryId = '00000000-0000-4000-8000-0000000000d1'
+    const idempotencyKey = '00000000-0000-4000-8000-0000000000e1'
+    const turnResponse: TurnResponse = {
+      turn_id: 'turn-1',
+      conversation: {
+        id: conversationId,
+        status: 'active',
+        turn_count: 1,
+        updated_at: '2026-01-01T00:00:01Z',
+      },
+      input: { role: 'user', text: '', content: [] },
+      output: [],
+      tool_calls: [],
+    }
+
+    it('createIdempotencyKey returns a fresh UUID each call', () => {
+      const first = createIdempotencyKey()
+      expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+      expect(createIdempotencyKey()).not.toBe(first)
+    })
+
+    it('createTurn and pollTurn send the Idempotency-Key header', async () => {
+      const keys: (string | null)[] = []
+      const client = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`POST ${BASE}/conversations/${conversationId}/turns`]: (req) => {
+            keys.push(req.headers.get('Idempotency-Key'))
+            return Response.json(turnResponse)
+          },
+        }),
+      })
+
+      await client.conversations.createTurn(conversationId, { message: 'hi' }, { idempotencyKey })
+      await client.conversations.pollTurn(conversationId, { idempotencyKey })
+      await client.conversations.createTurn(conversationId, { message: 'hi' })
+
+      expect(keys).toEqual([idempotencyKey, idempotencyKey, null])
+    })
+
+    it('streamTurn sends the Idempotency-Key header', async () => {
+      let key: string | null | undefined
+      const client = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`POST ${BASE}/conversations/${conversationId}/turns/stream`]: (req) => {
+            key = req.headers.get('Idempotency-Key')
+            return new Response('', { headers: { 'Content-Type': 'text/event-stream' } })
+          },
+        }),
+      })
+
+      for await (const event of client.conversations.streamTurn(
+        conversationId,
+        { message: 'hi' },
+        { idempotencyKey },
+      )) {
+        void event
+      }
+
+      expect(key).toBe(idempotencyKey)
+    })
+
+    it('acknowledgeTurnDelivery posts the receipt and request id', async () => {
+      let body: unknown
+      const client = new AmigoClient({
+        apiKey: TEST_API_KEY,
+        workspaceId: TEST_WORKSPACE_ID,
+        fetch: mockFetch({
+          [`POST ${BASE}/conversations/${conversationId}/turns/${deliveryId}/ack`]: async (req) => {
+            body = await req.json()
+            return new Response(null, { status: 204 })
+          },
+        }),
+      })
+      const ack = {
+        receipt: '00000000-0000-4000-8000-0000000000a1',
+        request_id: '00000000-0000-4000-8000-0000000000b1',
+        source: 'playground',
+      } as const
+
+      await expect(
+        client.conversations.acknowledgeTurnDelivery(conversationId, deliveryId, ack),
+      ).resolves.toBeUndefined()
+      expect(body).toEqual(ack)
+    })
   })
 })

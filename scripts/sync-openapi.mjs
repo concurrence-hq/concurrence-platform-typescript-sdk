@@ -1,9 +1,12 @@
 /**
  * Refresh the committed OpenAPI snapshot at repo root.
  *
+ * The input may be the full internal spec or the public spec a deployed Platform API serves.
+ * Published compatibility operations the input leaves out come from the committed snapshot.
+ *
  * Sources (in priority order):
- *   1. Explicit --spec path/to/spec.json within this repo or ../platform
- *   2. Local sibling repo: ../platform/services/platform-api/openapi.json
+ *   1. Explicit --spec path/to/spec.json within this repo or ../platform-v2
+ *   2. Local sibling repo: ../platform-v2/services/platform-api/openapi.json
  */
 
 import fs from 'node:fs'
@@ -16,7 +19,7 @@ import {
   resolveRepoPath,
 } from './lib/repo-paths.mjs'
 
-const PLATFORM_ROOT = path.resolve(REPO_ROOT, '../platform')
+const PLATFORM_ROOT = path.resolve(REPO_ROOT, '../platform-v2')
 const SIBLING_SPEC = path.resolve(PLATFORM_ROOT, 'services/platform-api/openapi.json')
 const ALLOWED_SPEC_ROOTS = [REPO_ROOT, PLATFORM_ROOT]
 
@@ -39,7 +42,7 @@ function resolveSpecSource() {
   }
 
   throw new Error(
-    'No OpenAPI spec source found. Provide --spec with a file inside this repo or ../platform/services/platform-api/openapi.json.',
+    'No OpenAPI spec source found. Provide --spec with a file inside this repo or ../platform-v2/services/platform-api/openapi.json.',
   )
 }
 
@@ -58,7 +61,11 @@ const specSource = resolveSpecSource()
 console.log(`Syncing OpenAPI snapshot from: ${specSource}`)
 
 const OUT_FILE = resolveRepoPath(getArgValue('--output') ?? 'openapi.json')
-const document = projectPublicOpenApi(await loadSpec(specSource))
+const committedSpec = resolveRepoPath('openapi.json')
+const committed = fs.existsSync(committedSpec)
+  ? JSON.parse(fs.readFileSync(committedSpec, 'utf-8'))
+  : undefined
+const document = projectPublicOpenApi(await loadSpec(specSource), committed)
 fs.writeFileSync(OUT_FILE, `${JSON.stringify(document, null, 2)}\n`)
 
 console.log(`Wrote ${OUT_FILE}`)

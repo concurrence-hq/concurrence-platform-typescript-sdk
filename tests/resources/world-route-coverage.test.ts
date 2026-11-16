@@ -87,4 +87,13 @@ describe('WorldResource', () => {
     expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/world/migration/conversations`)
     expect(requests[0]?.body).toEqual({ probe: 'body' })
   })
+
+  it('importMigrationTextThreads calls POST /world/migration/text-threads', async () => {
+    const { client, requests } = recordRoutes(200)
+    await client.world.importMigrationTextThreads({ probe: 'body' } as never)
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.pathname).toBe(`/v1/${WORKSPACE}/world/migration/text-threads`)
+    expect(requests[0]?.body).toEqual({ probe: 'body' })
+  })
 })

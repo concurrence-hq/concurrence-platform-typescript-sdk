@@ -99,6 +99,25 @@ describe('ServicesResource dynamic behavior pins', () => {
       })
     })
 
+    it('keeps the engage reasoning_effort of the stored version set', async () => {
+      const entry = {
+        ...RELEASE_ENTRY_FIXTURE,
+        llm_model_preferences: {
+          engage: { llm_name: 'claude-sonnet-4-6', params: { reasoning_effort: 'high' } },
+        },
+      }
+      const { client, requests } = recordingClient({ service: serviceBody(entry) })
+
+      await client.services.setDynamicBehaviorPin(SERVICE_ID, 'release', {
+        set_id: OTHER_SET_ID,
+        version: 6,
+      })
+
+      expect(writtenBody(requests).version_set.llm_model_preferences).toEqual(
+        entry.llm_model_preferences,
+      )
+    })
+
     it('replaces the pin with the same set id in place, whole, and leaves the others unchanged', async () => {
       const { client, requests } = recordingClient()
 

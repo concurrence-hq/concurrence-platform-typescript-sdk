@@ -31,7 +31,7 @@ const SERVICE_FIXTURE = {
   tags: [],
   tool_capacity: 5,
   voice_config: {
-    session_provider: 'amigo',
+    session_provider: 'concurrence',
     tts_provider: 'cartesia',
   },
   created_at: '2026-01-01T00:00:00Z',
@@ -71,6 +71,11 @@ const client = new AmigoClient({
 
     [`GET ${BASE}/services/${SERVICE_ID}`]: () => Response.json(SERVICE_FIXTURE),
 
+    [`GET ${BASE}/services/${SERVICE_ID}/safety`]: () =>
+      Response.json({
+        output_checks: { dispatch_promise: { mode: 'count', source: 'service' } },
+      }),
+
     [`GET ${BASE}/services/not-found`]: () =>
       Response.json({ detail: 'Service not found', error_code: 'not_found' }, { status: 404 }),
 
@@ -94,8 +99,13 @@ describe('ServicesResource', () => {
     lastUpdateBody = undefined
   })
 
+  it('gets the effective safety checks for a service', async () => {
+    const result = await client.services.getSafety(SERVICE_ID)
+    expect(result.output_checks.dispatch_promise).toEqual({ mode: 'count', source: 'service' })
+  })
+
   it('creates a service', async () => {
-    const sessionProvider = 'amigo' satisfies VoiceSessionProvider
+    const sessionProvider = 'concurrence' satisfies VoiceSessionProvider
     const ttsProvider = 'cartesia' satisfies TtsProvider
     const body = {
       name: 'Scheduling Service',

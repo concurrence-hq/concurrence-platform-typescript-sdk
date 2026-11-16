@@ -1,15 +1,26 @@
 name: Spec Sync (Platform API changes)
 
+# Runs every day at 06:23 UTC, on a manual run and on a `spec-updated` dispatch. A scheduled run
+# has no input and no payload, so it syncs from the default spec URL below. A red run means the SDK
+# is behind the public API or a maintainer must act (see CONTRIBUTING.md, "Auto-Release (Spec Sync)").
 on:
+  schedule:
+    - cron: '23 6 * * *'
   repository_dispatch:
     types: [spec-updated]
+  workflow_dispatch:
+    inputs:
+      spec_url:
+        description: 'HTTPS URL of the OpenAPI document to sync from (default: the production Platform API public spec)'
+        required: false
+        type: string
 
 permissions:
-  # `contents: write` is required for the `git push --force-with-lease` of
-  # the rolling sync branch; `pull-requests: write` for the `gh pr create`
-  # / `gh pr edit` calls below.
+  # `contents: write` is required for the `git push --force-with-lease` of the rolling sync
+  # branch; `pull-requests: read` for listing its pull requests. The workflow opens none: this
+  # repository does not let workflows create pull requests.
   contents: write
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
   # Single rolling group: serialize every dispatch onto the one rolling branch.
@@ -37,8 +48,17 @@ jobs:
         run: npm ci
 
       - name: Download latest spec
+        env:
+          # The unauthenticated public OpenAPI document of the production Platform API.
+          DEFAULT_SPEC_URL: https://platform.api-us.concurrence.com/v1/openapi.json
+          DISPATCH_SPEC_URL: ${{ github.event.client_payload.spec_url }}
+          INPUT_SPEC_URL: ${{ inputs.spec_url }}
         run: |
-          SPEC_URL="${{ github.event.client_payload.spec_url }}"
+          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
+            SPEC_URL="$DISPATCH_SPEC_URL"
+          else
+            SPEC_URL="${INPUT_SPEC_URL:-$DEFAULT_SPEC_URL}"
+          fi
           if [ -z "$SPEC_URL" ]; then
             echo "::error::No spec_url in client_payload"
             exit 1
@@ -70,6 +90,18 @@ jobs:
             NEW_SCHEMAS=$(jq -r '(.components.schemas // {}) | keys | length' openapi-public.json)
             echo "Paths: $OLD_PATHS -> $NEW_PATHS"
             echo "Schemas: $OLD_SCHEMAS -> $NEW_SCHEMAS"
+
+            # Where the committed spec and the new projection differ: JSON pointers, at most 200,
+            # names only. Printed before the types are regenerated.
+            node scripts/spec-diff-summary.mjs openapi.json openapi-public.json > spec-diff.txt || echo 'Difference summary unavailable.' > spec-diff.txt
+            cat spec-diff.txt
+            {
+              echo "## Spec changed"
+              echo ""
+              echo '```'
+              cat spec-diff.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Spec unchanged — nothing to do"
@@ -88,101 +120,59 @@ jobs:
           npm run build
           npm test -- --reporter=dot
 
-      - name: Open or update rolling sync PR
+      - name: Prepare the sync branch
         if: steps.diff.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SPEC_SHA: ${{ github.event.client_payload.spec_sha }}
         run: |
-          SPEC_SHA="${{ github.event.client_payload.spec_sha }}"
           # Reject anything that isn't a 7–40 char hex string before it lands
-          # in commit messages, PR titles, or branch metadata.
+          # in a commit message or a title shown to a maintainer.
           if [ -n "$SPEC_SHA" ] && ! printf '%s' "$SPEC_SHA" | grep -Eq '^[0-9a-f]{7,40}$'; then
-            echo "::error::Invalid spec_sha payload: ${SPEC_SHA}"
+            echo "::error::Invalid spec_sha payload: $(printf '%q' "$SPEC_SHA")"
             exit 1
           fi
           SHORT_SHA="${SPEC_SHA:0:8}"
           if [ -z "$SHORT_SHA" ]; then
             SHORT_SHA="${GITHUB_RUN_ID}"
           fi
-          # Fixed branch — one rolling PR, force-pushed each run. No SHA suffix.
+          # Fixed branch: one rolling branch, force-pushed only when its content changes.
           BRANCH="chore/sync-api-types"
+          PR_TITLE="chore: sync API types from platform (${SHORT_SHA})"
+          COMPARE_URL="https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1"
+          DIFF_HEAD="$(head -n 1 spec-diff.txt)"
 
-          PLATFORM_REPO="${{ github.event.client_payload.platform_repo }}"
-          if [ -z "$PLATFORM_REPO" ]; then
-            PLATFORM_REPO="amigo-ai/amigo-platform"
-          fi
-          # Sanitize: strip newlines/CR and reject characters not valid in a
-          # GitHub `owner/repo` slug so a malformed dispatch payload can't
-          # break the heredoc below or inject markdown into the PR body.
-          PLATFORM_REPO="${PLATFORM_REPO//[$'\n\r']/}"
-          if ! printf '%s' "$PLATFORM_REPO" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
-            echo "::warning::Invalid platform_repo payload (${PLATFORM_REPO}); falling back to default."
-            PLATFORM_REPO="amigo-ai/amigo-platform"
-          fi
-          # Fall back to SHORT_SHA (which already collapses to GITHUB_RUN_ID
-          # if SPEC_SHA was empty) so the link is never .../commit/ with an
-          # empty SHA.
-          COMMIT_REF="${SPEC_SHA:-$SHORT_SHA}"
-          PLATFORM_COMMIT_URL="https://github.com/${PLATFORM_REPO}/commit/${COMMIT_REF}"
+          # The pull requests of the rolling branch, read through the REST API. The decision
+          # (paused or not, which one is open) is made by a tested script.
+          gh api "repos/${GITHUB_REPOSITORY}/pulls?state=all&head=${GITHUB_REPOSITORY_OWNER}:${BRANCH}&base=main&per_page=100" > pulls.json
+          node scripts/spec-sync-pause.mjs pulls.json "$BRANCH" > sync-state.json
+          cat sync-state.json
+          PAUSED="$(jq -r '.paused' sync-state.json)"
+          PAUSED_NUMBER="$(jq -r '.pausedBy.number // empty' sync-state.json)"
+          PAUSED_URL="$(jq -r '.pausedBy.url // empty' sync-state.json)"
+          OPEN_NUMBER="$(jq -r '.open.number // empty' sync-state.json)"
+          OPEN_URL="$(jq -r '.open.url // empty' sync-state.json)"
 
-          # Pre-flight: if a reviewer intentionally closed the rolling PR
-          # (e.g. mid-incident freeze) and didn't merge it, skip the sync
-          # entirely — don't even force-push. Query notes:
-          #   - `--limit 100` so a closed-but-unmerged PR doesn't fall off
-          #     the default 30-result window after a stretch of normal
-          #     merges.
-          #   - `mergedAt == null` filter so a normal merge (the common
-          #     close path) doesn't trip the pause sentinel.
-          #   - `headRefName` exact match so a PR cut from a similarly
-          #     named branch can't trip it either.
-          # Capture author + number for the open PR so we can verify the
-          # rolling PR is bot-owned before editing it (a collaborator-opened
-          # PR on this same branch would otherwise be silently hijacked).
-          EXISTING_PR_JSON=$(gh pr list \
-            --head "$BRANCH" \
-            --base main \
-            --state open \
-            --limit 100 \
-            --json number,headRefName,author \
-            --jq '[.[] | select(.headRefName == "'"$BRANCH"'")] | .[0] // empty')
-          EXISTING_PR=$(printf '%s' "$EXISTING_PR_JSON" | jq -r '.number // empty')
-          EXISTING_PR_AUTHOR=$(printf '%s' "$EXISTING_PR_JSON" | jq -r '.author.login // empty')
-          CLOSED_UNMERGED_PR=$(gh pr list \
-            --head "$BRANCH" \
-            --base main \
-            --state closed \
-            --limit 100 \
-            --json number,closedAt,mergedAt,headRefName \
-            --jq '[.[] | select(.mergedAt == null and .headRefName == "'"$BRANCH"'")] | sort_by(.closedAt) | reverse | .[0].number // empty')
-          if [ -z "$EXISTING_PR" ] && [ -n "$CLOSED_UNMERGED_PR" ]; then
-            # Surface as an error so the CI dashboard shows the pause
-            # instead of burying it in a warning. The job still ends in a
-            # known state (no orphaned branch update) — fail-fast over
-            # silent fallback.
-            echo "::error::Spec sync paused — PR #${CLOSED_UNMERGED_PR} on \`${BRANCH}\` is closed without merging. Reopen that PR to resume; this dispatch is a no-op."
+          if [ "$PAUSED" = "true" ]; then
+            # A reviewer closed the latest pull request of the branch without merging it:
+            # nothing is pushed until a pull request from the branch is open or merged (see CONTRIBUTING.md).
             {
-              echo "## Spec Sync — paused"
+              echo "## Spec sync paused"
               echo ""
-              echo "PR #${CLOSED_UNMERGED_PR} for branch \`${BRANCH}\` is closed (not merged), so this dispatch was skipped."
-              echo "Reopen that PR to resume automatic syncing."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          # Refuse to silently overwrite a non-bot PR on the rolling branch.
-          if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR_AUTHOR" != "github-actions[bot]" ]; then
-            echo "::error::Existing PR #${EXISTING_PR} on \`${BRANCH}\` is owned by ${EXISTING_PR_AUTHOR}, not github-actions[bot]. Refusing to hijack — close or reassign it before resuming spec-sync."
+              echo "Pull request #${PAUSED_NUMBER} (${PAUSED_URL}) from ${BRANCH} was the last one closed and it was closed without merging, and none from the branch is open. Nothing was pushed."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::Spec sync paused: PR #${PAUSED_NUMBER} (${PAUSED_URL}) from ${BRANCH} was closed without merging and no PR from the branch is open. The pause ends when a PR from the branch is open or one is merged after it; reopening the closed one may not be possible once its branch is deleted, in which case a maintainer pushes the branch by hand and opens a PR from it. Nothing was pushed."
             exit 1
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Fetch the rolling branch (if it exists) so `--force-with-lease`
-          # has a remote-tracking ref to compare against. Distinguish "ref
-          # not found" (exit 128 — expected on first run) from any other
-          # failure (auth, network, …) and hard-fail on the latter so the
-          # lease isn't silently vacuous.
+          # Fetch the rolling branch (if it exists) so `--force-with-lease` has a remote-tracking
+          # ref to compare against and the content check below has something to compare with.
+          # Distinguish "ref not found" (exit 128, expected on the first run) from any other
+          # failure (auth, network, ...), which must stop the job.
           set +e
-          git fetch origin "$BRANCH"
+          git fetch origin "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
           fetch_rc=$?
           set -e
           if [ "$fetch_rc" -ne 0 ] && [ "$fetch_rc" -ne 128 ]; then
@@ -190,45 +180,55 @@ jobs:
             exit 1
           fi
           if [ "$fetch_rc" -eq 128 ]; then
-            echo "::notice::Remote branch ${BRANCH} not found — first sync run; --force-with-lease will be vacuously satisfied this once."
+            echo "::notice::Remote branch ${BRANCH} not found: first sync run."
           fi
-          # -B resets the branch to current HEAD (main from the checkout step), so the
-          # rolling commit is always exactly one commit on top of main with no leftover
-          # state from a prior open PR.
+
+          # -B resets the branch to the current HEAD (main from the checkout step), so the sync
+          # commit is always exactly one commit on top of main.
           git checkout -B "$BRANCH"
           git add openapi.json src/generated/api.ts
           git commit -m "chore: sync API types from platform spec (${SHORT_SHA})"
-          git push --force-with-lease origin "$BRANCH"
 
-          PR_TITLE="chore: sync API types from platform (${SHORT_SHA})"
-          PR_BODY="$(cat <<EOF
-          ## Summary
-          - Auto-synced from platform repo spec change ([\`${SHORT_SHA}\`](${PLATFORM_COMMIT_URL}))
-          - Regenerated \`src/generated/api.ts\` from latest \`openapi.json\`
-          - Typecheck + build + tests verified
-
-          ## Test plan
-          - [x] CI passes (typecheck + build + tests)
-          - [ ] Review generated type diffs for breaking changes
-
-          After this PR is merged, \`spec-auto-release.yml\` waits for the Test workflow on \`main\` to pass, then dispatches a minor SDK release automatically.
-
-          > This PR is force-updated in place by spec-sync each time the platform spec changes. The branch (\`${BRANCH}\`) tracks only the latest spec — older syncs are superseded, not stacked.
-
-          Generated automatically by spec-sync workflow
-          EOF
-          )"
-
-          if [ -n "$EXISTING_PR" ]; then
-            echo "Updating existing PR #${EXISTING_PR}"
-            gh pr edit "$EXISTING_PR" \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY"
+          # Push only when the content differs: a new head every run would throw away the checks
+          # of an open pull request.
+          SAME_CONTENT=false
+          if [ "$fetch_rc" -eq 0 ]; then
+            LOCAL_SPEC="$(git rev-parse "HEAD:openapi.json")"
+            LOCAL_TYPES="$(git rev-parse "HEAD:src/generated/api.ts")"
+            REMOTE_SPEC="$(git rev-parse "origin/${BRANCH}:openapi.json" 2>/dev/null || true)"
+            REMOTE_TYPES="$(git rev-parse "origin/${BRANCH}:src/generated/api.ts" 2>/dev/null || true)"
+            if [ "$LOCAL_SPEC" = "$REMOTE_SPEC" ] && [ "$LOCAL_TYPES" = "$REMOTE_TYPES" ]; then
+              SAME_CONTENT=true
+            fi
+          fi
+          if [ "$SAME_CONTENT" = "true" ]; then
+            BRANCH_STATE="not pushed: the remote branch already holds exactly this openapi.json and src/generated/api.ts"
           else
-            echo "Creating new PR for branch ${BRANCH}"
-            gh pr create \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY" \
-              --base main \
-              --head "$BRANCH"
+            git push --force-with-lease origin "$BRANCH"
+            BRANCH_STATE="pushed: one commit on top of main with openapi.json and src/generated/api.ts"
+          fi
+
+          {
+            echo "## Spec sync prepared"
+            echo ""
+            echo "- Differences from the committed spec: ${DIFF_HEAD} (listed in the step above)"
+            echo "- Branch: ${BRANCH} (${BRANCH_STATE})"
+            if [ -n "$OPEN_NUMBER" ]; then
+              echo "- Open pull request from the branch: #${OPEN_NUMBER} ${OPEN_URL}"
+            else
+              echo "- Open pull request from the branch: none"
+              echo "- Open one here: ${COMPARE_URL}"
+              echo "- Title to use: ${PR_TITLE}"
+              echo "- Merging it publishes a minor release (spec-auto-release.yml dispatches it after the Test workflow passes on main)."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$OPEN_NUMBER" ] && [ "$SAME_CONTENT" = "true" ]; then
+            echo "::notice::Pull request #${OPEN_NUMBER} (${OPEN_URL}) already carries this spec. Nothing to do but review and merge it."
+          elif [ -n "$OPEN_NUMBER" ]; then
+            echo "::error::Pull request #${OPEN_NUMBER} (${OPEN_URL}) carried an older spec and its branch was just updated. A push with the workflow token starts no checks on it: a maintainer must get the checks to run on the new head before merging."
+            exit 1
+          else
+            echo "::error::The SDK is behind the public API (${DIFF_HEAD%:}). The branch ${BRANCH} is prepared; a maintainer opens the pull request: ${COMPARE_URL} with the title '${PR_TITLE}'. Merging it publishes a minor release."
+            exit 1
           fi

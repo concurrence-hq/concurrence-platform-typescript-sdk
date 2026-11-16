@@ -116,7 +116,7 @@ scripts/
 1. **Start**: `npm ci`
 2. **Write code**: Edit `src/resources/` or `src/core/`
 3. **Write tests**: Add tests in `tests/`
-4. **Validate**: `npm run lint && npm run typecheck && npm run typecheck:examples && npm test && npm run build && npm run test:dist`
+4. **Validate**: `npm run lint && npm run typecheck && npm run typecheck:examples && npm test && npm run build && npm run test:dist && npm run test:tarball`
 5. **Submit PR**: See Pull Request Guidelines below
 
 ## Adding a New Resource
@@ -161,12 +161,48 @@ Go to **Actions → Release → Run workflow**, select the version type, and run
 
 ### Auto-Release (Spec Sync)
 
-When the platform API spec changes on `main`, the `spec-sync.yml` workflow:
+The `spec-sync.yml` workflow compares the committed `openapi.json` with the public OpenAPI document of the production Platform API (`https://platform.api-us.concurrence.com/v1/openapi.json`, served without authentication). It starts:
 
-1. Detects spec differences
-2. Opens a PR with regenerated types
-3. After that PR is merged, `spec-auto-release.yml` waits for the Test workflow on `main` to pass
-4. Dispatches a minor release automatically
+- every day at 06:23 UTC, on a schedule (`cron: '23 6 * * *'`), which always syncs from the default URL above,
+- on a manual run (**Actions → Spec Sync → Run workflow**), with an optional `spec_url` input for another HTTPS spec, and
+- on a `spec-updated` repository dispatch, whose payload carries `spec_url`.
+
+No scheduled run has happened yet: the schedule was added after a manual run (43753707636, see below) had shown the whole workflow working on the served document. The first scheduled run is the next 06:23 UTC after the pull request that adds it is merged.
+
+A run downloads the spec and projects it with `npm run openapi:sync`. The served document is a documentation projection of the full spec and differs from the committed `openapi.json` in more than the operations it leaves out. The projection restores or normalises three things, each only when the committed spec is given. The three differences below were established by reading the Platform API's code, not by downloading the served document:
+
+1. **Published compatibility operations.** The served spec leaves out every internal operation, including the nine the SDK keeps for existing clients. The projection takes them, and the schemas only they reach, from the committed spec.
+2. **Internal fields.** The API removes every schema property marked `"x-internal": true`, takes its name out of `required` and prunes a schema that loses its last reference. The SDK keeps such fields on purpose, with the marker. Wherever the committed spec marks a property internal and the served document has the parent schema but not the property, the projection copies the property back, restores its `required` entry in the committed order and copies the schemas it reaches. The markers in the committed spec are the list. **A field the API newly marks internal never enters the SDK through this path**: it is absent from the served document and not marked in the committed spec, so it is not restored.
+3. **`tags` and `servers`.** The served document appends a name-only `tags` entry for every undeclared operation tag, which the projection drops (a declared tag stays), and it puts its own URL first as a url-only `servers` entry, for which the projection uses the committed entry with the same URL, ordered as the committed list orders the URLs and followed by any URL the committed list does not have.
+
+The projection also writes every object's keys in sorted order, the order of the committed file, whatever order the API serves.
+
+What has been shown so far: a test on a fixture built from the committed spec by applying what a deployed API does (`tests/public-openapi.test.js`) projects back to the committed bytes. A manual run on the served document (run 43751715977) reported exactly the three differences that were expected, three description strings of the promotions operation, regenerated the types and passed typecheck, build and tests; its last step then failed, which is what the branch preparation described below replaces. A later manual run (43753707636) went through the whole workflow on the served document: it found exactly the three expected differences, regenerated and checked the types, found no pause and no open pull request, pushed the branch `chore/sync-api-types` with one commit holding `openapi.json` and `src/generated/api.ts`, wrote the summary with the compare link and the title, and ended red as designed. While a pull request from that branch is open and the API does not change again, a run ends green with "already carries this spec".
+
+When the projection differs from the committed file, the workflow prints where (the JSON pointers that differ, at most 200, names only, also in the run's summary), regenerates `src/generated/api.ts`, runs typecheck, build and tests, and then prepares the branch. **The workflow does not open a pull request**: this repository does not let workflows create them, and a pull request opened by the workflow token would get no checks. It reads the pull requests whose head is the rolling branch `chore/sync-api-types` and whose base is `main`, pushes the branch, and reports what a maintainer does next.
+
+The branch holds one commit on top of `main` with `openapi.json` and `src/generated/api.ts`. A run pushes it (with `--force-with-lease`) only when the remote branch does not already hold the same two files, so an open pull request keeps its checks while the spec does not change.
+
+What a run ends with (a scheduled run ends the same way as a manual one):
+
+- **Green, in step**: the spec is unchanged ("Spec unchanged"), nothing else happens.
+- **Green, already carried**: the spec changed, and an open pull request from the branch already holds the same content. The summary names the pull request; there is nothing to do but review and merge it.
+- **Red, a person must act**: the run's summary and its error say what to do.
+  - Spec changed and no pull request from the branch is open: the error says the SDK is behind the public API, and the summary gives the link `https://github.com/<repo>/compare/main...chore/sync-api-types?expand=1` and the title to use.
+  - Spec changed and an open pull request holds an older spec: the branch is updated, and the run ends red, because a push made with the workflow token starts no checks on the pull request and a maintainer has to get them to run on the new head before merging.
+  - The sync is paused (see Pause below), or a step failed (download, validation, types, build, tests, push).
+
+A failed scheduled run is how this repository tells its maintainers that the SDK is behind the public API: it is the only signal the repository can send without a secret. Maintainers watch the failed runs of Spec Sync.
+
+What a maintainer does after a red run:
+
+1. Open the pull request from `chore/sync-api-types` into `main` with the title `chore: sync API types from platform (<id>)` (the id is in the prepared commit's subject; the release automation reads the subject `chore: sync API types from platform`, so keep that prefix).
+2. Read the printed pointers and the generated type diff for breaking changes. A pull request opened by a person gets its checks normally.
+3. Merge it. **The merge publishes a minor release**: `spec-auto-release.yml` waits for the Test workflow on `main` to pass and then dispatches the release. Nothing is released while the API is unchanged.
+
+**Pause.** The sync is paused when the most recently closed pull request from the branch (head `chore/sync-api-types`, base `main`) was closed without merging and no pull request from the branch is open. A paused run pushes nothing and ends red naming that pull request. A pull request from the branch that is open, or one merged after it, ends the pause: closed-and-unmerged history older than a merged pull request does not count. The pause ends when a pull request from `chore/sync-api-types` is open or one is merged after it. Reopening the closed one may not be possible once its branch is deleted; in that case a maintainer pushes the branch by hand and opens a pull request from it. The rule is `scripts/lib/spec-sync-pause.mjs`, tested in `tests/spec-sync-pause.test.js`.
+
+To check the setup, run the workflow once by hand. The expected result depends on what has changed since the committed spec was last synced: if nothing public changed it must end with "Spec unchanged"; if something did, it must report exactly the pointers of that change, pass "Verify types compile", push the branch and end red with the link to open the pull request. Any pointer under `/tags`, `/servers` or a schema property you did not expect means the projection does not yet reproduce the served document. Do not merge that pull request; fix the projection instead.
 
 ### Repository Secrets
 

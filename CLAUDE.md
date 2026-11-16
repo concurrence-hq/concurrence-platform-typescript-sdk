@@ -20,7 +20,7 @@ The `build` script runs type generation, esbuild bundling, and `tsc` declaration
 ## Architecture
 
 ```
-platform/services/platform-api/openapi.json  (committed, CI-checked)
+platform-v2/services/platform-api/openapi.json  (public projection committed here as openapi.json, CI-checked)
        |  scripts/gen-types.mjs (openapi-typescript)
        v
 src/generated/api.ts  (auto-generated -- DO NOT EDIT)
@@ -37,32 +37,34 @@ src/
   index.ts              -- AmigoClient class, config validation, public re-exports
   core/
     auth.ts             -- API key auth middleware
-    errors.ts           -- Error hierarchy (AmigoError base), error factory, error middleware
+    errors.ts           -- Error hierarchy (AmigoError base), error factory, is*Error guards
     retry.ts            -- Exponential backoff with jitter, Retry-After header support
     openapi-client.ts   -- Creates openapi-fetch Client with auth + error + retry middleware
     utils.ts            -- Response helpers
+    device-code.ts      -- RFC 8628 device code login
+    idempotency.ts      -- Idempotency key helper
+    reconnecting-websocket.ts -- Reconnecting WebSocket primitive for realtime helpers
+    request-options.ts  -- Per-request option types
+    url.ts              -- URL helpers
     branded-types.ts    -- Branded type aliases (WorkspaceId, AgentId, ActionId, etc.)
     rate-limit.ts       -- RateLimitInfo type, parseRateLimitHeaders()
     webhooks.ts         -- HMAC-SHA256 webhook verification, parseWebhookEvent()
-  resources/
-    actions.ts          -- Action (skill) CRUD and testing
-    agents.ts           -- Agent CRUD and versioning
-    analytics.ts        -- Call stats, event breakdown, data quality
-    api-keys.ts         -- API key management
-    tokens.ts           -- Exchange API key for identity-issued JWT (POST /token)
-    audit.ts            -- Audit log queries
-    calls.ts            -- Call list, detail, intelligence, trace analysis
-    context-graphs.ts   -- Context graph (HSM) CRUD and versioning
-    data-sources.ts     -- Connected data source management
-    integrations.ts     -- Integration CRUD, endpoint testing, health check
-    operators.ts        -- Operator CRUD, dashboard, queue, escalations, call actions
-    recordings.ts       -- Call recording access
-    services.ts         -- Service CRUD
-    settings.ts         -- Workspace settings (voice, branding, outreach, security, retention, workflows)
-    simulations.ts      -- Call simulation management
-    triggers.ts         -- Trigger CRUD, fire, pause, resume, runs
-    workspaces.ts       -- Workspace CRUD
-    world.ts            -- World model entities, events, relationships
+  resources/            -- One typed resource class per API area (list: `ls src/resources`)
+    actions.ts, agent-runs.ts, agents.ts, analytics.ts, api-keys.ts, audit.ts, base.ts,
+    billing.ts, briefs.ts, calls.ts, client-config.ts, command-center.ts, compliance.ts,
+    context-graphs.ts, conversations.ts, dashboards.ts, data-query.ts, data-sources.ts,
+    dynamic-behavior-sets.ts, events.ts, external-auth-claim-mappings.ts,
+    external-identity-bindings.ts, external-integrations.ts, external-role-assignments.ts,
+    external-roles.ts, fhir.ts, functions.ts, harnesses.ts, identity-credentials.ts,
+    identity/base.ts, insights.ts, intake.ts, integrations.ts, m42.ts, me.ts,
+    memory-dimensions.ts, metering.ts, metric-store.ts, metrics.ts, models.ts, network.ts,
+    observers.ts, operation-grants.ts, operators.ts, pipeline.ts, production-evals.ts,
+    prompt-logs.ts, recordings.ts, review-queue.ts, role-grants.ts, runs.ts,
+    scheduling-rule-sets.ts, sensorium.ts, services.ts, sessions.ts, settings.ts,
+    simulations.ts, skills.ts, sso-grants.ts, sso-group-grants.ts, sso-lifecycle.ts,
+    staging-clones.ts, surfaces.ts, test-calls.ts, tokens.ts, tools.ts, traces.ts, triggers.ts,
+    use-cases.ts, voice.ts, workspace-authentication.ts, workspace-data-queries.ts,
+    workspace-tables.ts, workspaces.ts, world.ts
   generated/
     api.ts              -- Auto-generated OpenAPI types (DO NOT EDIT)
 tests/
@@ -80,7 +82,7 @@ scripts/
 - **Strict TypeScript** -- `strict: true`, `noUncheckedIndexedAccess: true` in tsconfig.
 - **Runtime dependencies** -- `openapi-fetch` and its aligned `openapi-typescript-helpers` range support the runtime and published declarations.
 - **Dual ESM/CJS output** -- esbuild produces `dist/index.mjs` (ESM) and `dist/index.cjs` (CJS). Declarations go to `dist/types/`.
-- **Vitest** -- Test runner with coverage thresholds (85% lines, 80% branches).
+- **Vitest** -- Test runner with coverage thresholds (80% lines, 75% branches, 80% functions and statements).
 - **ESLint** -- Lint runs with `--max-warnings 0` (zero tolerance).
 - **Skills rebranded to Actions** -- `client.actions.*` (API paths still `/skills/` for backward compat).
 
@@ -88,7 +90,7 @@ scripts/
 
 ### Error Hierarchy
 
-`AmigoError` is the base class. Subclasses map to HTTP status codes (e.g., `AuthenticationError` for 401, `NotFoundError` for 404, `RateLimitError` for 429). `createApiError()` maps response status to the right error class. `createErrorMiddleware()` plugs into openapi-fetch middleware.
+`AmigoError` is the base class. Subclasses map to HTTP status codes (e.g., `AuthenticationError` for 401, `NotFoundError` for 404, `RateLimitError` for 429). `createApiError()` maps response status to the right error class. The inline error middleware in `createPlatformClient()` plugs into openapi-fetch middleware.
 
 ### Retry with Jitter
 
@@ -114,8 +116,8 @@ The codegen script uses this repository's committed `openapi.json` by default. A
 
 ## Breaking Changes
 
-Response field removal, rename, or type change breaks this SDK and all consumers (developer-console). Coordinate with `amigo-ai/platform` (spec change) and `amigo-ai/developer-console` (UI updates) before releasing a version with breaking type changes.
+Response field removal, rename, or type change breaks this SDK and all consumers (developer-console). Coordinate with `concurrence-hq/platform-v2` (spec change) and `concurrence-hq/developer-console` (UI updates) before releasing a version with breaking type changes.
 
 ## Cross-Repo Contract
 
-The SDK types are generated from the committed OpenAPI spec. When the spec changes upstream, the `spec-sync` workflow auto-opens a PR with regenerated types. Breaking changes are detected by `oasdiff` CI in the API repo.
+The SDK types are generated from the committed OpenAPI spec. The `spec-sync` workflow starts every day at 06:23 UTC (`schedule`, always the default spec URL), on a manual run and on a `spec-updated` dispatch; no scheduled run has happened yet. A run ends green when the spec is unchanged or when an open pull request from the branch already carries the change, and red when a person must act (the run's summary says what to do); a failed scheduled run is how the repository tells its maintainers the SDK is behind the public API. It downloads the production Platform API's public spec and, when the projection differs from the committed one, prints the differing JSON pointers, regenerates the types and pushes the one-commit branch `chore/sync-api-types` (only when its content differs from the remote branch). It opens no pull request (this repository does not let workflows create them): when none from the branch is open the run ends red with the link and title for a maintainer to open it (`chore: sync API types from platform (<id>)`), and merging that pull request publishes a minor release. The sync pauses when the latest closed pull request from the branch was closed unmerged and none is open (`scripts/lib/spec-sync-pause.mjs`); the pause ends when a pull request from the branch is open or one is merged after it (reopening the closed one may not be possible once its branch is deleted; then a maintainer pushes the branch by hand and opens a pull request from it). The served spec differs from the committed one beyond the internal operations it omits, so the projection restores the published compatibility operations and the schema properties the committed spec marks `x-internal` (a field the API newly marks internal never enters the SDK this way), drops name-only `tags` entries and rewrites `servers` (a url-only entry is replaced by the committed entry with the same URL, a new URL is kept after those, and a dropped URL is removed). That the projection reproduces the committed file is shown by a test on a fixture; one run on the served document (43751715977) reported only the three expected description differences, and a later one (43753707636) went through the whole workflow, pushed the branch `chore/sync-api-types` and ended red as designed. Breaking changes are detected by `oasdiff` CI in `concurrence-hq/platform-v2`.

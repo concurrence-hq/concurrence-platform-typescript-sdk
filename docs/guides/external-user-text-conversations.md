@@ -159,7 +159,7 @@ not expose refresh tokens to browsers or mobile clients.
 Use the `expires_in` value returned from `createExternalUserSession()` or
 `tokens.refresh()` to compute and persist an absolute expiry timestamp. Refresh
 proactively when the access token is close to expiry, for example with a
-60-second buffer. Also handle a `token_expired` response by refreshing once and
+60-second buffer. Also handle a 401 response by refreshing once and
 retrying the failed operation; if refresh fails, create a new external-user
 session from the parent credential.
 

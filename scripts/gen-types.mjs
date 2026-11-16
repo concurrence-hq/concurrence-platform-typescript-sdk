@@ -72,7 +72,18 @@ async function loadSpec(specSource) {
   return document
 }
 
+// The published `components["schemas"]["SafeExit"]` key is the safe-exit
+// reader response. When a second upstream class named SafeExit makes FastAPI
+// module-qualify both, keep the published key pointing at the reader schema.
+const LEGACY_SAFE_EXIT = 'SafeExit'
+const QUALIFIED_SAFE_EXIT = 'src__services__safe_exit_reader__SafeExit'
+
 function patchOpenApiDocument(input) {
+  const schemas = input.components?.schemas
+  if (schemas && !Object.hasOwn(schemas, LEGACY_SAFE_EXIT) && schemas[QUALIFIED_SAFE_EXIT]) {
+    schemas[LEGACY_SAFE_EXIT] = { $ref: `#/components/schemas/${QUALIFIED_SAFE_EXIT}` }
+  }
+
   const existingSchemas = new Set(Object.keys(input.components?.schemas ?? {}))
 
   function fixDiscriminatorMappings(obj) {
@@ -145,7 +156,10 @@ function patchOpenApiDocument(input) {
 const specSource = resolveSpecSource()
 console.log(`Generating types from: ${specSource}`)
 
-const input = patchOpenApiDocument(projectPublicOpenApi(await loadSpec(specSource)))
+const committed = fs.existsSync(REPO_SPEC)
+  ? JSON.parse(fs.readFileSync(REPO_SPEC, 'utf-8'))
+  : undefined
+const input = patchOpenApiDocument(projectPublicOpenApi(await loadSpec(specSource), committed))
 
 // Recursive "arbitrary JSON" schemas (a union whose array/object members
 // `$ref` the schema itself) are emitted by openapi-typescript as a member that

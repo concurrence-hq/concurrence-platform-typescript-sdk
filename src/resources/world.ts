@@ -377,4 +377,14 @@ export class WorldResource extends WorkspaceScopedResource {
       }),
     )
   }
+
+  /** Imports in-flight v1 text threads with their transcripts. Each thread resolves or creates the active conversation an inbound reply from the recipient would resolve to, stores the context on it, and appends the v1 messages in sent_at order. A re-run appends only messages not yet imported; threads that conflict with the live path or arrive out of order are reported, not written. Sends no message and ends no session. Admin-only; at most 100 threads of 500 messages each. */
+  async importMigrationTextThreads(body: components['schemas']['MigrationTextThreadsBody']) {
+    return extractData(
+      await this.client.POST('/v1/{workspace_id}/world/migration/text-threads', {
+        params: { path: { workspace_id: this.workspaceId } },
+        body,
+      }),
+    )
+  }
 }

@@ -20,7 +20,7 @@ export type VoiceSettingsResponse = components['schemas']['VoiceSettingsResponse
 type ExhaustiveProviderList<Union extends string, Values extends readonly Union[]> =
   Exclude<Union, Values[number]> extends never ? Values : never
 
-// Voice MODEL FAMILIES: amigo = Amigo's own pipeline (the default), gpt_realtime = OpenAI's
+// Voice MODEL FAMILIES: concurrence = Concurrence's own pipeline (the default), gpt_realtime = OpenAI's
 // GPT-Realtime family, eleven_realtime = ElevenLabs' Eleven Realtime family, gpt_live = OpenAI's
 // GPT-Live front end with the platform's reasoning engine as its backend (US workspaces without
 // regional data residency), grok_voice = xAI's Grok Voice family (workspaces without regional data
@@ -28,7 +28,7 @@ type ExhaustiveProviderList<Union extends string, Values extends readonly Union[
 // regional deployment is refused eleven_realtime, gpt_live and grok_voice. Families name models; runtimes are platform-internal. Discover each family's models,
 // voices and options with GET /v1/{workspace_id}/voice-families rather than baking them in.
 const voiceSessionProviders = [
-  'amigo',
+  'concurrence',
   'gpt_realtime',
   'eleven_realtime',
   'gpt_live',

@@ -83,6 +83,7 @@ import { EventsResource } from './resources/events.js'
 import { FunctionsResource } from './resources/functions.js'
 import { OperationGrantsResource } from './resources/operation-grants.js'
 import { ObserversResource } from './resources/observers.js'
+import { TestCallsResource } from './resources/test-calls.js'
 import { FhirResource } from './resources/fhir.js'
 import { InsightsResource } from './resources/insights.js'
 import { CommandCenterResource } from './resources/command-center.js'
@@ -107,6 +108,7 @@ import { ReviewQueueResource } from './resources/review-queue.js'
 import { M42Resource } from './resources/m42.js'
 import { MemoryDimensionsResource } from './resources/memory-dimensions.js'
 import { MeteringResource } from './resources/metering.js'
+import { HarnessesResource } from './resources/harnesses.js'
 import { MetricStoreResource } from './resources/metric-store.js'
 import { ModelsResource } from './resources/models.js'
 import { SchedulingRuleSetsResource } from './resources/scheduling-rule-sets.js'
@@ -289,6 +291,12 @@ export class AmigoClient {
    * {@link ObserversResource}.
    */
   readonly observers!: ObserversResource
+  /**
+   * Browser voice test calls over the agent-engine duplex mu-law (8 kHz, mono) WebSocket.
+   * `start()` allocates a voice runner first and is the path for deployed environments;
+   * `connect()` reaches a dedicated runner directly.
+   */
+  readonly testCalls!: TestCallsResource
   /** FHIR / EHR data interop — sync status, imports, resources, patient views */
   readonly fhir!: FhirResource
   /** Natural-language insights — schema, suggestions, SQL, chat sessions */
@@ -327,6 +335,8 @@ export class AmigoClient {
   readonly m42!: M42Resource
   readonly memoryDimensions!: MemoryDimensionsResource
   readonly metering!: MeteringResource
+  /** Platform harness defaults and releases; pins and settings are on `services` */
+  readonly harnesses!: HarnessesResource
   readonly metricStore!: MetricStoreResource
   readonly models!: ModelsResource
   readonly schedulingRuleSets!: SchedulingRuleSetsResource
@@ -585,6 +595,7 @@ export class AmigoClient {
     mutable.functions = new FunctionsResource(client, workspaceId)
     mutable.operationGrants = new OperationGrantsResource(client, workspaceId)
     mutable.observers = new ObserversResource(client, workspaceId, agentBaseUrl)
+    mutable.testCalls = new TestCallsResource(client, workspaceId, agentBaseUrl)
     mutable.fhir = new FhirResource(client, workspaceId)
     mutable.insights = new InsightsResource(client, workspaceId)
     mutable.commandCenter = new CommandCenterResource(client, workspaceId)
@@ -609,6 +620,7 @@ export class AmigoClient {
     mutable.m42 = new M42Resource(client, workspaceId)
     mutable.memoryDimensions = new MemoryDimensionsResource(client, workspaceId)
     mutable.metering = new MeteringResource(client, workspaceId)
+    mutable.harnesses = new HarnessesResource(client, workspaceId)
     mutable.metricStore = new MetricStoreResource(client, workspaceId)
     mutable.models = new ModelsResource(client, workspaceId)
     mutable.schedulingRuleSets = new SchedulingRuleSetsResource(client, workspaceId)
@@ -750,6 +762,7 @@ export type { AmigoRequestOptions, ScopedRequestOptions } from './core/request-o
 export type { RetryOptions } from './core/retry.js'
 
 export { parseRateLimitHeaders } from './core/rate-limit.js'
+export { createIdempotencyKey } from './core/idempotency.js'
 export type { RateLimitInfo } from './core/rate-limit.js'
 
 export {
@@ -828,11 +841,17 @@ export type {
   MetricListParams,
   MetricValuesParams,
   MetricTrendParams,
+  MetricDefinition,
+  MetricDefinitionRevision,
+  PutMetricDefinitionRequest,
+  MetricDefinitionListParams,
+  MetricDefinitionRevisionListParams,
 } from './resources/metrics.js'
 /** @deprecated Use `MetricValue` instead. */
 export type MetricValueResponse = MetricValueAlias
 
 export type { FireTriggerRequest, ListTriggersParams } from './resources/triggers.js'
+export type { DeleteInsightPinParams, ListInsightPinsParams } from './resources/insights.js'
 
 export type {
   CallEvalResult,
@@ -876,8 +895,20 @@ export type {
 } from './resources/dynamic-behavior-sets.js'
 
 export type {
+  HarnessKind,
+  HarnessReleaseRef,
+  ListHarnessReleasesParams,
+} from './resources/harnesses.js'
+
+export type {
   DynamicBehaviorPin,
+  GetServiceConfigurationIdentityParams,
   ListVoiceJudgeResultsParams,
+  PromoteServiceConfigurationRequest,
+  ServiceConfigurationIdentityResponse,
+  ServicePromotionReceipt,
+  SetHarnessPinsRequest,
+  SetServiceSettingsRequest,
   VoiceJudgeResult,
   VoiceJudgeResultListResponse,
 } from './resources/services.js'
@@ -993,6 +1024,16 @@ export type {
   UploadIntakeFileParams,
 } from './resources/intake.js'
 
+export type InsightsChatRequest = components['schemas']['ChatRequest']
+export type InsightSelection = components['schemas']['InsightSelection']
+export type InsightResult = components['schemas']['InsightResultResponse']
+export type InsightPublishedSource = components['schemas']['DemoSource']
+export type InsightDemoHome = components['schemas']['DemoHomeResponse']
+export type InsightPin = components['schemas']['SharedPin']
+export type InsightPinEvidence = components['schemas']['PinEvidence']
+export type InsightPinList = components['schemas']['PinListResponse']
+export type CreateInsightPinRequest = components['schemas']['CreatePinRequest']
+export type InsightPinRevisionRequest = components['schemas']['PinRevisionRequest']
 export type CallSummary = components['schemas']['CallSummary']
 export type CallDetail = components['schemas']['CallDetailResponse']
 export type CallTurn = components['schemas']['Turn']
@@ -1023,6 +1064,9 @@ export type {
   ChannelKind,
   ConversationDetail,
   ConversationSource,
+  ConversationTag,
+  ConversationTagsPatch,
+  ConversationTagsResponse,
   ConversationTurn,
   ConversationTurnAvailableAction,
   ConversationTurnStateTransition,
@@ -1053,6 +1097,32 @@ export type {
   ObserverSSEEventType,
   ObserverSubscribeOptions,
 } from './resources/observers.js'
+
+// Browser voice test-call duplex audio stream
+export { TestCallsResource, testCallAuthProtocols } from './resources/test-calls.js'
+export type {
+  TestCallAuthProtocols,
+  TestCallCloseEvent,
+  TestCallConnectOptions,
+  TestCallControlMessage,
+  TestCallAgentTranscriptEvent,
+  TestCallConversationCompleteEvent,
+  TestCallEmotionEvent,
+  TestCallEvent,
+  TestCallHandle,
+  TestCallInterruptionEvent,
+  TestCallLatencyEvent,
+  TestCallProgressEvent,
+  TestCallReadyEvent,
+  TestCallSession,
+  TestCallSessionStartedEvent,
+  TestCallSocketOptions,
+  TestCallStartOptions,
+  TestCallToolCallCompletedEvent,
+  TestCallToolCallStartedEvent,
+  TestCallUrlParams,
+  TestCallUserTranscriptEvent,
+} from './resources/test-calls.js'
 
 // Reconnecting WebSocket primitive (compose for custom realtime surfaces)
 export {

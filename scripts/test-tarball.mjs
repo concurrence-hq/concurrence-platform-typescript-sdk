@@ -89,7 +89,12 @@ try {
     fixtureDir: path.join(tempRoot, 'esm-types-fixture'),
     packageJson: { type: 'module' },
     source: [
-      "import { AmigoClient, parseRateLimitHeaders, type paths } from '@amigo-ai/platform-sdk'",
+      'import {',
+      '  AmigoClient,',
+      '  parseRateLimitHeaders,',
+      '  type components,',
+      '  type paths,',
+      "} from '@amigo-ai/platform-sdk'",
       '',
       "const client = new AmigoClient({ apiKey: 'test-key', workspaceId: 'ws-001' })",
       "const path: keyof paths = '/v1/{workspace_id}/agents'",
@@ -98,6 +103,7 @@ try {
       'void client',
       'void path',
       '',
+      ...legacySafeExitTypeChecks('components'),
     ].join('\n'),
   })
 
@@ -114,6 +120,7 @@ try {
       '',
       'void client',
       '',
+      ...legacySafeExitTypeChecks('sdk.components'),
     ].join('\n'),
   })
 
@@ -124,6 +131,41 @@ try {
   }
 
   fs.rmSync(tempRoot, { recursive: true, force: true })
+}
+
+function legacySafeExitTypeChecks(componentsType) {
+  const schema = (name) => `${componentsType}['schemas']['${name}']`
+
+  return [
+    `type SafeExit = ${schema('SafeExit')}`,
+    `type ReaderSafeExit = ${schema('src__services__safe_exit_reader__SafeExit')}`,
+    `type EvidenceSafeExit = ${schema('platform_lib__calls__evidence__CallEvidence__SafeExit')}`,
+    'type Equal<A, B> =',
+    '  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false',
+    '',
+    'const safeExit: SafeExit = {',
+    '  disclosure_heard: true,',
+    "  lines_played: ['disclosure', 'transfer', 'end', 'fallback_missed', 'hearing_failure'],",
+    "  outcome: 'mrc_transferred',",
+    "  trigger: 'stt_fatal',",
+    "  trigger_description: 'Speech recognition failed',",
+    '}',
+    "const outcomes: SafeExit['outcome'][] = ['mrc_transferred', 'mrc_ended', 'mrc_failed']",
+    'const disclosureHeard: boolean = safeExit.disclosure_heard',
+    'const triggerDescription: string = safeExit.trigger_description',
+    'const safeExitIsReaderResponse: Equal<SafeExit, ReaderSafeExit> = true',
+    'const safeExitIsNotCallEvidence: Equal<SafeExit, EvidenceSafeExit> = false',
+    '// @ts-expect-error call evidence has no lines_played or trigger_description',
+    'const evidenceAsSafeExit: SafeExit = {} as EvidenceSafeExit',
+    '',
+    'void outcomes',
+    'void disclosureHeard',
+    'void triggerDescription',
+    'void safeExitIsReaderResponse',
+    'void safeExitIsNotCallEvidence',
+    'void evidenceAsSafeExit',
+    '',
+  ]
 }
 
 function assertBuildPipeline() {

@@ -1,5 +1,119 @@
 # Changelog
 
+## [0.148.0] - 2026-11-13
+
+### Features
+
+- a service that binds no context graph (ALL-2682) (#544)
+- generate direct and workflow program types (ALL-2682) (#543)
+
+## [0.147.0] - 2026-11-13
+
+### Features
+
+- allocate and validate a hosted voice runner before connecting (#542)
+
+## [0.146.0] - 2026-11-13
+
+### Features
+
+- add mu-law browser voice test calls (#439)
+
+### Maintenance
+
+- sync final Core settings API contract (#541)
+
+## [Unreleased]
+
+### Features
+
+- `client.testCalls.start()` — allocated browser voice test calls for deployed environments. It sends one `POST /agent/test-call/start` to the configured `agentBaseUrl` (never the platform API origin, never retried, so `429` and `503` surface once), validates the actor URL the agent engine issues (`wss`, `/agent/test-call`, a host under the required `actorHostSuffixes` allowlist such as `actors-us.concurrence.com`, this workspace and service, mu-law at 8 kHz, `allocation_id`, `context_ref` exactly when `context` was sent, and no credential-named query parameter), and opens it unchanged with the token as a WebSocket subprotocol. `actorHostSuffixes` has no default and is never derived from `agentBaseUrl`. The live call id is the `session_started` event's `call_sid`; the handle's `allocationCallSid` only names the allocation. `client.testCalls.connect()` is unchanged and now documented as dedicated-runner-only: the standard agent ingress routes to the dispatcher, which does not serve the test-call socket.
+- `client.testCalls` — first-class `/agent/test-call` WebSocket resource for browser voice testing, including safe URL and subprotocol-auth construction, typed session metadata (including the `ready` frame's `output_encoding` and `output_sample_rate`, and `conversation_complete`), duplex G.711 mu-law 8 kHz mono audio passed through without transcoding (every connect sends `encoding=mulaw`), stop/close lifecycle handling, and abort support.
+
+## [0.145.0] - 2026-11-13
+
+### Features
+
+- expose configuration promotion, simulation evidence and Insights APIs (#540)
+
+## [0.144.1] - 2026-11-12
+
+### Documentation
+
+- replace mode needs workspace permissions, not platform:admin (ALL-2639) (#536)
+
+## [0.144.0] - 2026-11-12
+
+### Features
+
+- expose configuration identity (ALL-2632) (#535)
+
+## [0.143.0] - 2026-11-11
+
+### Features
+
+- expose live Playground tool execution (ALL-2621) (#534)
+
+### Maintenance
+
+- avoid duplicate package verification during publish (ALL-2622) (#533)
+
+## [0.142.0] - 2026-11-11
+
+### Maintenance
+
+- sync API types from platform (72d0169e)
+
+## [0.141.0] - 2026-11-08
+
+### Maintenance
+
+- sync API types from platform (033f48a7) (#531)
+
+## [0.140.0] - 2026-11-07
+
+### Maintenance
+
+- sync API types from platform (27d4cc8b) (#530)
+
+## [0.139.0] - 2026-11-07
+
+### Maintenance
+
+- sync API types from platform (b87d6bee) (#529)
+- sync API types from platform (6345fc95) (#528)
+
+## [0.138.0] - 2026-11-06
+
+### Features
+
+- turn idempotency keys, createIdempotencyKey and acknowledgeTurnDelivery (#520)
+
+### Maintenance
+
+- sync API types from platform (18dc18cb) (#527)
+
+## [0.137.0] - 2026-11-04
+
+### Features
+
+- add typed wrappers for every public API route (#521)
+
+### Security
+
+- clear critical and high Dependabot alerts (#518)
+
+### Bug Fixes
+
+- remove dead textStreamUrl and point observers.subscribe at /agent/observe (ALL-1300) (#524)
+- follow the caller's abort signal so aborts survive GC on Node 24 (ALL-2100) (#523)
+- page operators.list and getEscalations by continuation_token (ALL-2084) (#522)
+
+### Maintenance
+
+- sync API types from platform (b32fb594) (#525)
+- sync API types from platform (7f73981c) (#517)
+
 ## [0.136.0] - 2026-11-03
 
 ### Improvements
