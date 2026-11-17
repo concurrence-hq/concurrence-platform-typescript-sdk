@@ -15,7 +15,6 @@ describe('voice provider constants', () => {
       'eleven_realtime',
       'gpt_live',
       'grok_voice',
-      'gemini_live',
       'phonic',
     ])
   })
