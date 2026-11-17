@@ -10021,7 +10021,7 @@ export interface components {
             /** Dynamic Behaviors Configured */
             dynamic_behaviors_configured: boolean;
             /** Family */
-            family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /**
              * Family Judgement
              * @description judged: family_refusals is every refusal the voice family contract and the family's delivery rules find for this version set, empty when the family runs it as authored. not_judged: the version set could not be judged (family_not_judged says why), so family_refusals may be incomplete and an empty one is never a pass.
@@ -10326,7 +10326,7 @@ export interface components {
             /** Service Id */
             service_id?: string | null;
             /** Session Provider */
-            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /** Source */
             source?: ("real" | "simulation" | "playground") | null;
             /**
@@ -12029,7 +12029,7 @@ export interface components {
              * Session Provider
              * @description The voice runtime that handled the conversation, as its session recorded it at start: `concurrence` (also every text conversation) or `gpt_realtime`. Null when the conversation was recorded before the platform kept it, before a text conversation's first session starts, and for an external user.
              */
-            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /**
              * Source
              * @description What started the conversation. A text conversation reads ``test`` when a test key or the ``test`` marker started it, ``playground`` when the developer console Playground did, and null otherwise. A call reads the source its call intelligence recorded (``real``, ``simulation`` or ``playground``), and null when it recorded none, as a test call does.
@@ -17219,7 +17219,7 @@ export interface components {
             availability: components["schemas"]["Availability"];
             capabilities: components["schemas"]["SessionCapabilities"];
             /** Config Key */
-            config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            config_key: ("realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /**
              * Honored Settings
              * @description The service settings this family reads, as dotted paths from the service (keyterms, voice_config.silence_policy). Saving any other setting is accepted, and the family ignores it.
@@ -17229,7 +17229,7 @@ export interface components {
              * Id
              * @enum {string}
              */
-            id: "concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
+            id: "concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic";
             /** Legacy Keys */
             legacy_keys: "realtime_voice"[];
             /** Models */
@@ -17258,7 +17258,7 @@ export interface components {
             /** Dynamic Behaviors Configured */
             dynamic_behaviors_configured: boolean;
             /** Family */
-            family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            family: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /**
              * Family Judgement
              * @description judged: family_refusals is every refusal the voice family contract and the family's delivery rules find for this version set, empty when the family runs it as authored. not_judged: the version set could not be judged (family_not_judged says why), so family_refusals may be incomplete and an empty one is never a pass.
@@ -18414,67 +18414,6 @@ export interface components {
             };
             /** Output */
             output: unknown;
-        };
-        /** GeminiLiveCompressionConfig */
-        GeminiLiveCompressionConfig: {
-            /**
-             * Target Tokens
-             * @default 80000
-             */
-            target_tokens?: number;
-            /**
-             * Trigger Tokens
-             * @default 100000
-             */
-            trigger_tokens?: number;
-        };
-        /** GeminiLiveSessionConfig */
-        GeminiLiveSessionConfig: {
-            compression?: components["schemas"]["GeminiLiveCompressionConfig"];
-            /** Custom Vocabulary */
-            custom_vocabulary?: string[];
-            /** Language Code */
-            language_code?: string | null;
-            /**
-             * Model
-             * @default gemini-3.8-live
-             * @enum {string}
-             */
-            model?: "gemini-3.8-live" | "gemini-live-2.5-flash-native-audio";
-            /** Transcription Language Codes */
-            transcription_language_codes?: string[];
-            vad?: components["schemas"]["GeminiLiveVadConfig"];
-            /**
-             * Voice
-             * @default Kore
-             * @enum {string}
-             */
-            voice?: "Zephyr" | "Puck" | "Charon" | "Kore" | "Fenrir" | "Leda" | "Orus" | "Aoede" | "Callirrhoe" | "Autonoe" | "Enceladus" | "Iapetus" | "Umbriel" | "Algieba" | "Despina" | "Erinome" | "Algenib" | "Rasalgethi" | "Laomedeia" | "Achernar" | "Alnilam" | "Schedar" | "Gacrux" | "Pulcherrima" | "Achird" | "Zubenelgenubi" | "Vindemiatrix" | "Sadachbia" | "Sadaltager" | "Sulafat";
-        };
-        /** GeminiLiveVadConfig */
-        GeminiLiveVadConfig: {
-            /**
-             * End Sensitivity
-             * @default low
-             * @enum {string}
-             */
-            end_sensitivity?: "high" | "low";
-            /**
-             * Prefix Padding Ms
-             * @default 20
-             */
-            prefix_padding_ms?: number;
-            /**
-             * Silence Duration Ms
-             * @default 500
-             */
-            silence_duration_ms?: number;
-            /**
-             * Start Sensitivity
-             * @default low
-             * @enum {string}
-             */
-            start_sensitivity?: "high" | "low";
         };
         /** GetSimulationBenchmarkResultsRequest */
         GetSimulationBenchmarkResultsRequest: {
@@ -23035,7 +22974,7 @@ export interface components {
              * Family
              * @enum {string}
              */
-            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
+            family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic";
             /** Instructions */
             instructions: string;
             renderer: components["schemas"]["NameString"];
@@ -24130,7 +24069,7 @@ export interface components {
              *     it, on a text conversation before its first session starts, and on a framework run. A live
              *     in-house call reports it before its row exists.
              */
-            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /**
              * Source
              * @description What started the run's conversation: ``test`` when a test key or the ``test`` marker did, ``playground``
@@ -25971,7 +25910,6 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingConfig-Input"] | null;
-            gemini_live?: components["schemas"]["GeminiLiveSessionConfig"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
             grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
             /**
@@ -26020,7 +25958,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -26070,7 +26008,6 @@ export interface components {
             /** Filler Vocabulary */
             filler_vocabulary?: string[] | null;
             forwarding?: components["schemas"]["ServiceForwardingResponse"] | null;
-            gemini_live?: components["schemas"]["GeminiLiveSessionConfig"] | null;
             gpt_live?: components["schemas"]["GptLiveSessionConfig"] | null;
             grok_voice?: components["schemas"]["GrokVoiceSessionConfig"] | null;
             /**
@@ -26119,7 +26056,7 @@ export interface components {
              */
             realtime_voice?: ("alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar") | null;
             /** Session Provider */
-            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             silence_policy?: components["schemas"]["SilencePolicy"];
             /** Transition Deadline Ms */
             transition_deadline_ms?: number | null;
@@ -33677,7 +33614,7 @@ export interface components {
                 [key: string]: components["schemas"]["LanguageProviderEntry"];
             } | null;
             /** Session Provider */
-            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic") | null;
+            session_provider?: ("concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic") | null;
             /**
              * Similarity Boost
              * @default 0
@@ -50926,7 +50863,7 @@ export interface operations {
     "preview-service-prompt": {
         parameters: {
             query: {
-                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
+                family: "cascade" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic";
                 version_set?: components["schemas"]["NameString"];
             };
             header?: never;
@@ -56342,7 +56279,7 @@ export interface operations {
                     "application/json": components["schemas"]["TriggerResponse"];
                 };
             };
-            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for gemini_live, whose family is on the shared contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
+            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for a family on the shared voice family contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -56436,7 +56373,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for gemini_live, whose family is on the shared contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
+            /** @description Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for a family on the shared voice family contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -57220,7 +57157,7 @@ export interface operations {
             header?: never;
             path: {
                 workspace_id: string;
-                family: "concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "gemini_live" | "phonic";
+                family: "concurrence" | "gpt_realtime" | "eleven_realtime" | "gpt_live" | "grok_voice" | "phonic";
             };
             cookie?: never;
         };

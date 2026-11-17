@@ -3442,7 +3442,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -4372,7 +4371,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -8627,7 +8625,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -20325,7 +20322,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -20352,7 +20348,6 @@
               "eleven_realtime",
               "gpt_live",
               "grok_voice",
-              "gemini_live",
               "phonic"
             ],
             "title": "Id",
@@ -20458,7 +20453,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -23802,158 +23796,6 @@
           "output"
         ],
         "title": "FunctionExample",
-        "type": "object"
-      },
-      "GeminiLiveCompressionConfig": {
-        "additionalProperties": false,
-        "properties": {
-          "target_tokens": {
-            "default": 80000,
-            "maximum": 127999,
-            "minimum": 1024,
-            "title": "Target Tokens",
-            "type": "integer"
-          },
-          "trigger_tokens": {
-            "default": 100000,
-            "maximum": 128000,
-            "minimum": 5000,
-            "title": "Trigger Tokens",
-            "type": "integer"
-          }
-        },
-        "title": "GeminiLiveCompressionConfig",
-        "type": "object"
-      },
-      "GeminiLiveSessionConfig": {
-        "additionalProperties": false,
-        "properties": {
-          "compression": {
-            "$ref": "#/components/schemas/GeminiLiveCompressionConfig"
-          },
-          "custom_vocabulary": {
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            "maxItems": 100,
-            "title": "Custom Vocabulary",
-            "type": "array"
-          },
-          "language_code": {
-            "anyOf": [
-              {
-                "maxLength": 35,
-                "minLength": 2,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Language Code"
-          },
-          "model": {
-            "default": "gemini-3.8-live",
-            "enum": [
-              "gemini-3.8-live",
-              "gemini-live-2.5-flash-native-audio"
-            ],
-            "title": "Model",
-            "type": "string"
-          },
-          "transcription_language_codes": {
-            "items": {
-              "maxLength": 35,
-              "minLength": 2,
-              "type": "string"
-            },
-            "maxItems": 8,
-            "title": "Transcription Language Codes",
-            "type": "array"
-          },
-          "vad": {
-            "$ref": "#/components/schemas/GeminiLiveVadConfig"
-          },
-          "voice": {
-            "default": "Kore",
-            "enum": [
-              "Zephyr",
-              "Puck",
-              "Charon",
-              "Kore",
-              "Fenrir",
-              "Leda",
-              "Orus",
-              "Aoede",
-              "Callirrhoe",
-              "Autonoe",
-              "Enceladus",
-              "Iapetus",
-              "Umbriel",
-              "Algieba",
-              "Despina",
-              "Erinome",
-              "Algenib",
-              "Rasalgethi",
-              "Laomedeia",
-              "Achernar",
-              "Alnilam",
-              "Schedar",
-              "Gacrux",
-              "Pulcherrima",
-              "Achird",
-              "Zubenelgenubi",
-              "Vindemiatrix",
-              "Sadachbia",
-              "Sadaltager",
-              "Sulafat"
-            ],
-            "title": "Voice",
-            "type": "string"
-          }
-        },
-        "title": "GeminiLiveSessionConfig",
-        "type": "object"
-      },
-      "GeminiLiveVadConfig": {
-        "additionalProperties": false,
-        "properties": {
-          "end_sensitivity": {
-            "default": "low",
-            "enum": [
-              "high",
-              "low"
-            ],
-            "title": "End Sensitivity",
-            "type": "string"
-          },
-          "prefix_padding_ms": {
-            "default": 20,
-            "maximum": 2000,
-            "minimum": 0,
-            "title": "Prefix Padding Ms",
-            "type": "integer"
-          },
-          "silence_duration_ms": {
-            "default": 500,
-            "maximum": 2000,
-            "minimum": 0,
-            "title": "Silence Duration Ms",
-            "type": "integer"
-          },
-          "start_sensitivity": {
-            "default": "low",
-            "enum": [
-              "high",
-              "low"
-            ],
-            "title": "Start Sensitivity",
-            "type": "string"
-          }
-        },
-        "title": "GeminiLiveVadConfig",
         "type": "object"
       },
       "GetSimulationBenchmarkResultsRequest": {
@@ -34641,7 +34483,6 @@
               "eleven_realtime",
               "gpt_live",
               "grok_voice",
-              "gemini_live",
               "phonic"
             ],
             "title": "Family",
@@ -37192,7 +37033,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -41095,16 +40935,6 @@
               }
             ]
           },
-          "gemini_live": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GeminiLiveSessionConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "gpt_live": {
             "anyOf": [
               {
@@ -41319,7 +41149,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -41503,16 +41332,6 @@
               }
             ]
           },
-          "gemini_live": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GeminiLiveSessionConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "gpt_live": {
             "anyOf": [
               {
@@ -41727,7 +41546,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -59128,7 +58946,6 @@
                   "eleven_realtime",
                   "gpt_live",
                   "grok_voice",
-                  "gemini_live",
                   "phonic"
                 ],
                 "type": "string"
@@ -89840,7 +89657,6 @@
                 "eleven_realtime",
                 "gpt_live",
                 "grok_voice",
-                "gemini_live",
                 "phonic"
               ],
               "title": "Family",
@@ -97597,7 +97413,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for gemini_live, whose family is on the shared contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did."
+            "description": "Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for a family on the shared voice family contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did."
           },
           "429": {
             "description": "Rate limited"
@@ -97763,7 +97579,7 @@
             "description": "Trigger not found"
           },
           "422": {
-            "description": "Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for gemini_live, whose family is on the shared contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did."
+            "description": "Validation error. A trigger is also refused when the service its input_template.service_id names cannot run it, with an error_code: trigger_service_not_found when the workspace has no such service; and, when the action schedules outbound calls, trigger_service_outbound_family_unsupported when the service's voice family places no outbound calls (voice_family_outbound for a family on the shared voice family contract), or trigger_service_outbound_binding_missing when the service is bound to no outbound voice use case and input_template carries no phone_from in E.164 format. An update is checked only when it changes action_id, or the service_id or phone_from in input_template, so a trigger saved before these checks keeps saving and firing as it did."
           },
           "429": {
             "description": "Rate limited"
@@ -98780,7 +98596,6 @@
                 "eleven_realtime",
                 "gpt_live",
                 "grok_voice",
-                "gemini_live",
                 "phonic"
               ],
               "title": "Family",
