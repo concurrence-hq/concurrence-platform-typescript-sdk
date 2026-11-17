@@ -5613,7 +5613,7 @@ export interface paths {
         get?: never;
         /**
          * Set a service's harness pins
-         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin can also name a policy release, `policy: {repo, tag, asset, sha256}`, the values the harness runs, registered in platform-v2's `policy_releases.json` for the pin's kind and harness and carried by the running agent-engine image (`harness_policy_unregistered`, `harness_policy_not_deployed`); an `in-tree` pin can name one, and a pin without one runs the harness default's policy. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the pins are checked and even when they already match, so a stale review stores and drops nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. Requires `Service.update` permission.
+         * @description Replace the service's harness pins. A pin is `{kind, harness, repo, tag, asset, sha256}`, naming a release registered in platform-v2's `harness_releases.json` exactly, or `{kind, harness, tag: "in-tree"}`. A release has to match its registry entry on repo, tag, asset and sha256, and the entry has to be on a contract agent-engine supports, have passed conformance and not be revoked. The running agent-engine image has to carry the release: one it does not carry yet is refused with `detail.code` `harness_release_not_deployed` until agent-engine's CD deploys it. A pin can also name a policy release, `policy: {repo, tag, asset, sha256}`, the values the harness runs, registered in platform-v2's `policy_releases.json` for the pin's kind and harness and carried by the running agent-engine image (`harness_policy_unregistered`, `harness_policy_not_deployed`); an `in-tree` pin can name one, and a pin without one runs the harness default's policy. A pin's kind is the service's `channel_type`, and its harness is a family the service's version sets run: for voice the service's `voice_config.session_provider`, else its agent version's, else `concurrence`, and for text the provider family of each version set's engage model. A harness left out follows its default, so setting a pin back is the rollback. A PUT of the pins the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the pins are checked and even when they already match, so a stale review stores and drops nothing. Only Amigo administrators set a system service's pins. Every change is audited as `service.harness_pins.update`. A pin change that would leave stored settings no harness declares is refused with 422 listing them, unless `drop_orphaned` is true, which deletes them, audited as `service.settings.drop_orphaned`. The response lists what a read of the harnesses lists. Requires `Service.update` permission.
          */
         put: operations["set-service-harness-pins"];
         post?: never;
@@ -5632,7 +5632,7 @@ export interface paths {
         };
         /**
          * Get a service's harnesses
-         * @description The service's harness pins, and the release each voice and text harness runs on its calls: the service's pin, else the harness default. Requires `Service.view` permission.
+         * @description The service's harness pins, and the release each harness it runs runs on its calls: the service's pin, else the harness default. The service runs a harness of its `channel_type` for each family its version sets run, as a pin write resolves them. A harness that has a platform default, which the service stores a pin of and does not run, has a row too, naming no release, whose `error` says so. Requires `Service.view` permission.
          */
         get: operations["get-service-harnesses"];
         put?: never;
@@ -5774,12 +5774,12 @@ export interface paths {
         };
         /**
          * Get a service's harness settings
-         * @description The service's own setting values, and each declared setting of each harness it runs with its value and source: `service`, else `harness_default`. Requires `Service.view` permission.
+         * @description The service's own setting values, every one stored, and each declared setting of each harness it runs with its value and source: `service`, else `harness_default`. A value only a harness the service does not run declares shows under `settings` and in no harness. Requires `Service.view` permission.
          */
         get: operations["get-service-settings"];
         /**
          * Set a service's harness settings
-         * @description Replace the service's setting values. A key applies to every harness of the service that declares it, and its value has to satisfy each declaring spec's type, bounds and choices. A key left out runs the harness default. A PUT of the values the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the values are checked and even when they already match. Only Amigo administrators set a system service's settings. Every change is audited as `service.settings.update`. Requires `Service.update` permission.
+         * @description Replace the service's setting values. A key applies to every harness of the service that declares it, and its value has to satisfy each declaring spec's type, bounds and choices. A key left out runs the harness default. A PUT of the values the service already stores writes nothing. `expected_updated_at` refuses the write with 409 when the service's row has changed since the caller read it, before the values are checked and even when they already match. Only Amigo administrators set a system service's settings. Every change is audited as `service.settings.update`. A key only a harness the service does not run declares is accepted and stored, and shows under `settings` only. Requires `Service.update` permission.
          */
         put: operations["set-service-settings"];
         post?: never;
@@ -5798,7 +5798,7 @@ export interface paths {
         };
         /**
          * Get the settings a service's harnesses declare
-         * @description Every setting each voice and text harness the service runs declares: its type, bounds, choices, default and description, with the harness, the release it runs and the schema's version. A setting exists only when the harness declares it. Requires `Service.view` permission.
+         * @description Every setting each harness the service runs declares: its type, bounds, choices, default and description, with the harness, the release it runs and the schema's version. The service runs a harness of its `channel_type` for each family its version sets run, as a pin write resolves them. A setting exists only when the harness declares it. Requires `Service.view` permission.
          */
         get: operations["get-service-settings-schema"];
         put?: never;
@@ -15263,7 +15263,8 @@ export interface components {
             /**
              * Error
              * @description Why the harness has nothing to run on the service: its stored pin is invalid, or its pin or default names a
-             *     release or a policy the platform may no longer run (revoked, unregistered, or off the supported contract range).
+             *     release or a policy the platform may no longer run (revoked, unregistered, or off the supported contract range),
+             *     or its pin names a harness the service does not run.
              *     Set, the entry names no release and no policy, so the harness has nothing to run. None otherwise.
              */
             error: string | null;
@@ -25510,7 +25511,10 @@ export interface components {
         ServiceHarnessesResponse: {
             /**
              * Effective Harnesses
-             * @description What each harness runs on the service's calls: its pin, else the harness default.
+             * @description The release each harness the service runs has on its calls: its pin, else the harness default. The service
+             *     runs a harness of its `channel_type` for each family its version sets run, as a pin write resolves them. A harness
+             *     that has a platform default, which the service stores a pin of and does not run, has a row too, naming no
+             *     release, whose `error` says so.
              */
             effective_harnesses: components["schemas"]["EffectiveHarness"][];
             /**
@@ -25779,8 +25783,9 @@ export interface components {
             description: string;
             /**
              * Effective Harnesses
-             * @description The release each voice and text harness runs on the service's calls: its pin, else the harness default.
-             *     Set by the single-service GET and `GET /v1/{workspace_id}/services/{service_id}/harnesses`, left out of lists.
+             * @description The release each voice and text harness that has a platform default runs on the service's calls: its pin, else
+             *     the harness default. Set by the single-service GET, left out of lists. `GET .../services/{service_id}/harnesses`
+             *     lists only the harnesses the service runs.
              */
             effective_harnesses?: components["schemas"]["EffectiveHarness"][] | null;
             /**
@@ -25857,13 +25862,14 @@ export interface components {
         ServiceSettingsResponse: {
             /**
              * Harnesses
-             * @description Each harness's declared settings, resolved: the service's value (`source: service`), else the harness
-             *     default (`source: harness_default`).
+             * @description Each harness the service runs, its declared settings resolved: the service's value (`source: service`), else
+             *     the harness default (`source: harness_default`).
              */
             harnesses: components["schemas"]["HarnessSettings"][];
             /**
              * Settings
-             * @description The service's own values.
+             * @description The service's own values, every one stored, including a value only a harness the service does not run
+             *     declares.
              */
             settings: {
                 [key: string]: components["schemas"]["SettingValue"];
@@ -25873,7 +25879,9 @@ export interface components {
         ServiceSettingsSchemaResponse: {
             /**
              * Harnesses
-             * @description One entry per harness the service runs, in (kind, harness) order: its pin, else the harness default.
+             * @description One entry per harness the service runs, in (kind, harness) order: its pin, else the harness default. The
+             *     service runs a harness of its `channel_type` for each family its version sets run, as a pin write resolves
+             *     them.
              */
             harnesses: components["schemas"]["HarnessSettingsSchema"][];
         };
@@ -26332,8 +26340,8 @@ export interface components {
         SetHarnessPinsRequest: {
             /**
              * Drop Orphaned
-             * @description Delete the service's stored settings that no harness it would run on these pins declares. Left false, a save
-             *     that would orphan any is refused with 422 and lists them.
+             * @description Delete the service's stored settings that no harness that has a platform default declares on these pins. Left
+             *     false, a save that would orphan any is refused with 422 and lists them.
              * @default false
              */
             drop_orphaned?: boolean;
