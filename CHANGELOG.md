@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.154.0] - 2026-11-17
+
+### Maintenance
+
+- Refresh generated SDK types from the committed Platform API spec (#559)
+
 ## [0.153.0] - 2026-11-17
 
 ### Maintenance
